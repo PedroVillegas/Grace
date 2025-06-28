@@ -1,10 +1,10 @@
 #pragma once
 
-#include <deque>
 #include <vector>
 
 #include <vulkan/vulkan.h>
 #include <Grace/Image.hpp>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
@@ -23,7 +23,7 @@ enum class SwapchainStatus : uint8_t
     Unknown
 };
 
-struct FrameSyncGroup
+struct GRACE_EXPORT FrameSyncGroup
 {
     VkSemaphore acquireSemaphore = {};
     VkSemaphore presentSemaphore = {};
@@ -31,14 +31,18 @@ struct FrameSyncGroup
     uint32_t imageIndex = ~0U;
 };
 
-class Swapchain
+class GRACE_EXPORT Swapchain
 {
 public:
-    /// @brief Creates Swapchain and all related Vulkan objects.
-    void Create(Device* device, VkExtent2D imageExtent);
+    ~Swapchain();
+    Swapchain() = default;
+    Swapchain(Device* pDevice, VkExtent2D imageExtent);
 
-    /// @brief Free all resources used by this instance.
-    void Cleanup(Device* device);
+    Swapchain(const Swapchain&) = delete;
+    Swapchain& operator=(const Swapchain&) = delete;
+
+    Swapchain(Swapchain&& other) noexcept = delete;
+    Swapchain& operator=(Swapchain&& other) noexcept = delete;
 
     FrameSyncGroup& AcquireNextImage(Device* device, VkExtent2D imageExtent);
 
@@ -53,6 +57,10 @@ public:
     [[nodiscard]] const Image& GetRecentAcquiredImage() const;
 
 private:
+    void Create(VkExtent2D imageExtent);
+
+    void Cleanup();
+
     VkSurfaceFormatKHR SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
     VkPresentModeKHR SelectSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -60,6 +68,7 @@ private:
     VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
 
 private:
+    Device* m_Device = nullptr;
     VkSwapchainKHR m_Swapchain = {};
     std::vector<Image> m_Images = {};
     std::vector<FrameSyncGroup> m_ImageAcquiredSyncStructs = {};

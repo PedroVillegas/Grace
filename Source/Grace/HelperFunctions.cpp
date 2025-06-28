@@ -19,7 +19,7 @@ VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue*
     colourAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colourAttachment.pNext = nullptr;
 
-    colourAttachment.imageView = image.GetDefaultView().view;
+    colourAttachment.imageView = image.GetDefaultView().GetVkHandle();
     colourAttachment.imageLayout = imageLayout;
     colourAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     colourAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -40,7 +40,7 @@ VkRenderingAttachmentInfo DepthAttachmentInfo(const Image& image, VkImageLayout 
     depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depthAttachment.pNext = nullptr;
 
-    depthAttachment.imageView = image.GetDefaultView().view;
+    depthAttachment.imageView = image.GetDefaultView().GetVkHandle();
     depthAttachment.imageLayout = imageLayout;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -106,7 +106,7 @@ void CopyImageToImage(CommandBuffer cmd,
     blitInfo.regionCount = 1;
     blitInfo.pRegions = &blitRegion;
 
-    cmd.CmdBlitImage(blitInfo);
+    cmd.BlitImage(blitInfo);
 }
 
 VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
@@ -136,8 +136,8 @@ void GenerateMipmaps(CommandBuffer& cmd, const Image& image)
     assert(!cmd.IsNull());
     assert(!image.IsNull());
 
-    cmd.CmdAddMemoryBarrier(THSVS_ACCESS_TRANSFER_WRITE, THSVS_ACCESS_TRANSFER_READ);
-    cmd.CmdExecuteBarriers();
+    cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
+    cmd.PipelineBarrier();
 
     VkExtent2D imageSize = image.GetExtent2D();
     int mipLevels = int(std::floor(std::log2(std::max(image.GetWidth(), image.GetHeight())))) + 1;
@@ -158,8 +158,8 @@ void GenerateMipmaps(CommandBuffer& cmd, const Image& image)
             imageSize = halfSize;
         }
 
-        cmd.CmdAddMemoryBarrier(THSVS_ACCESS_TRANSFER_WRITE, THSVS_ACCESS_TRANSFER_READ);
-        cmd.CmdExecuteBarriers();
+        cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
+        cmd.PipelineBarrier();
     }
 }
 

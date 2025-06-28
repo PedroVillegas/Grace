@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
@@ -14,7 +15,7 @@ struct Handle;
 class Buffer;
 class Image;
 class Sampler;
-struct Pipeline;
+class Pipeline;
 
 using BufferHandle = Handle<Buffer>;
 using ImageHandle = Handle<Image>;
@@ -23,14 +24,12 @@ using PipelineHandle = Handle<Pipeline>;
 using PipelineLayoutHandle = Handle<PipelineLayout>;
 
 template <typename ResourceType>
-struct Handle
+struct GRACE_EXPORT Handle
 {
     Handle() = default;
 
-    Handle(uint32_t UUID, uint32_t Validator)
+    Handle(uint32_t UUID, uint32_t Validator) : handle(UUID), validator(Validator)
     {
-        handle = UUID;
-        validator = Validator;
     }
 
     [[nodiscard]] bool HasValidHandle() const

@@ -21,6 +21,7 @@ Checks: "*,
         -cppcoreguidelines-non-private-member-variables-in-classes,
         -misc-non-private-member-variables-in-classes,
         -hicpp-uppercase-literal-suffix,
+        -hicpp-signed-bitwise,
         -cert-dcl16-c
 "
 WarningsAsErrors: ''

@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 #include <Grace/Device.hpp>
+#include <Grace/GraceExport.h>
 
 struct GLFWwindow;
 
@@ -14,6 +14,9 @@ namespace Grace
 inline PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT_Meta;
 inline PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT_Meta;
 inline PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT_Meta;
+inline PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT_Meta;
+inline PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT_Meta;
+inline PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT_Meta;
 
 #ifdef _DEBUG
 #define VVL_ENABLED
@@ -30,16 +33,21 @@ struct ContextDesc
     DeviceDesc deviceConfig;
 };
 
-class Context
+class GRACE_EXPORT Context
 {
 public:
-    Context() = default;
     ~Context();
+    Context() = default;
+    explicit Context(const ContextDesc& desc);
 
-    /// @brief Initialise all required Vulkan objects to begin calling Vulkan commands.
-    void Initialise(const ContextDesc& desc);
+    Context(const Context&) = delete;
+    Context& operator=(const Context&) = delete;
+
+    Context(Context&&) noexcept = delete;
+    Context& operator=(Context&&) noexcept = delete;
 
     [[nodiscard]] Device* GetDevicePtr();
+
     [[nodiscard]] VkInstance& GetInstance();
 
 public:
@@ -62,11 +70,10 @@ private:
     [[nodiscard]] bool CheckValidationLayerSupport() const;
     [[nodiscard]] std::vector<const char*> GetRequiredExtensions() const;
 
-    void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) const;
-
+private:
     VkInstance m_Instance = {};
     VkDebugUtilsMessengerEXT m_DebugMessenger = {};
-    Device m_Device = {};
+    std::unique_ptr<Device> m_Device = {};
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

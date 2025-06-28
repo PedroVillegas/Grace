@@ -13,14 +13,15 @@
 namespace Grace
 {
 
+class Device;
+
 template <typename Res>
 struct RegistryEntry
 {
     template <typename... Args>
     RegistryEntry(const uint32_t Validator, Args&&... args)
+        : validator(Validator), resource(std::forward<Args>(args)...)
     {
-        validator = Validator;
-        resource.Create(std::forward<Args>(args)...);
     }
 
     Res resource = {};
@@ -48,7 +49,7 @@ public:
             Handle<Res> newHandle = m_FreeSlots.front();
             m_FreeSlots.pop();
             m_Registry[newHandle.handle].validator = newHandle.validator;
-            m_Registry[newHandle.handle].resource.Create(std::forward<Args>(args)...);
+            m_Registry[newHandle.handle].resource = Res(std::forward<Args>(args)...);
             return newHandle;
         }
 
@@ -70,8 +71,7 @@ public:
         return m_Registry[resourceHandle.handle].resource;
     }
 
-    template <typename... Args>
-    inline void Free(Handle<Res>& resourceHandle, Args&&... args)
+    inline void Free(Handle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.handle < m_Registry.size();
@@ -79,7 +79,7 @@ public:
         const bool isValidSlot = m_Registry[resourceHandle.handle].validator == resourceHandle.validator;
         assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
 
-        m_Registry[resourceHandle.handle].resource.Cleanup(std::forward<Args>(args)...);
+        m_Registry[resourceHandle.handle].resource = Res();
         m_Registry[resourceHandle.handle].validator = INVALID_VALIDATOR;
 
         // Slot is freed up and can be reused for the next resource created
@@ -116,61 +116,60 @@ private:
 class ResourceManager
 {
 public:
-    ResourceManager() = default;
-    ~ResourceManager() = default;
+    template <typename Res, typename... Args>
+    [[nodiscard]] Handle<Res> Create(Args&&... args)
+    {
+        return ResourceRegistry<Res>().Register(std::forward<Args>(args)...);
+    }
 
-    /// Free any remaining resources
-    void FreeAllResources(VkDevice device, VmaAllocator allocator);
+    template <typename Res>
+    [[nodiscard]] Res& Get(Handle<Res> handle)
+    {
+        return ResourceRegistry<Res>().Get(handle);
+    }
 
-    /// Constructs a new Image at the first free slot in the Image's Registry
-    [[nodiscard]] ImageHandle CreateImage(VkDevice device, VmaAllocator allocator, const ImageDesc& desc);
-
-    /// Fetches the Image that corresponds to `handle` from the Image's Registry
-    [[nodiscard]] Image& GetImage(const ImageHandle& handle);
+    template <typename Res>
+    void Free(Handle<Res>& handle)
+    {
+        ResourceRegistry<Res>().Free(handle);
+    }
 
     /// Fetches ALL Images found in the Image's Registry
     [[nodiscard]] std::vector<RegistryEntry<Image>>& GetAllImages();
 
-    /// Frees the Image that corresponds to `handle` from the Image's Registry
-    /// Resets `handle` to be invalid
-    void FreeImage(VkDevice device, VmaAllocator allocator, ImageHandle& handle);
+private:
+    template <typename>
+    auto& ResourceRegistry();
 
-    /// Constructs a new Buffer at the first free slot in the Buffer's Registry
-    [[nodiscard]] BufferHandle CreateBuffer(VkDevice device, VmaAllocator allocator, const BufferDesc& desc);
+    template <>
+    auto& ResourceRegistry<Image>()
+    {
+        return m_ImagesRegistry;
+    };
 
-    /// Fetches the Buffer that corresponds to `handle` from the Buffer's Registry
-    [[nodiscard]] Buffer& GetBuffer(const BufferHandle& handle);
+    template <>
+    auto& ResourceRegistry<Buffer>()
+    {
+        return m_BuffersRegistry;
+    };
 
-    /// Frees the Buffer that corresponds to `handle` from the Buffer's Registry
-    void FreeBuffer(VkDevice device, VmaAllocator allocator, BufferHandle& handle);
+    template <>
+    auto& ResourceRegistry<Sampler>()
+    {
+        return m_SamplersRegistry;
+    };
 
-    /// Constructs a new Sampler at the first free slot in the Sampler's Registry
-    [[nodiscard]] SamplerHandle CreateSampler(VkDevice device, const SamplerDesc& desc);
+    template <>
+    auto& ResourceRegistry<Pipeline>()
+    {
+        return m_PipelinesRegistry;
+    };
 
-    /// Fetches the Sampler that corresponds to `handle` from the Sampler's Registry
-    [[nodiscard]] Sampler& GetSampler(const SamplerHandle& handle);
-
-    /// Frees the Sampler that corresponds to `handle` from the Sampler's Registry
-    void FreeSampler(VkDevice device, SamplerHandle& handle);
-
-    /// Constructs a new Pipeline at the first free slot in the Pipeline's Registry
-    [[nodiscard]] PipelineHandle CreatePipeline(VkDevice device, const PipelineDesc& desc);
-
-    /// Fetches the Pipeline that corresponds to `handle` from the Pipeline's Registry
-    [[nodiscard]] Pipeline& GetPipeline(const PipelineHandle& handle);
-
-    /// Frees the Pipeline that corresponds to `handle` from the Pipeline's Registry
-    void FreePipeline(VkDevice device, PipelineHandle& handle);
-
-    /// Constructs a new Pipeline Layout at the first free slot in the Pipeline Layout's Registry
-    [[nodiscard]] PipelineLayoutHandle CreatePipelineLayout(VkDevice device, const PipelineLayoutDesc& desc);
-
-    /// Fetches the Pipeline Layout that corresponds to `handle` from the Pipeline Layout's Registry
-    [[nodiscard]] PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
-
-    /// Frees the Pipeline Layout that corresponds to `handle` from the Pipeline Layout's Registry
-    void FreePipelineLayout(VkDevice device, PipelineLayoutHandle& handle);
-
+    template <>
+    auto& ResourceRegistry<PipelineLayout>()
+    {
+        return m_PipelineLayoutsRegistry;
+    };
 
 private:
     /// Container of all images created.

@@ -13,7 +13,7 @@ bool Buffer::IsNull() const
     return (m_Buffer == nullptr || m_Allocation == nullptr);
 }
 
-VkBuffer Buffer::GetBuffer() const
+VkBuffer Buffer::GetVkHandle() const
 {
     return m_Buffer;
 }
@@ -29,19 +29,16 @@ VmaAllocation Buffer::GetAllocation() const
     return m_Allocation;
 }
 
-VmaAllocationInfo2 Buffer::GetAllocationInfo(VmaAllocator allocator) const
+VmaAllocationInfo2 Buffer::GetAllocationInfo() const
 {
-    assert(allocator != nullptr);
-
     VmaAllocationInfo2 info = {};
-    vmaGetAllocationInfo2(allocator, m_Allocation, &info);
+    vmaGetAllocationInfo2(m_Device->GetVmaHandle(), m_Allocation, &info);
     return info;
 }
 
-void Buffer::Create(VkDevice device, VmaAllocator allocator, const BufferDesc& desc)
+Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 {
-    assert(device != nullptr);
-    assert(allocator != nullptr);
+    assert(!m_Device->IsNull());
 
     // Allocate buffer
     VkBufferCreateInfo bufferInfo = {};
@@ -54,42 +51,56 @@ void Buffer::Create(VkDevice device, VmaAllocator allocator, const BufferDesc& d
     vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     vmaAllocInfo.flags = desc.allocFlags;
 
-    DebugReporter::Check(vmaCreateBuffer(allocator, &bufferInfo, &vmaAllocInfo, &m_Buffer, &m_Allocation, nullptr));
+    DebugReporter::Check(
+        vmaCreateBuffer(m_Device->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &m_Buffer, &m_Allocation, nullptr));
 
     if (desc.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
     {
-        m_DeviceAddress = GetBufferDeviceAddress(device, m_Buffer);
+        VkBufferDeviceAddressInfo deviceAddressInfo = {};
+        deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        deviceAddressInfo.pNext = nullptr;
+        deviceAddressInfo.buffer = m_Buffer;
+
+        m_DeviceAddress = vkGetBufferDeviceAddress(m_Device->GetVkHandle(), &deviceAddressInfo);
     }
 
-    VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-    nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
-    nameInfo.objectHandle = (uint64_t) m_Buffer;
-    nameInfo.pObjectName = desc.name.c_str();
-    VK_SET_DEBUG_NAME(device, &nameInfo);
+    if (m_Buffer != nullptr)
+    {
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
+        nameInfo.objectHandle = (uint64_t) m_Buffer;
+        nameInfo.pObjectName = desc.name.c_str();
+        VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
+    }
 }
 
-void Buffer::Cleanup(VmaAllocator allocator)
+Buffer::~Buffer()
 {
-    assert(allocator != nullptr);
-    vmaDestroyBuffer(allocator, m_Buffer, m_Allocation);
-    m_Buffer = {};
-    m_Allocation = {};
+    if (m_Buffer != nullptr)
+    {
+        vmaDestroyBuffer(m_Device->GetVmaHandle(), m_Buffer, m_Allocation);
+    }
 }
 
-VkDeviceAddress GetBufferDeviceAddress(VkDevice device, VkBuffer buffer)
+Buffer::Buffer(Buffer&& other) noexcept
+    : m_Device(other.m_Device), m_Buffer(other.m_Buffer), m_Allocation(other.m_Allocation),
+      m_DeviceAddress(other.m_DeviceAddress)
 {
-    assert(device != nullptr);
-    assert(buffer != nullptr);
+    other.m_Buffer = nullptr;
+}
 
-    // Find the address of the buffer
-    VkBufferDeviceAddressInfo deviceAddressInfo = {};
-    deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    deviceAddressInfo.buffer = buffer;
+Buffer& Buffer::operator=(Buffer&& other) noexcept
+{
+    vmaDestroyBuffer(m_Device->GetVmaHandle(), m_Buffer, nullptr);
 
-    VkDeviceAddress bufferAddress = vkGetBufferDeviceAddress(device, &deviceAddressInfo);
+    m_Device = other.m_Device;
+    m_Buffer = other.m_Buffer;
+    m_Allocation = other.m_Allocation;
+    m_DeviceAddress = other.m_DeviceAddress;
+    other.m_Buffer = nullptr;
 
-    return bufferAddress;
+    return *this;
 }
 
 } // namespace Grace

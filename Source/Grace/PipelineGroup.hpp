@@ -1,45 +1,57 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <string>
 #include <filesystem>
 
 #include <vulkan/vulkan.h>
-#include <vk_mem_alloc.h>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
 
-enum class PipelineType
+class Device;
+
+enum class PipelineType : uint8_t
 {
     Compute,
     Graphics
 };
 
-struct PipelineLayoutDesc
+struct GRACE_EXPORT PipelineLayoutDesc
 {
     VkPipelineLayoutCreateFlags flags;
     std::vector<VkDescriptorSetLayout> setLayouts;
     std::vector<VkPushConstantRange> pushConstantRanges;
 };
 
-class PipelineLayout
+class GRACE_EXPORT PipelineLayout
 {
 public:
-    void Create(VkDevice device, const PipelineLayoutDesc& pld);
+    ~PipelineLayout();
+    PipelineLayout() = default;
+    PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc);
 
-    void Cleanup(VkDevice device);
+    // Copy constructions/assignments are prohibited to stop destructor trying to
+    // destroy the same VkPipelineLayout handle more than once
+    PipelineLayout(const PipelineLayout&) = delete;
+    PipelineLayout& operator=(const PipelineLayout&) = delete;
+
+    PipelineLayout(PipelineLayout&& other) noexcept;
+    PipelineLayout& operator=(PipelineLayout&& other) noexcept;
 
     [[nodiscard]] bool IsNull() const;
 
     [[nodiscard]] VkPipelineLayout GetVkPipelineLayout() const;
 
 private:
-    VkPipelineLayout m_PipelineLayout = {};
+    Device* m_Device = nullptr;
+    VkPipelineLayout m_PipelineLayout = nullptr;
 };
 
 /// Description used to create a Pipeline object
-struct PipelineDesc
+struct GRACE_EXPORT PipelineDesc
 {
     /// Name used to identify the pipeline, e.g. in validation errors
     std::string name = {};
@@ -51,24 +63,42 @@ struct PipelineDesc
     VkGraphicsPipelineCreateInfo graphicsCreateInfo = {};
 };
 
-struct Pipeline
-{
-    Pipeline() = default;
-    ~Pipeline() = default;
-
-    void Create(VkDevice device, const PipelineDesc& desc);
-
-    void Cleanup(VkDevice device);
-
-    VkPipeline pipeline = {};
-};
-
-class PipelineBuilder
+class GRACE_EXPORT Pipeline
 {
 public:
-    PipelineBuilder(VkDevice device);
-    PipelineBuilder() = delete;
+    ~Pipeline();
+    Pipeline() = default;
+    Pipeline(Device* pDevice, const PipelineDesc& desc);
+
+    // Copy constructions/assignments are prohibited to stop destructor trying to
+    // destroy the same VkPipeline handle more than once
+    Pipeline(const Pipeline&) = delete;
+    Pipeline& operator=(const Pipeline&) = delete;
+
+    Pipeline(Pipeline&& other) noexcept;
+    Pipeline& operator=(Pipeline&& other) noexcept;
+
+    [[nodiscard]] bool IsNull() const;
+
+    [[nodiscard]] VkPipeline GetVkHandle() const;
+
+private:
+    Device* m_Device = nullptr;
+    VkPipeline m_Pipeline = nullptr;
+};
+
+class GRACE_EXPORT PipelineBuilder
+{
+public:
     ~PipelineBuilder();
+    PipelineBuilder() = default;
+    explicit PipelineBuilder(Device* pDevice);
+
+    PipelineBuilder(const PipelineBuilder&) = delete;
+    PipelineBuilder& operator=(const PipelineBuilder&) = delete;
+
+    PipelineBuilder(PipelineBuilder&&) noexcept = delete;
+    PipelineBuilder& operator=(PipelineBuilder&&) noexcept = delete;
 
     PipelineBuilder& BuildComputePipeline(const std::string& name, const PipelineLayout& layout);
     PipelineBuilder& BuildGraphicsPipeline(const std::string& name, const PipelineLayout& layout);
@@ -94,7 +124,7 @@ public:
     PipelineDesc pipelineDesc = {};
 
 private:
-    VkDevice m_Device = {};
+    Device* m_Device = nullptr;
 
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages = {};
     std::vector<VkShaderModule> m_ShaderModules = {};
@@ -109,14 +139,8 @@ private:
     VkPipelineRenderingCreateInfo m_RenderInfo = {};
     VkPipelineViewportStateCreateInfo m_ViewportState = {};
     VkPipelineDynamicStateCreateInfo m_DynamicInfo = {};
-    VkDynamicState m_DynamicState[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    std::array<VkDynamicState, 2> m_DynamicState = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
     VkFormat m_ColourAttachmentFormat = {};
 };
-
-void CreateComputePipeline(VkDevice device,
-                           VkPipeline* pipelineOut,
-                           VkPipelineLayout pipelineLayout,
-                           const std::filesystem::path& path,
-                           const std::string& name);
 
 } // namespace Grace

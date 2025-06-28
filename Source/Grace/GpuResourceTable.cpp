@@ -35,9 +35,16 @@ uint32_t SlotPool::FindAvailableSlot()
     return m_CurrentSlot++;
 }
 
-void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers)
+GpuResourceTable::~GpuResourceTable()
 {
-    assert(device != nullptr);
+    vkDestroyDescriptorPool(m_Device->GetVkHandle(), soleDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device->GetVkHandle(), soleDescriptorSetLayout, nullptr);
+    vkDestroyPipelineLayout(m_Device->GetVkHandle(), solePipelineLayout, nullptr);
+}
+
+GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers)
+    : m_Device(pDevice)
+{
     assert(maxImages > 0);
     assert(maxBuffers > 0);
     assert(maxSamplers > 0);
@@ -47,7 +54,7 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
     m_UniformBufferSlots.SetPoolSize(maxBuffers);
     m_SamplerSlots.SetPoolSize(maxSamplers);
 
-    m_Writer.SetDevice(device);
+    m_Writer.SetDevice(m_Device->GetVkHandle());
 
     // Pool Sizes, identical order to bindings
     std::vector<VkDescriptorPoolSize> poolSizes = { { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxImages },
@@ -64,7 +71,7 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
 
-    DebugReporter::Check(vkCreateDescriptorPool(device, &poolInfo, nullptr, &soleDescriptorPool));
+    DebugReporter::Check(vkCreateDescriptorPool(m_Device->GetVkHandle(), &poolInfo, nullptr, &soleDescriptorPool));
 
     // Enable Update-After-Bind and Partially-Bound
     // clang-format off
@@ -75,15 +82,15 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
         VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
         VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
     };
-    
+
     VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo = {};
     bindingFlagsInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
     bindingFlagsInfo.pNext         = nullptr;
     bindingFlagsInfo.bindingCount  = static_cast<uint32_t>(bindingFlags.size());
     bindingFlagsInfo.pBindingFlags = bindingFlags.data();
-    
+
     // Create global descriptor set layout
-    DescriptorLayoutBuilder builder(device);
+    DescriptorLayoutBuilder builder(m_Device->GetVkHandle());
     builder.AddBinding(STORAGE_IMAGE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxImages);
     builder.AddBinding(SAMPLED_IMAGE_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxImages);
     builder.AddBinding(COMBINED_IMAGE_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxImages);
@@ -96,7 +103,7 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
     nameInfoGDSL.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
     nameInfoGDSL.objectHandle = (uint64_t) soleDescriptorSetLayout;
     nameInfoGDSL.pObjectName = "Sole Descriptor Set Layout";
-    VK_SET_DEBUG_NAME(device, &nameInfoGDSL);
+    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDSL);
 
     // Allocate global descriptor set
     VkDescriptorSetAllocateInfo allocInfo = {};
@@ -106,13 +113,13 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &soleDescriptorSetLayout;
 
-    DebugReporter::Check(vkAllocateDescriptorSets(device, &allocInfo, &soleDescriptorSet));
+    DebugReporter::Check(vkAllocateDescriptorSets(m_Device->GetVkHandle(), &allocInfo, &soleDescriptorSet));
 
     VkDebugUtilsObjectNameInfoEXT nameInfoGDS = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
     nameInfoGDS.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET;
     nameInfoGDS.objectHandle = (uint64_t) soleDescriptorSet;
     nameInfoGDS.pObjectName = "Sole Descriptor Set";
-    VK_SET_DEBUG_NAME(device, &nameInfoGDS);
+    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDS);
 
     // Create global pipeline layout
     VkPushConstantRange pushConstants = {};
@@ -127,20 +134,13 @@ void GpuResourceTable::Initialise(VkDevice device, uint32_t maxImages, uint32_t 
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
 
-    DebugReporter::Check(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &solePipelineLayout));
+    DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &pipelineLayoutInfo, nullptr, &solePipelineLayout));
 
     VkDebugUtilsObjectNameInfoEXT nameInfoGPL = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
     nameInfoGPL.objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
     nameInfoGPL.objectHandle = (uint64_t) solePipelineLayout;
     nameInfoGPL.pObjectName = "Sole Pipeline Layout";
-    VK_SET_DEBUG_NAME(device, &nameInfoGPL);
-}
-
-void GpuResourceTable::Cleanup(VkDevice device)
-{
-    vkDestroyDescriptorPool(device, soleDescriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(device, soleDescriptorSetLayout, nullptr);
-    vkDestroyPipelineLayout(device, solePipelineLayout, nullptr);
+    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGPL);
 }
 
 void GpuResourceTable::SubmitImage(Image& image)
@@ -159,7 +159,7 @@ void GpuResourceTable::SubmitImage(Image& image)
         storageImgId = m_StorageImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(storageImgId,
                                     STORAGE_IMAGE_BINDING,
-                                    image.GetDefaultView().view,
+                                    image.GetDefaultView().GetVkHandle(),
                                     nullptr,
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -169,7 +169,7 @@ void GpuResourceTable::SubmitImage(Image& image)
         sampledImgId = m_SampledImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(sampledImgId,
                                     SAMPLED_IMAGE_BINDING,
-                                    image.GetDefaultView().view,
+                                    image.GetDefaultView().GetVkHandle(),
                                     nullptr,
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
@@ -197,19 +197,19 @@ void GpuResourceTable::SubmitImageView(ImageView& view)
 {
     uint32_t storageImgId = 0;
 
-    if (view.usageFlags & VK_IMAGE_USAGE_STORAGE_BIT)
+    if (view.GetUsageFlags() & VK_IMAGE_USAGE_STORAGE_BIT)
     {
         storageImgId = m_StorageImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(storageImgId,
                                     STORAGE_IMAGE_BINDING,
-                                    view.view,
+                                    view.GetVkHandle(),
                                     nullptr,
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
     // Set resource id
-    view.storageImgId = storageImgId;
+    view.SetStorageImgId(storageImgId);
 }
 
 void GpuResourceTable::SubmitSampler(Sampler& sampler)
@@ -225,12 +225,12 @@ void GpuResourceTable::FreeSampler(const Sampler& sampler)
     m_SamplerSlots.AppendFreeSlot(sampler.GetSamplerId());
 }
 
-void GpuResourceTable::SubmitBuffer(VmaAllocator allocator, Buffer& buffer)
+void GpuResourceTable::SubmitBuffer(const Buffer& buffer)
 {
-    VmaAllocationInfo2 allocInfo = buffer.GetAllocationInfo(allocator);
+    VmaAllocationInfo2 allocInfo = buffer.GetAllocationInfo();
 
     m_Writer.WriteBuffer(UNIFORM_BUFFER_BINDING,
-                         buffer.GetBuffer(),
+                         buffer.GetVkHandle(),
                          allocInfo.allocationInfo.size,
                          0,
                          VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);

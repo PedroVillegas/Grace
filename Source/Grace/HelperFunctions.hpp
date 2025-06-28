@@ -8,6 +8,7 @@
 #include <Grace/Image.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Context.hpp>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
@@ -23,17 +24,16 @@ void AssignDebugName(VkDevice device, VK_HANDLE handle, VkObjectType type, const
     VK_SET_DEBUG_NAME(device, &nameInfo);
 }
 
-[[nodiscard]] VkRenderingAttachmentInfo ColourAttachmentInfo(
-    const Image& image, VkClearValue* clear,
-    VkImageLayout imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+[[nodiscard]] GRACE_EXPORT VkRenderingAttachmentInfo ColourAttachmentInfo(
+    const Image& image, VkClearValue* clear, VkImageLayout imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-[[nodiscard]] VkRenderingAttachmentInfo DepthAttachmentInfo(
-    const Image& image, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+[[nodiscard]] GRACE_EXPORT VkRenderingAttachmentInfo
+DepthAttachmentInfo(const Image& image, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-[[nodiscard]] VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
-                                            uint32_t colourAttachmentCount,
-                                            const VkRenderingAttachmentInfo* pColourAttachments,
-                                            const VkRenderingAttachmentInfo* pDepthAttachment);
+[[nodiscard]] GRACE_EXPORT VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
+                                                         uint32_t colourAttachmentCount,
+                                                         const VkRenderingAttachmentInfo* pColourAttachments,
+                                                         const VkRenderingAttachmentInfo* pDepthAttachment);
 
 void CopyImageToImage(CommandBuffer cmd,
                       const Image& src,

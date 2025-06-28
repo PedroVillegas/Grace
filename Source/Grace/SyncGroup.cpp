@@ -22,92 +22,317 @@ VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask)
     return subImage;
 }
 
-BarrierBuilder& BarrierBuilder::ExecutePipelineBarrier(VkCommandBuffer cmd)
+BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
 {
-    std::vector<ThsvsAccessType> memoryBarrierPrevAccesses(m_MemoryBarrierDescs.size());
-    std::vector<ThsvsAccessType> memoryBarrierNextAccesses(m_MemoryBarrierDescs.size());
+    VkMemoryBarrier2 vkMemoryBarrier = {};
 
-    for (uint32_t i = 0; i < m_MemoryBarrierDescs.size(); ++i)
+    uint32_t memoryBarrierCount =
+        (m_MemoryBarrier.accessesBefore.empty() || m_MemoryBarrier.accessesAfter.empty()) ? 0 : 1;
+
+    uint32_t bufferMemoryBarrierCount = static_cast<uint32_t>(m_BufferBarriers.size());
+    std::vector<VkBufferMemoryBarrier2> vkBufferMemoryBarriers(bufferMemoryBarrierCount);
+
+    uint32_t imageMemoryBarrierCount = static_cast<uint32_t>(m_ImageBarriers.size());
+    std::vector<VkImageMemoryBarrier2> vkImageMemoryBarriers(imageMemoryBarrierCount);
+
+    // Global memory barrier
+    if (memoryBarrierCount > 0)
     {
-        if (m_MemoryBarrierDescs[i].prevAccess != THSVS_ACCESS_NONE)
-        {
-            memoryBarrierPrevAccesses.emplace_back(m_MemoryBarrierDescs[i].prevAccess);
-        }
+        GetVulkanMemoryBarrier(m_MemoryBarrier, vkMemoryBarrier);
+    }
 
-        if (m_MemoryBarrierDescs[i].nextAccess != THSVS_ACCESS_NONE)
+    // Buffer memory barriers
+    if (bufferMemoryBarrierCount > 0)
+    {
+        for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
         {
-            memoryBarrierNextAccesses.emplace_back(m_MemoryBarrierDescs[i].nextAccess);
+            GetVulkanBufferMemoryBarrier(m_BufferBarriers[i], vkBufferMemoryBarriers[i]);
         }
     }
 
-    ThsvsGlobalBarrier globalBarrier;
-    globalBarrier.prevAccessCount = static_cast<uint32_t>(memoryBarrierPrevAccesses.size());
-    globalBarrier.pPrevAccesses = memoryBarrierPrevAccesses.data();
-    globalBarrier.nextAccessCount = static_cast<uint32_t>(memoryBarrierNextAccesses.size());
-    globalBarrier.pNextAccesses = memoryBarrierNextAccesses.data();
-
-    std::vector<ThsvsImageBarrier> imageBarriers(m_ImageBarrierDescs.size());
-
-    for (uint32_t i = 0; i < m_ImageBarrierDescs.size(); ++i)
+    // Image memory barriers
+    if (imageMemoryBarrierCount > 0)
     {
-        ThsvsImageBarrier barrier;
-        barrier.image = m_ImageBarrierDescs[i].image;
-        barrier.prevAccessCount = 1;
-        barrier.pPrevAccesses = &m_ImageBarrierDescs[i].prevAccess;
-        barrier.nextAccessCount = 1;
-        barrier.pNextAccesses = &m_ImageBarrierDescs[i].nextAccess;
-        barrier.prevLayout = THSVS_IMAGE_LAYOUT_OPTIMAL;
-        barrier.nextLayout = THSVS_IMAGE_LAYOUT_OPTIMAL;
-        barrier.subresourceRange = ImageSubresourceRange(m_ImageBarrierDescs[i].aspectMask);
-        barrier.discardContents = false;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-        imageBarriers[i] = barrier;
+        for (uint32_t i = 0; i < imageMemoryBarrierCount; ++i)
+        {
+            GetVulkanImageMemoryBarrier(m_ImageBarriers[i], vkImageMemoryBarriers[i]);
+        }
     }
 
-    thsvsCmdPipelineBarrier(cmd,
-                            &globalBarrier,
-                            0,
-                            nullptr,
-                            static_cast<uint32_t>(imageBarriers.size()),
-                            imageBarriers.data());
+    VkDependencyInfo depInfo = {};
+    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    depInfo.pNext = nullptr;
+    depInfo.dependencyFlags = 0;
+    depInfo.memoryBarrierCount = memoryBarrierCount;
+    depInfo.pMemoryBarriers = &vkMemoryBarrier;
+    depInfo.imageMemoryBarrierCount = imageMemoryBarrierCount;
+    depInfo.pImageMemoryBarriers = vkImageMemoryBarriers.data();
+    depInfo.bufferMemoryBarrierCount = bufferMemoryBarrierCount;
+    depInfo.pBufferMemoryBarriers = vkBufferMemoryBarriers.data();
 
-    m_ImageBarrierDescs.clear();
-    m_MemoryBarrierDescs.clear();
+    vkCmdPipelineBarrier2(cmd, &depInfo);
+
+    m_MemoryBarrier.accessesBefore.clear();
+    m_MemoryBarrier.accessesAfter.clear();
+    m_ImageBarriers.clear();
+    m_BufferBarriers.clear();
 
     return *this;
 }
 
-BarrierBuilder& BarrierBuilder::AddMemoryBarrier(ThsvsAccessType prevAccess, ThsvsAccessType nextAccess)
+BarrierBuilder& BarrierBuilder::AddMemoryBarrier(std::vector<AccessType>&& accessesBefore,
+                                                 std::vector<AccessType>&& accessesAfter)
 {
-    m_MemoryBarrierDescs.emplace_back(prevAccess, nextAccess);
+    m_MemoryBarrier.accessesBefore = std::move(accessesBefore);
+    m_MemoryBarrier.accessesAfter = std::move(accessesAfter);
 
     return *this;
 }
 
-BarrierBuilder& BarrierBuilder::AddImageLayoutTransition(const Image& image,
-                                                         ThsvsAccessType prevAccess,
-                                                         ThsvsAccessType nextAccess,
-                                                         VkImageAspectFlags aspectMask)
+BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
+                                                std::vector<AccessType>&& accessesBefore,
+                                                std::vector<AccessType>&& accessesAfter)
 {
     assert(!image.IsNull());
 
-    m_ImageBarrierDescs.emplace_back(image.GetImage(), prevAccess, nextAccess, aspectMask);
+    m_ImageBarriers.emplace_back(image.GetImage(),
+                                 ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT),
+                                 std::move(accessesBefore),
+                                 std::move(accessesAfter),
+                                 ImageLayout::Optimal,
+                                 ImageLayout::Optimal,
+                                 0,
+                                 VK_QUEUE_FAMILY_IGNORED,
+                                 VK_QUEUE_FAMILY_IGNORED);
 
     return *this;
 }
 
-BarrierBuilder& BarrierBuilder::AddImageLayoutTransition(VkImage image,
-                                                         ThsvsAccessType prevAccess,
-                                                         ThsvsAccessType nextAccess,
-                                                         VkImageAspectFlags aspectMask)
+BarrierBuilder& BarrierBuilder::AddBufferBarrier(const Buffer& buffer,
+                                                 std::vector<AccessType>&& accessesBefore,
+                                                 std::vector<AccessType>&& accessesAfter)
 {
-    assert(image != nullptr);
+    assert(!buffer.IsNull());
 
-    m_ImageBarrierDescs.emplace_back(image, prevAccess, nextAccess, aspectMask);
+    m_BufferBarriers.emplace_back(buffer.GetVkHandle(),
+                                  0,
+                                  VK_WHOLE_SIZE,
+                                  std::move(accessesBefore),
+                                  std::move(accessesAfter),
+                                  VK_QUEUE_FAMILY_IGNORED,
+                                  VK_QUEUE_FAMILY_IGNORED);
 
     return *this;
+}
+
+void BarrierBuilder::GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemoryBarrier2& vkBarrierOut)
+{
+    vkBarrierOut.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    vkBarrierOut.pNext = nullptr;
+    vkBarrierOut.srcAccessMask = VK_ACCESS_2_NONE;
+    vkBarrierOut.dstAccessMask = VK_ACCESS_2_NONE;
+
+    for (uint32_t i = 0; i < barrier.accessesBefore.size(); ++i)
+    {
+        AccessType accessBefore = barrier.accessesBefore[i];
+        const AccessInfo& accessBeforeInfo = AccessTypeMap[static_cast<uint64_t>(accessBefore)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the previous access index is a valid range for the lookup
+        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+#endif
+
+        vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
+        vkBarrierOut.srcAccessMask |= accessBeforeInfo.accessMask;
+    }
+
+    for (uint32_t i = 0; i < barrier.accessesAfter.size(); ++i)
+    {
+        AccessType accessAfter = barrier.accessesAfter[i];
+        const AccessInfo& accessAfterInfo = AccessTypeMap[static_cast<uint32_t>(accessAfter)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the next access index is a valid range for the lookup
+        assert(static_cast<uint32_t>(nextAccess) < static_cast<uint32_t>(AccessType::NumOfAccessTypes));
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+#endif
+        vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
+        vkBarrierOut.dstAccessMask |= accessAfterInfo.accessMask;
+    }
+}
+
+void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier,
+                                                  VkBufferMemoryBarrier2& vkBarrierOut)
+{
+    vkBarrierOut.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    vkBarrierOut.pNext = nullptr;
+    vkBarrierOut.srcAccessMask = VK_ACCESS_2_NONE;
+    vkBarrierOut.dstAccessMask = VK_ACCESS_2_NONE;
+    vkBarrierOut.srcQueueFamilyIndex = barrier.srcQueueFamilyIndex;
+    vkBarrierOut.dstQueueFamilyIndex = barrier.dstQueueFamilyIndex;
+    vkBarrierOut.buffer = barrier.buffer;
+    vkBarrierOut.offset = barrier.offset;
+    vkBarrierOut.size = barrier.size;
+
+#ifdef THSVS_ERROR_CHECK_COULD_USE_GLOBAL_BARRIER
+    assert(barrier.srcQueueFamilyIndex != barrier.dstQueueFamilyIndex);
+#endif
+
+    for (uint32_t i = 0; i < barrier.accessesBefore.size(); ++i)
+    {
+        AccessType accessBefore = barrier.accessesBefore[i];
+        const AccessInfo& accessBeforeInfo = AccessTypeMap[static_cast<uint64_t>(accessBefore)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the previous access index is a valid range for the lookup
+        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+#endif
+
+        vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
+        vkBarrierOut.srcAccessMask |= accessBeforeInfo.accessMask;
+    }
+
+    for (uint32_t i = 0; i < barrier.accessesAfter.size(); ++i)
+    {
+        AccessType accessAfter = barrier.accessesAfter[i];
+        const AccessInfo& accessAfterInfo = AccessTypeMap[static_cast<uint64_t>(accessAfter)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the next access index is a valid range for the lookup
+        assert(nextAccess < THSVS_NUM_ACCESS_TYPES);
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+#endif
+
+        vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
+        vkBarrierOut.dstAccessMask |= accessAfterInfo.accessMask;
+    }
+}
+
+void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, VkImageMemoryBarrier2& vkBarrierOut)
+{
+    vkBarrierOut.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    vkBarrierOut.pNext = nullptr;
+    vkBarrierOut.srcAccessMask = VK_ACCESS_2_NONE;
+    vkBarrierOut.dstAccessMask = VK_ACCESS_2_NONE;
+    vkBarrierOut.srcQueueFamilyIndex = barrier.srcQueueFamilyIndex;
+    vkBarrierOut.dstQueueFamilyIndex = barrier.dstQueueFamilyIndex;
+    vkBarrierOut.image = barrier.image;
+    vkBarrierOut.subresourceRange = barrier.subresourceRange;
+    vkBarrierOut.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    vkBarrierOut.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    for (uint32_t i = 0; i < barrier.accessesBefore.size(); ++i)
+    {
+        AccessType accessBefore = barrier.accessesBefore[i];
+        const AccessInfo& accessBeforeInfo = AccessTypeMap[static_cast<uint32_t>(accessBefore)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the previous access index is a valid range for the lookup
+        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+#endif
+
+        vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
+        vkBarrierOut.srcAccessMask |= accessBeforeInfo.accessMask;
+
+        if (barrier.discardContents == VK_TRUE)
+        {
+            vkBarrierOut.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        }
+        else
+        {
+            VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            switch (barrier.prevLayout)
+            {
+            case ImageLayout::General:
+                if (accessBefore == AccessType::Present)
+                    layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                else
+                    layout = VK_IMAGE_LAYOUT_GENERAL;
+                break;
+            case ImageLayout::Optimal:
+                layout = accessBeforeInfo.imageLayout;
+                break;
+            case ImageLayout::GeneralAndPresentation:
+                layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                break;
+            }
+
+#ifdef THSVS_ERROR_CHECK_MIXED_IMAGE_LAYOUT
+            assert(vkBarrierOut.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.oldLayout == layout);
+#endif
+            vkBarrierOut.oldLayout = layout;
+        }
+    }
+
+    for (uint32_t i = 0; i < barrier.accessesAfter.size(); ++i)
+    {
+        AccessType accessAfter = barrier.accessesAfter[i];
+        const AccessInfo& accessAfterInfo = AccessTypeMap[static_cast<uint32_t>(accessAfter)];
+
+#ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
+        // Asserts that the next access index is a valid range for the lookup
+        assert(nextAccess < THSVS_NUM_ACCESS_TYPES);
+#endif
+
+#ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
+        // Asserts that the access is a read, else it's a write and it should appear on its own.
+        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+#endif
+
+        vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
+        vkBarrierOut.dstAccessMask |= accessAfterInfo.accessMask;
+
+        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        switch (barrier.nextLayout)
+        {
+        case ImageLayout::General:
+            if (accessAfter == AccessType::Present)
+                layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            else
+                layout = VK_IMAGE_LAYOUT_GENERAL;
+            break;
+        case ImageLayout::Optimal:
+            layout = accessAfterInfo.imageLayout;
+            break;
+        case ImageLayout::GeneralAndPresentation:
+            layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            break;
+        }
+
+#ifdef THSVS_ERROR_CHECK_MIXED_IMAGE_LAYOUT
+        assert(vkBarrierOut.newLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.newLayout == layout);
+#endif
+        vkBarrierOut.newLayout = layout;
+    }
+
+#ifdef THSVS_ERROR_CHECK_COULD_USE_GLOBAL_BARRIER
+    assert(vkBarrierOut.newLayout != vkBarrierOut.oldLayout
+           || vkBarrierOut.srcQueueFamilyIndex != vkBarrierOut.dstQueueFamilyIndex);
+#endif
 }
 
 } // namespace Grace

@@ -7,6 +7,8 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#include <iostream>
+
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -14,7 +16,18 @@
 namespace Grace
 {
 
-void Device::Initialise(VkInstance instance, const DeviceDesc& desc)
+Device::~Device()
+{
+    m_Swapchain.reset();
+    vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+    m_ResourceMgr.reset();
+    m_ResourceTable.reset();
+    m_CmdGroupAllocator.reset();
+    vmaDestroyAllocator(m_Allocator);
+    vkDestroyDevice(m_Device, nullptr);
+}
+
+Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(instance)
 {
     LogicalDeviceDesc ldd = {};
 
@@ -101,33 +114,23 @@ void Device::Initialise(VkInstance instance, const DeviceDesc& desc)
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
-    m_ResourceTable.Initialise(
-        m_Device, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
-    m_CmdGroupAllocator.Initialise(this);
-
-    if (desc.pGlfwWindow != nullptr)
-    {
-        m_Swapchain = std::make_shared<Swapchain>();
-    }
+    m_CmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
+    m_ResourceMgr = std::make_unique<ResourceManager>();
+    m_ResourceTable = std::make_unique<GpuResourceTable>(
+        this, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
 }
 
-void Device::Cleanup(VkInstance instance)
+bool Device::IsNull() const
 {
-    m_Swapchain->Cleanup(this);
-    vkDestroySurfaceKHR(instance, m_SurfaceKHR, nullptr);
-    m_ResourceMgr.FreeAllResources(m_Device, m_Allocator);
-    m_ResourceTable.Cleanup(m_Device);
-    m_CmdGroupAllocator.FreeAllRemaining();
-    vmaDestroyAllocator(m_Allocator);
-    vkDestroyDevice(m_Device, nullptr);
+    return m_Device == nullptr || m_Allocator == nullptr;
 }
 
-VkDevice Device::GetVkDevice() const
+VkDevice Device::GetVkHandle() const
 {
     return m_Device;
 }
 
-VmaAllocator Device::GetAllocator() const
+VmaAllocator Device::GetVmaHandle() const
 {
     return m_Allocator;
 }
@@ -179,7 +182,7 @@ void Device::Submit(QueueFamily queue,
             signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
             signalSemaphoreInfo.pNext = nullptr;
             signalSemaphoreInfo.semaphore = toSignal[i];
-            signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+            signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             signalSemaphoreInfo.deviceIndex = 0;
             signalSemaphoreInfo.value = 1;
 
@@ -222,42 +225,42 @@ SwapchainStatus Device::Present(VkSemaphore waitSemaphore, uint32_t swapchainIma
 
 VkDescriptorPool& Device::GetSoleDescriptorPool()
 {
-    return m_ResourceTable.soleDescriptorPool;
+    return m_ResourceTable->soleDescriptorPool;
 }
 
 VkDescriptorSet& Device::GetSoleDescriptorSet()
 {
-    return m_ResourceTable.soleDescriptorSet;
+    return m_ResourceTable->soleDescriptorSet;
 }
 
 VkDescriptorSetLayout& Device::GetSoleDescriptorSetLayout()
 {
-    return m_ResourceTable.soleDescriptorSetLayout;
+    return m_ResourceTable->soleDescriptorSetLayout;
 }
 
 VkPipelineLayout& Device::GetSolePipelineLayout()
 {
-    return m_ResourceTable.solePipelineLayout;
+    return m_ResourceTable->solePipelineLayout;
 }
 
 void Device::UpdateBindlessDescriptorSet()
 {
-    m_ResourceTable.UpdateTable();
+    m_ResourceTable->UpdateTable();
 }
 
 void Device::SubmitImageView(ImageView& view)
 {
-    m_ResourceTable.SubmitImageView(view);
+    m_ResourceTable->SubmitImageView(view);
 }
 
 BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 {
-    BufferHandle newHandle = m_ResourceMgr.CreateBuffer(m_Device, m_Allocator, desc);
+    BufferHandle newHandle = m_ResourceMgr->Create<Buffer>(this, desc);
 
     if (desc.usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
     {
-        Buffer& b = m_ResourceMgr.GetBuffer(newHandle);
-        m_ResourceTable.SubmitBuffer(m_Allocator, b);
+        Buffer& b = m_ResourceMgr->Get<Buffer>(newHandle);
+        m_ResourceTable->SubmitBuffer(b);
     }
 
     return newHandle;
@@ -265,99 +268,99 @@ BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 
 Buffer& Device::GetBuffer(const BufferHandle& handle)
 {
-    return m_ResourceMgr.GetBuffer(handle);
+    return m_ResourceMgr->Get<Buffer>(handle);
 }
 
 void Device::FreeBuffer(BufferHandle& handle)
 {
-    m_ResourceMgr.FreeBuffer(m_Device, m_Allocator, handle);
+    m_ResourceMgr->Free<Buffer>(handle);
 }
 
 ImageHandle Device::CreateImage(const ImageDesc& desc)
 {
-    ImageHandle newHandle = m_ResourceMgr.CreateImage(m_Device, m_Allocator, desc);
+    ImageHandle newHandle = m_ResourceMgr->Create<Image>(this, desc);
 
-    Image& t = m_ResourceMgr.GetImage(newHandle);
-    m_ResourceTable.SubmitImage(t);
+    Image& t = m_ResourceMgr->Get<Image>(newHandle);
+    m_ResourceTable->SubmitImage(t);
 
     return newHandle;
 }
 
 Image& Device::GetImage(const ImageHandle& handle)
 {
-    return m_ResourceMgr.GetImage(handle);
+    return m_ResourceMgr->Get<Image>(handle);
 }
 
 std::vector<RegistryEntry<Image>>& Device::GetAllImages()
 {
-    return m_ResourceMgr.GetAllImages();
+    return m_ResourceMgr->GetAllImages();
 }
 
 void Device::FreeImage(ImageHandle& handle)
 {
-    m_ResourceTable.FreeImage(m_ResourceMgr.GetImage(handle));
-    m_ResourceMgr.FreeImage(m_Device, m_Allocator, handle);
+    m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
+    m_ResourceMgr->Free<Image>(handle);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)
 {
-    SamplerHandle newHandle = m_ResourceMgr.CreateSampler(m_Device, desc);
+    SamplerHandle newHandle = m_ResourceMgr->Create<Sampler>(this, desc);
 
-    Sampler& s = m_ResourceMgr.GetSampler(newHandle);
-    m_ResourceTable.SubmitSampler(s);
+    Sampler& s = m_ResourceMgr->Get<Sampler>(newHandle);
+    m_ResourceTable->SubmitSampler(s);
 
     return newHandle;
 }
 
 Sampler& Device::GetSampler(const SamplerHandle& handle)
 {
-    return m_ResourceMgr.GetSampler(handle);
+    return m_ResourceMgr->Get<Sampler>(handle);
 }
 
 void Device::FreeSampler(SamplerHandle& handle)
 {
-    m_ResourceTable.FreeSampler(m_ResourceMgr.GetSampler(handle));
-    m_ResourceMgr.FreeSampler(m_Device, handle);
+    m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
+    m_ResourceMgr->Free<Sampler>(handle);
 }
 
 PipelineHandle Device::CreatePipeline(const PipelineDesc& desc)
 {
-    return m_ResourceMgr.CreatePipeline(m_Device, desc);
+    return m_ResourceMgr->Create<Pipeline>(this, desc);
 }
 
 Pipeline& Device::GetPipeline(const PipelineHandle& handle)
 {
-    return m_ResourceMgr.GetPipeline(handle);
+    return m_ResourceMgr->Get<Pipeline>(handle);
 }
 
 void Device::FreePipeline(PipelineHandle& handle)
 {
-    m_ResourceMgr.FreePipeline(m_Device, handle);
+    m_ResourceMgr->Free<Pipeline>(handle);
 }
 
 PipelineLayoutHandle Device::CreatePipelineLayout(const PipelineLayoutDesc& desc)
 {
-    return m_ResourceMgr.CreatePipelineLayout(m_Device, desc);
+    return m_ResourceMgr->Create<PipelineLayout>(this, desc);
 }
 
 PipelineLayout& Device::GetPipelineLayout(const PipelineLayoutHandle& handle)
 {
-    return m_ResourceMgr.GetPipelineLayout(handle);
+    return m_ResourceMgr->Get<PipelineLayout>(handle);
 }
 
 void Device::FreePipelineLayout(PipelineLayoutHandle& handle)
 {
-    m_ResourceMgr.FreePipelineLayout(m_Device, handle);
+    m_ResourceMgr->Free<PipelineLayout>(handle);
 }
 
 CommandPool* Device::GetCommandPool(QueueFamily queueFamily, const char* name)
 {
-    return m_CmdGroupAllocator.GetOrAllocateCommandPool(queueFamily, name);
+    return m_CmdGroupAllocator->GetOrAllocateCommandPool(queueFamily, name);
 }
 
 void Device::FreeCommandBuffer(CommandBuffer commandBuffer)
 {
-    m_CmdGroupAllocator.FreeCommandBuffer();
+    m_CmdGroupAllocator->FreeCommandBuffer();
 }
 
 uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
@@ -388,8 +391,13 @@ const FrameSyncGroup& Device::GetRecentImageAcquiredDesc()
 
 void Device::CreateSwapchain(VkExtent2D imageExtent)
 {
-    assert(m_Swapchain != nullptr);
-    m_Swapchain->Create(this, imageExtent);
+    if (m_Swapchain != nullptr)
+    {
+        WaitIdle();
+        m_Swapchain.reset();
+    }
+
+    m_Swapchain = std::make_unique<Swapchain>(this, imageExtent);
 }
 
 Swapchain& Device::GetSwapchain() const

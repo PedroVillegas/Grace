@@ -163,7 +163,7 @@ void DescriptorWriter::WriteImage(
     int binding, const Image& image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 {
     assert(!image.IsNull());
-    WriteImage(binding, image.GetDefaultView().view, sampler, layout, type);
+    WriteImage(binding, image.GetDefaultView().GetVkHandle(), sampler, layout, type);
 }
 
 void DescriptorWriter::WriteImage(
@@ -192,7 +192,7 @@ void DescriptorWriter::WriteImage(
 void DescriptorWriter::WriteBuffer(int binding, const Buffer& buffer, size_t size, size_t offset, VkDescriptorType type)
 {
     assert(!buffer.IsNull());
-    WriteBuffer(binding, buffer.GetBuffer(), size, offset, type);
+    WriteBuffer(binding, buffer.GetVkHandle(), size, offset, type);
 }
 
 void DescriptorWriter::WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type)
@@ -228,7 +228,7 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
         .sampler = sampler, 
-        .imageView = image.GetDefaultView().view,
+        .imageView = image.GetDefaultView().GetVkHandle(),
         .imageLayout = layout
     });
     // clang-format on
@@ -248,11 +248,11 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
 
 void DescriptorWriter::WriteSamplerBindless(const uint32_t resourceId, int binding, const Sampler& sampler)
 {
-    assert(sampler.GetSampler() != nullptr);
+    assert(sampler.GetVkHandle() != nullptr);
 
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
-        .sampler = sampler.GetSampler(), 
+        .sampler = sampler.GetVkHandle(), 
         .imageView = nullptr,
         .imageLayout = VK_IMAGE_LAYOUT_UNDEFINED
     });
@@ -302,7 +302,7 @@ void DescriptorWriter::WriteBufferBindless(
 
     // clang-format off
     VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
-        .buffer = buffer.GetBuffer(),
+        .buffer = buffer.GetVkHandle(),
         .offset = offset,
         .range = size
     });

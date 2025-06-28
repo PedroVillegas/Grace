@@ -6,10 +6,11 @@
 namespace Grace
 {
 
-struct ImageView;
+class ImageView;
 class Image;
 class Buffer;
 class Sampler;
+class Device;
 
 /// Permanent binding for Storage Images.
 static const uint32_t STORAGE_IMAGE_BINDING = 0U;
@@ -25,9 +26,6 @@ static const uint32_t UNIFORM_BUFFER_BINDING = 4U;
 class SlotPool
 {
 public:
-    SlotPool() = default;
-    ~SlotPool() = default;
-
     /// Set the max size of slots
     void SetPoolSize(const uint32_t maxSize);
 
@@ -52,12 +50,15 @@ private:
 class GpuResourceTable
 {
 public:
+    ~GpuResourceTable();
     GpuResourceTable() = default;
-    ~GpuResourceTable() = default;
+    GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers);
 
-    void Initialise(VkDevice device, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers);
+    GpuResourceTable(const GpuResourceTable&) = delete;
+    GpuResourceTable& operator=(const GpuResourceTable&) = delete;
 
-    void Cleanup(VkDevice device);
+    GpuResourceTable(GpuResourceTable&&) noexcept = delete;
+    GpuResourceTable& operator=(GpuResourceTable&&) noexcept = delete;
 
     /// Finds and sets an available resource id slot based on images usage flags.
     void SubmitImage(Image& image);
@@ -75,7 +76,7 @@ public:
     void FreeSampler(const Sampler& sampler);
 
     /// Finds and sets an available resource id slot for a given buffer.
-    void SubmitBuffer(VmaAllocator allocator, Buffer& buffer);
+    void SubmitBuffer(const Buffer& buffer);
 
     void UpdateTable();
 
@@ -89,6 +90,8 @@ public:
     VkPipelineLayout solePipelineLayout = {};
 
 private:
+    Device* m_Device = nullptr;
+
     /// The one and only `DescriptorWriter` to batch update the Sole Descriptor Set.
     DescriptorWriter m_Writer = {};
 

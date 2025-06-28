@@ -9,6 +9,8 @@
 #include <glfw/glfw3.h>
 #endif
 
+#include <iostream>
+
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -39,15 +41,15 @@ const Image& Swapchain::GetRecentAcquiredImage() const
     return m_Images[sync.imageIndex];
 }
 
-void Swapchain::Create(Device* device, VkExtent2D imageExtent)
+void Swapchain::Create(VkExtent2D imageExtent)
 {
-    VkPhysicalDevice physicalDevice = device->GetPhysicalDevice();
-    VkSurfaceKHR surfaceKHR = device->GetSurface();
+    VkPhysicalDevice physicalDevice = m_Device->GetPhysicalDevice();
+    VkSurfaceKHR surfaceKHR = m_Device->GetSurface();
 
-    SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surfaceKHR);
+    const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surfaceKHR);
 
-    VkSurfaceFormatKHR surfaceFormat = SelectSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR presentMode = SelectSwapPresentMode(swapChainSupport.presentModes);
+    const VkSurfaceFormatKHR surfaceFormat = SelectSwapSurfaceFormat(swapChainSupport.formats);
+    const VkPresentModeKHR presentMode = SelectSwapPresentMode(swapChainSupport.presentModes);
 #ifdef NO_VSYNC
     presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 #endif
@@ -79,10 +81,10 @@ void Swapchain::Create(Device* device, VkExtent2D imageExtent)
     createInfo.clipped = true;
     createInfo.oldSwapchain = m_Swapchain;
 
-    std::array<uint32_t, 2> queueFamilyIndices = { device->GetQueueFamilyIndex(QueueFamily::Graphics),
-                                                   device->GetQueueFamilyIndex(QueueFamily::Present) };
+    std::array<uint32_t, 2> queueFamilyIndices = { m_Device->GetQueueFamilyIndex(QueueFamily::Graphics),
+                                                   m_Device->GetQueueFamilyIndex(QueueFamily::Present) };
 
-    if (device->GetQueueFamilyIndex(QueueFamily::Graphics) != device->GetQueueFamilyIndex(QueueFamily::Present))
+    if (m_Device->GetQueueFamilyIndex(QueueFamily::Graphics) != m_Device->GetQueueFamilyIndex(QueueFamily::Present))
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
@@ -95,28 +97,28 @@ void Swapchain::Create(Device* device, VkExtent2D imageExtent)
         createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
-    device->WaitIdle();
+    m_Device->WaitIdle();
     VkSwapchainKHR tempSwapchain = {};
-    DebugReporter::Check(vkCreateSwapchainKHR(device->GetVkDevice(), &createInfo, nullptr, &tempSwapchain));
+    DebugReporter::Check(vkCreateSwapchainKHR(m_Device->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
     assert(tempSwapchain != nullptr);
 
     if (m_Swapchain != nullptr)
     {
-        Cleanup(device);
+        Cleanup();
     }
 
     m_Swapchain = tempSwapchain;
 
     std::vector<VkImage> tempImages = {};
-    vkGetSwapchainImagesKHR(device->GetVkDevice(), m_Swapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(m_Device->GetVkHandle(), m_Swapchain, &imageCount, nullptr);
     tempImages.resize(imageCount);
     m_Images.resize(imageCount);
-    vkGetSwapchainImagesKHR(device->GetVkDevice(), m_Swapchain, &imageCount, tempImages.data());
+    vkGetSwapchainImagesKHR(m_Device->GetVkHandle(), m_Swapchain, &imageCount, tempImages.data());
 
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
-        m_Images[i].CreateForSwapchain(
-            device->GetVkDevice(),
+        m_Images[i] = Image(
+            m_Device,
             tempImages[i],
             {
                 .name = "Swapchain " + std::to_string(i),
@@ -134,32 +136,40 @@ void Swapchain::Create(Device* device, VkExtent2D imageExtent)
         semaphoreInfo.pNext = nullptr;
         semaphoreInfo.flags = 0;
 
-        DebugReporter::Check(vkCreateSemaphore(device->GetVkDevice(), &semaphoreInfo, nullptr, &sync.acquireSemaphore));
-        DebugReporter::Check(vkCreateSemaphore(device->GetVkDevice(), &semaphoreInfo, nullptr, &sync.presentSemaphore));
+        DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.acquireSemaphore));
+        DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.presentSemaphore));
 
         VkFenceCreateInfo fenceInfo = {};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.pNext = nullptr;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        DebugReporter::Check(vkCreateFence(device->GetVkDevice(), &fenceInfo, nullptr, &sync.inFlightFence));
+        DebugReporter::Check(vkCreateFence(m_Device->GetVkHandle(), &fenceInfo, nullptr, &sync.inFlightFence));
     }
 }
 
-void Swapchain::Cleanup(Device* device)
+void Swapchain::Cleanup()
 {
-    for (auto& img : m_Images)
-    {
-        vkDestroyImageView(device->GetVkDevice(), img.GetDefaultView().view, nullptr);
-    }
-
     for (auto& sync : m_ImageAcquiredSyncStructs)
     {
-        vkDestroySemaphore(device->GetVkDevice(), sync.acquireSemaphore, nullptr);
-        vkDestroySemaphore(device->GetVkDevice(), sync.presentSemaphore, nullptr);
-        vkDestroyFence(device->GetVkDevice(), sync.inFlightFence, nullptr);
+        vkDestroySemaphore(m_Device->GetVkHandle(), sync.acquireSemaphore, nullptr);
+        vkDestroySemaphore(m_Device->GetVkHandle(), sync.presentSemaphore, nullptr);
+        vkDestroyFence(m_Device->GetVkHandle(), sync.inFlightFence, nullptr);
     }
 
-    vkDestroySwapchainKHR(device->GetVkDevice(), m_Swapchain, nullptr);
+    // Destroys VkSwapchain and VkImages
+    vkDestroySwapchainKHR(m_Device->GetVkHandle(), m_Swapchain, nullptr);
+}
+
+Swapchain::~Swapchain()
+{
+    Cleanup();
+}
+
+Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent) : m_Device(pDevice)
+{
+    assert(!m_Device->IsNull());
+
+    Create(imageExtent);
 }
 
 FrameSyncGroup& Swapchain::AcquireNextImage(Device* device, VkExtent2D imageExtent)
@@ -171,12 +181,12 @@ FrameSyncGroup& Swapchain::AcquireNextImage(Device* device, VkExtent2D imageExte
 
     // Acquire an image from the swap chain
     VkResult result = vkAcquireNextImageKHR(
-        device->GetVkDevice(), m_Swapchain, UINT64_MAX, frameSync.acquireSemaphore, nullptr, &frameSync.imageIndex);
+        device->GetVkHandle(), m_Swapchain, UINT64_MAX, frameSync.acquireSemaphore, nullptr, &frameSync.imageIndex);
 
     // Check if swap chain is still adequate to present
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        Create(device, imageExtent);
+        Create(imageExtent);
         m_SwapchainStatus = SwapchainStatus::ShouldResize;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)

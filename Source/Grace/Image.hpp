@@ -4,16 +4,58 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
 
+class Device;
 class Image;
 
-inline VkImageUsageFlags DefaultImageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+struct GRACE_EXPORT ImageViewDesc
+{
+    std::string name;
+    Image* image;
+    uint32_t mipLevel;
+    uint32_t levelCount;
+};
+
+class GRACE_EXPORT ImageView
+{
+public:
+    ~ImageView();
+    ImageView() = default;
+    ImageView(Device* pDevice, const ImageViewDesc& desc);
+
+    // Copy constructions/assignments are prohibited to stop destructor trying to
+    // destroy the same VkImageView handle more than once
+    ImageView(const ImageView&) = delete;
+    ImageView& operator=(const ImageView&) = delete;
+
+    ImageView(ImageView&& other) noexcept;
+    ImageView& operator=(ImageView&& other) noexcept;
+
+    [[nodiscard]] bool IsNull() const;
+
+    [[nodiscard]] VkImageView GetVkHandle() const;
+
+    void MakeNull();
+
+    [[nodiscard]] uint32_t GetStorageImgId() const;
+
+    void SetStorageImgId(uint32_t storageImgId);
+
+    [[nodiscard]] VkImageUsageFlags GetUsageFlags() const;
+
+private:
+    Device* m_Device = nullptr;
+    Image* m_ParentImage = nullptr;
+    VkImageView m_View = nullptr;
+    uint32_t m_StorageImgId = 0;
+};
 
 /// Description used to create an Image object
-struct ImageDesc
+struct GRACE_EXPORT ImageDesc
 {
     /// Name used to identify the image, e.g. in validation errors
     std::string name;
@@ -27,38 +69,27 @@ struct ImageDesc
     bool mipmapped;
 };
 
-struct ImageView
-{
-    const Image* image = nullptr;
-    VkImageView view = {};
-    VkImageUsageFlags usageFlags = {};
-    uint32_t storageImgId = {};
-
-    void Create(VkDevice device,
-                const std::string& name,
-                const Image& image,
-                uint32_t mipLevel,
-                uint32_t levelCount);
-};
-
-class Image
+class GRACE_EXPORT Image
 {
 public:
+    ~Image();
     Image() = default;
-    ~Image() = default;
+    Image(Device* pDevice, const ImageDesc& desc);
+    Image(Device* pDevice, VkImage image, const ImageDesc& desc); // Specifically for swapchain images
 
-    void Create(VkDevice device, VmaAllocator allocator, const ImageDesc& desc);
+    // Copy constructions/assignments are prohibited to stop destructor trying to
+    // destroy the same VkImage handle more than once
+    Image(const Image&) = delete;
+    Image& operator=(const Image&) = delete;
 
-    void CreateForSwapchain(VkDevice device, VkImage img, const ImageDesc& desc);
-
-    /// Free all resources used by this instance.
-    void Cleanup(VkDevice device, VmaAllocator allocator);
+    Image(Image&& other) noexcept;
+    Image& operator=(Image&& other) noexcept;
 
     /// Sets index to resource in bindless array of Storage Images for access on GPU.
-    void SetStorageImgId(const uint32_t id);
+    void SetStorageImgId(uint32_t id);
 
     /// Sets index to resource in bindless array of Sampled Images for access on GPU.
-    void SetSampledImgId(const uint32_t id);
+    void SetSampledImgId(uint32_t id);
 
     /// @returns Index to resource in bindless array of Storage Images for access on GPU.
     [[nodiscard]] uint32_t GetStorageImgId() const;
@@ -96,39 +127,33 @@ public:
     /// @returns Depth of image.
     [[nodiscard]] uint32_t GetDepth() const;
 
+    [[nodiscard]] uint32_t GetMaxMipLevels() const;
+
     /// @returns Usage flags used to create image.
     [[nodiscard]] VkImageUsageFlags GetUsageFlags() const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
     [[nodiscard]] VmaAllocation GetAllocation() const;
 
-    /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g allocation size.
-    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo(VmaAllocator allocator) const;
-
-    /// @returns Debug name of image.
-    [[nodiscard]] const std::string& GetName() const;
+    /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
+    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
-    [[nodiscard]] VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags);
+    [[nodiscard]] VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
 
-    std::string m_Name = {};
-    VkImage m_Image = {};
+    Device* m_Device = nullptr;
     ImageView m_DefaultView = {};
-    VmaAllocation m_Allocation = {};
+    VkImage m_Image = nullptr;
+    VmaAllocation m_Allocation = nullptr;
     VkExtent3D m_Extent = {};
     VkFormat m_Format = {};
     VkImageUsageFlags m_UsageFlags = {};
 
     // For bindless
-    uint32_t m_StorageImgId = {};
-    uint32_t m_SampledImgId = {};
+    uint32_t m_StorageImgId = 0;
+    uint32_t m_SampledImgId = 0;
 
     bool m_IsSwapchainImage = false;
 };
-
-[[nodiscard]] VkImageView CreateImageView(
-    VkDevice device, const std::string& name, VkImage image, VkFormat format, uint32_t mipLevel, uint32_t levelCount);
-
-[[nodiscard]] uint32_t GetMaxMipLevels(uint32_t width, uint32_t height);
 
 } // namespace Grace

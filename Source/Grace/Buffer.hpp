@@ -4,14 +4,15 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
 
-[[nodiscard]] VkDeviceAddress GetBufferDeviceAddress(VkDevice device, VkBuffer buffer);
+class Device;
 
 /// Description used to create a Buffer object
-struct BufferDesc
+struct GRACE_EXPORT BufferDesc
 {
     /// Name used to identify the buffer, e.g. in validation errors
     std::string name;
@@ -23,35 +24,41 @@ struct BufferDesc
     VmaAllocationCreateFlags allocFlags;
 };
 
-class Buffer
+class GRACE_EXPORT Buffer
 {
 public:
+    ~Buffer();
     Buffer() = default;
-    ~Buffer() = default;
+    Buffer(Device* pDevice, const BufferDesc& desc);
 
-    void Create(VkDevice device, VmaAllocator allocator, const BufferDesc& desc);
+    // Copy constructions/assignments are prohibited to stop destructor trying to
+    // destroy the same VkBuffer handle more than once
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
 
-    void Cleanup(VmaAllocator allocator);
+    Buffer(Buffer&& other) noexcept;
+    Buffer& operator=(Buffer&& other) noexcept;
 
     /// @returns `true` if associated `VkBuffer` or `VmaAllocation` are null.
     [[nodiscard]] bool IsNull() const;
 
     /// @returns `VkBuffer` which holds the actual data of the buffer.
-    [[nodiscard]] VkBuffer GetBuffer() const;
+    [[nodiscard]] VkBuffer GetVkHandle() const;
 
     /// @returns Pointer to the memory location of the buffer on the device.
-    [[nodiscard]] VkDeviceAddress GetBDA() const;
+    [[nodiscard]] uint64_t GetBDA() const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
     [[nodiscard]] VmaAllocation GetAllocation() const;
 
-    /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g allocation size.
-    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo(VmaAllocator allocator) const;
+    /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
+    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
-    VkBuffer m_Buffer = {};
-    VmaAllocation m_Allocation = {};
-    VkDeviceAddress m_DeviceAddress = {};
+    Device* m_Device = nullptr;
+    VkBuffer m_Buffer = nullptr;
+    VmaAllocation m_Allocation = nullptr;
+    uint64_t m_DeviceAddress = 0;
 };
 
 } // namespace Grace

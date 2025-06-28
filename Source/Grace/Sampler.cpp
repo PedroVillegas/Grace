@@ -1,5 +1,7 @@
 #include "Sampler.hpp"
 
+#include "Device.hpp"
+
 #include <cassert>
 
 #include <Grace/DebugReporter.hpp>
@@ -7,29 +9,17 @@
 namespace Grace
 {
 
-Sampler::Sampler(VkDevice device, const SamplerDesc& desc)
+Sampler::~Sampler()
 {
-    Create(device, desc);
+    if (m_Sampler != nullptr)
+    {
+        vkDestroySampler(m_Device->GetVkHandle(), m_Sampler, nullptr);
+    }
 }
 
-VkSampler Sampler::GetSampler() const
+Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : m_Device(pDevice)
 {
-    return m_Sampler;
-}
-
-void Sampler::SetSamplerId(const uint32_t id)
-{
-    m_SamplerId = id;
-}
-
-uint32_t Sampler::GetSamplerId() const
-{
-    return m_SamplerId;
-}
-
-void Sampler::Create(VkDevice device, const SamplerDesc& desc)
-{
-    assert(device != nullptr);
+    assert(!m_Device->IsNull());
 
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -43,12 +33,46 @@ void Sampler::Create(VkDevice device, const SamplerDesc& desc)
     samplerInfo.addressModeV = desc.addressMode;
     samplerInfo.addressModeW = desc.addressMode;
 
-    DebugReporter::Check(vkCreateSampler(device, &samplerInfo, nullptr, &m_Sampler));
+    DebugReporter::Check(vkCreateSampler(m_Device->GetVkHandle(), &samplerInfo, nullptr, &m_Sampler));
 }
 
-void Sampler::Cleanup(VkDevice device)
+Sampler::Sampler(Sampler&& other) noexcept : m_Device(other.m_Device), m_Sampler(other.m_Sampler)
 {
-    vkDestroySampler(device, m_Sampler, nullptr);
+    other.m_Sampler = nullptr;
+}
+
+Sampler& Sampler::operator=(Sampler&& other) noexcept
+{
+    if (m_Sampler != nullptr)
+    {
+        vkDestroySampler(m_Device->GetVkHandle(), m_Sampler, nullptr);
+    }
+
+    m_Device = other.m_Device;
+    m_Sampler = other.m_Sampler;
+    other.m_Sampler = nullptr;
+
+    return *this;
+}
+
+bool Sampler::IsNull() const
+{
+    return m_Sampler == nullptr;
+}
+
+VkSampler Sampler::GetVkHandle() const
+{
+    return m_Sampler;
+}
+
+void Sampler::SetSamplerId(const uint32_t id)
+{
+    m_SamplerId = id;
+}
+
+uint32_t Sampler::GetSamplerId() const
+{
+    return m_SamplerId;
 }
 
 } // namespace Grace

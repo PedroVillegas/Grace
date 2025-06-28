@@ -14,6 +14,8 @@
 namespace Grace
 {
 
+#define GRACE_LOAD_PFN_EXT(instance, fn) reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
+
 VkInstance& Context::GetInstance()
 {
     return m_Instance;
@@ -21,38 +23,39 @@ VkInstance& Context::GetInstance()
 
 Context::~Context()
 {
-    m_Device.WaitIdle();
+    m_Device->WaitIdle();
 
     if (ENABLE_VALIDATION_LAYERS)
     {
         vkDestroyDebugUtilsMessengerEXT_Meta(m_Instance, m_DebugMessenger, nullptr);
     }
 
-    m_Device.Cleanup(m_Instance);
+    m_Device.reset();
     vkDestroyInstance(m_Instance, nullptr);
 }
 
-void Context::Initialise(const ContextDesc& desc)
+Context::Context(const ContextDesc& desc)
 {
     vkCreateDebugUtilsMessengerEXT_Meta = nullptr;
     vkDestroyDebugUtilsMessengerEXT_Meta = nullptr;
     vkSetDebugUtilsObjectNameEXT_Meta = nullptr;
+    vkCmdBeginDebugUtilsLabelEXT_Meta = nullptr;
+    vkCmdEndDebugUtilsLabelEXT_Meta = nullptr;
+    vkCmdInsertDebugUtilsLabelEXT_Meta = nullptr;
 
     CreateInstance();
     SetupDebugMessenger();
 
-    m_Device.Initialise(m_Instance, desc.deviceConfig);
+    m_Device = std::make_unique<Device>(m_Instance, desc.deviceConfig);
 }
 
 Device* Context::GetDevicePtr()
 {
-    return &m_Device;
+    return m_Device.get();
 }
 
 void Context::CreateInstance()
 {
-    // Initialize the Vulkan library by creating a Vulkan Instance
-
     if (ENABLE_VALIDATION_LAYERS && !CheckValidationLayerSupport())
     {
         std::cout << "Validation layers requested, but not available!\n";
@@ -73,40 +76,44 @@ void Context::CreateInstance()
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_4;
 
-    VkInstanceCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledLayerCount = 0;
-    createInfo.pNext = ENABLE_GPU_ASSISTED_VALIDATION ? &features : nullptr;
+    VkInstanceCreateInfo ici = {};
+    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    ici.pApplicationInfo = &appInfo;
+    ici.enabledLayerCount = 0;
+    ici.pNext = ENABLE_GPU_ASSISTED_VALIDATION ? &features : nullptr;
 
     // Define the global extensions and validation layers we want to use
     std::vector<const char*> extensions = GetRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
+    ici.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    ici.ppEnabledExtensionNames = extensions.data();
 
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
+    VkDebugUtilsMessengerCreateInfoEXT dci = {};
     if (ENABLE_VALIDATION_LAYERS)
     {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-        createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+        ici.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+        ici.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
-        PopulateDebugMessengerCreateInfo(debugCreateInfo);
-        debugCreateInfo.pNext = ENABLE_GPU_ASSISTED_VALIDATION ? &features : nullptr;
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        dci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        dci.pNext = ENABLE_GPU_ASSISTED_VALIDATION ? &features : nullptr;
+        dci.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        dci.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                        | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        dci.pfnUserCallback = DebugCallback;
+        ici.pNext = &dci;
     }
 
-    DebugReporter::Check(vkCreateInstance(&createInfo, nullptr, &m_Instance));
+    DebugReporter::Check(vkCreateInstance(&ici, nullptr, &m_Instance));
 
     if (ENABLE_VALIDATION_LAYERS)
     {
-        vkCreateDebugUtilsMessengerEXT_Meta =
-            (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance, "vkCreateDebugUtilsMessengerEXT");
-        vkDestroyDebugUtilsMessengerEXT_Meta =
-            (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance, "vkDestroyDebugUtilsMessengerEXT");
-        vkSetDebugUtilsObjectNameEXT_Meta =
-            (PFN_vkSetDebugUtilsObjectNameEXT) vkGetInstanceProcAddr(m_Instance, "vkSetDebugUtilsObjectNameEXT");
-        assert(vkCreateDebugUtilsMessengerEXT_Meta && vkDestroyDebugUtilsMessengerEXT_Meta
-               && vkSetDebugUtilsObjectNameEXT_Meta);
+        vkCreateDebugUtilsMessengerEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCreateDebugUtilsMessengerEXT);
+        vkDestroyDebugUtilsMessengerEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkDestroyDebugUtilsMessengerEXT);
+        vkSetDebugUtilsObjectNameEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkSetDebugUtilsObjectNameEXT);
+        vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdBeginDebugUtilsLabelEXT);
+        vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdEndDebugUtilsLabelEXT);
+        vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdInsertDebugUtilsLabelEXT);
     }
 }
 
@@ -115,10 +122,18 @@ void Context::SetupDebugMessenger()
     if (!ENABLE_VALIDATION_LAYERS)
         return;
 
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    PopulateDebugMessengerCreateInfo(createInfo);
+    const VkDebugUtilsMessengerCreateInfoEXT dci = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+        .pNext = nullptr,
+        .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                         | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                         | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+        .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                     | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        .pfnUserCallback = DebugCallback,
+    };
 
-    DebugReporter::Check(vkCreateDebugUtilsMessengerEXT_Meta(m_Instance, &createInfo, nullptr, &m_DebugMessenger));
+    DebugReporter::Check(vkCreateDebugUtilsMessengerEXT_Meta(m_Instance, &dci, nullptr, &m_DebugMessenger));
 }
 
 bool Context::CheckValidationLayerSupport() const
@@ -182,18 +197,6 @@ std::vector<const char*> Context::GetRequiredExtensions() const
     return extensions;
 }
 
-void Context::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) const
-{
-    createInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-                   .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-                   .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                                | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                                | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                   .pfnUserCallback = DebugCallback };
-}
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -202,7 +205,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
         // Message is important enough to show
-        std::cout << "\033[1;31m[ERROR]\033[0m " << pCallbackData->pMessage << "\n";
+        std::cout << "[ERROR] " << pCallbackData->pMessage << "\n";
     }
 
     return VK_FALSE;

@@ -9,6 +9,7 @@
 #include <Grace/Buffer.hpp>
 #include <Grace/Types.hpp>
 #include <Grace/SyncGroup.hpp>
+#include <Grace/GraceExport.h>
 
 namespace Grace
 {
@@ -33,40 +34,50 @@ enum class QueueFamily : uint32_t
 
 class CommandBuffer;
 
-class CommandPool
+class GRACE_EXPORT CommandPool
 {
 public:
-    CommandPool(VkCommandPool commandPool, QueueFamily queueFamily);
-    ~CommandPool() = default;
+    ~CommandPool();
+    CommandPool(Device* pDevice, VkCommandPool commandPool, QueueFamily queueFamily);
 
-    void DestroyIfNotNull(VkDevice device);
+    CommandPool(const CommandPool&) = delete;
+    CommandPool& operator=(const CommandPool&) = delete;
 
-    void Reset(Device* device);
+    CommandPool(CommandPool&& other) noexcept;
+    CommandPool& operator=(CommandPool&& other) noexcept;
 
-    [[nodiscard]] CommandBuffer GetOrAllocateCommandBuffer(Device* device);
+    void Reset();
+
+    [[nodiscard]] CommandBuffer GetOrAllocateCommandBuffer();
 
     [[nodiscard]] QueueFamily GetQueueFamily() const;
 
     [[nodiscard]] VkCommandPool GetVkCommandPool() const;
 
 private:
-    VkCommandPool m_CommandPool = {};
+    Device* m_Device = nullptr;
+    VkCommandPool m_CommandPool = nullptr;
     QueueFamily m_QueueFamily = QueueFamily::Invalid;
     std::vector<VkCommandBuffer> m_CommandBuffers = {};
     uint32_t m_CommandBuffersInUse = 0;
 };
 
-class CommandBuffer
+class GRACE_EXPORT CommandBuffer
 {
 public:
-    explicit CommandBuffer(VkCommandBuffer cmdBuffer);
+    ~CommandBuffer() = default;
     CommandBuffer() = default;
+    CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily);
 
-    void Set(VkCommandBuffer cmdBuffer);
+    CommandBuffer(const CommandBuffer&) = default;
+    CommandBuffer& operator=(const CommandBuffer&) = default;
 
-    [[nodiscard]] VkCommandBuffer GetVkCommandBuffer() const;
+    CommandBuffer(CommandBuffer&&) noexcept = default;
+    CommandBuffer& operator=(CommandBuffer&&) noexcept = default;
 
     [[nodiscard]] bool IsNull() const;
+
+    [[nodiscard]] VkCommandBuffer GetVkCommandBuffer() const;
 
     /// UNIVERSAL OPS
 
@@ -77,88 +88,101 @@ public:
 
     void EndRecording() const;
 
-    void CmdBindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
-                               VkPipelineLayout layout,
-                               uint32_t firstSet,
-                               const std::vector<VkDescriptorSet>& descriptorSets) const;
+    void BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
+                            VkPipelineLayout layout,
+                            uint32_t firstSet,
+                            const std::vector<VkDescriptorSet>& descriptorSets) const;
 
-    void CmdPushConstants(VkPipelineLayout pipelineLayout, uint32_t size, const void* data) const;
+    void PushConstants(VkPipelineLayout pipelineLayout, uint32_t size, const void* data) const;
+
+    void BeginDebugLabel(const char* label, const std::array<float, 4>& color = {0.6F, 0.6F, 0.6F, 1.0F}) const;
+
+    void InsertDebugLabel(const char* label, const std::array<float, 4>& color = {0.6F, 0.6F, 0.6F, 1.0F}) const;
+
+    void EndDebugLabel() const;
 
     /// SYNC OPS
 
-    void CmdAddImageLayoutTransition(const Image& image,
-                                     ThsvsAccessType prevAccess,
-                                     ThsvsAccessType nextAccess,
-                                     VkImageAspectFlags aspectMask);
+    void AddBufferBarrier(const Buffer& buffer,
+                          std::vector<AccessType>&& accessesBefore,
+                          std::vector<AccessType>&& accessesAfter);
 
-    void CmdAddMemoryBarrier(ThsvsAccessType prevAccess, ThsvsAccessType nextAccess);
+    void AddImageBarrier(const Image& image,
+                         std::vector<AccessType>&& accessesBefore,
+                         std::vector<AccessType>&& accessesAfter);
 
-    void CmdExecuteBarriers();
+    void AddMemoryBarrier(std::vector<AccessType>&& prevAccesses, std::vector<AccessType>&& nextAccesses);
+
+    void PipelineBarrier();
 
     /// GRAPHICS OPS
 
-    void CmdBeginDynamicRendering(const DynamicRenderingDesc& desc) const;
+    void BeginDynamicRendering(const DynamicRenderingDesc& desc) const;
 
-    void CmdEndDynamicRendering() const;
+    void EndDynamicRendering() const;
 
-    void CmdSetViewport(const std::vector<VkViewport>& viewports, uint32_t firstViewport = 0) const;
+    void SetViewport(const std::vector<VkViewport>& viewports, uint32_t firstViewport = 0) const;
 
-    void CmdSetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor = 0) const;
+    void SetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor = 0) const;
 
-    void CmdBindGraphicsPipeline(const Pipeline& pipeline) const;
+    void BindGraphicsPipeline(const Pipeline& pipeline) const;
 
-    void CmdBindIndexBuffer(const Buffer& buffer, VkDeviceSize offset, VkIndexType indexType) const;
+    void BindIndexBuffer(const Buffer& buffer, VkDeviceSize offset, VkIndexType indexType) const;
 
-    void CmdDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
+    void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
 
-    void CmdDrawIndexed(uint32_t indexCount,
-                        uint32_t instanceCount,
-                        uint32_t firstIndex,
-                        int32_t vertexOffset,
-                        uint32_t firstInstance) const;
+    void DrawIndexed(uint32_t indexCount,
+                     uint32_t instanceCount,
+                     uint32_t firstIndex,
+                     int32_t vertexOffset,
+                     uint32_t firstInstance) const;
 
-    void CmdDrawIndexedIndirect(const Buffer& buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) const;
+    void DrawIndexedIndirect(const Buffer& buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) const;
 
     /// COMPUTE OPS
 
-    void CmdBindComputePipeline(const Pipeline& pipeline) const;
+    void BindComputePipeline(const Pipeline& pipeline) const;
 
-    void CmdDispatch(uint32_t x, uint32_t y = 1, uint32_t z = 1) const;
+    void Dispatch(uint32_t x, uint32_t y = 1, uint32_t z = 1) const;
 
-    void CmdDispatchIndirect(const Buffer& buffer, uint64_t offset) const;
+    void DispatchIndirect(const Buffer& buffer, uint64_t offset) const;
 
     /// TRANSFER OPS
 
-    void CmdBlitImage(const VkBlitImageInfo2& blitInfo) const;
+    void BlitImage(const VkBlitImageInfo2& blitInfo) const;
 
-    void CmdClearColorImage(const Image& image,
-                            const VkClearColorValue* pColor,
-                            const std::vector<VkImageSubresourceRange>& ranges) const;
+    void ClearColorImage(const Image& image,
+                         const VkClearColorValue& color,
+                         const std::vector<VkImageSubresourceRange>& ranges) const;
 
-    void CmdCopyBufferToImage(const Buffer& buffer,
-                              const Image& image,
-                              VkImageLayout dstLayout,
-                              const std::vector<VkBufferImageCopy>& regions) const;
+    void CopyBufferToImage(const Buffer& buffer,
+                           const Image& image,
+                           VkImageLayout dstLayout,
+                           const std::vector<VkBufferImageCopy>& regions) const;
+
+    void CopyBuffer(const Buffer& srcBuffer, const Buffer& dstBuffer, const std::vector<VkBufferCopy>& regions) const;
 
     void
-    CmdCopyBuffer(const Buffer& srcBuffer, const Buffer& dstBuffer, const std::vector<VkBufferCopy>& regions) const;
-
-    void CmdFillBuffer(const Buffer& buffer,
-                       uint32_t data,
-                       VkDeviceSize offset = 0,
-                       VkDeviceSize size = VK_WHOLE_SIZE) const;
+    FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
 
 private:
     VkCommandBuffer m_CmdBuffer = {};
+    QueueFamily m_QueueFamily = QueueFamily::Invalid;
     BarrierBuilder m_BarrierBuilder = {};
 };
 
-class CommandGroupAllocator
+class GRACE_EXPORT CommandGroupAllocator
 {
 public:
-    void Initialise(Device* device);
+    ~CommandGroupAllocator() = default;
+    CommandGroupAllocator() = default;
+    explicit CommandGroupAllocator(Device* device);
 
-    void FreeAllRemaining();
+    CommandGroupAllocator(const CommandGroupAllocator&) = delete;
+    CommandGroupAllocator& operator=(const CommandGroupAllocator&) = delete;
+
+    CommandGroupAllocator(CommandGroupAllocator&&) noexcept = delete;
+    CommandGroupAllocator& operator=(CommandGroupAllocator&&) noexcept = delete;
 
     CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
 

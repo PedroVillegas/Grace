@@ -10,23 +10,48 @@
 namespace Grace
 {
 
-void PipelineLayout::Create(VkDevice device, const PipelineLayoutDesc& pld)
+PipelineLayout::~PipelineLayout()
 {
-    VkPipelineLayoutCreateInfo plcinfo = {};
-    plcinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    plcinfo.pNext = nullptr;
-    plcinfo.flags = pld.flags;
-    plcinfo.setLayoutCount = static_cast<uint32_t>(pld.setLayouts.size());
-    plcinfo.pSetLayouts = pld.setLayouts.data();
-    plcinfo.pushConstantRangeCount = static_cast<uint32_t>(pld.pushConstantRanges.size());
-    plcinfo.pPushConstantRanges = pld.pushConstantRanges.data();
-
-    DebugReporter::Check(vkCreatePipelineLayout(device, &plcinfo, nullptr, &m_PipelineLayout));
+    if (m_PipelineLayout != nullptr)
+    {
+        vkDestroyPipelineLayout(m_Device->GetVkHandle(), m_PipelineLayout, nullptr);
+    }
 }
 
-void PipelineLayout::Cleanup(VkDevice device)
+PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) : m_Device(pDevice)
 {
-    vkDestroyPipelineLayout(device, m_PipelineLayout, nullptr);
+    assert(!m_Device->IsNull());
+
+    VkPipelineLayoutCreateInfo plcInfo = {};
+    plcInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    plcInfo.pNext = nullptr;
+    plcInfo.flags = desc.flags;
+    plcInfo.setLayoutCount = static_cast<uint32_t>(desc.setLayouts.size());
+    plcInfo.pSetLayouts = desc.setLayouts.data();
+    plcInfo.pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstantRanges.size());
+    plcInfo.pPushConstantRanges = desc.pushConstantRanges.data();
+
+    DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &plcInfo, nullptr, &m_PipelineLayout));
+}
+
+PipelineLayout::PipelineLayout(PipelineLayout&& other) noexcept
+    : m_Device(other.m_Device), m_PipelineLayout(other.m_PipelineLayout)
+{
+    other.m_PipelineLayout = nullptr;
+}
+
+PipelineLayout& PipelineLayout::operator=(PipelineLayout&& other) noexcept
+{
+    if (m_PipelineLayout != nullptr)
+    {
+        vkDestroyPipelineLayout(m_Device->GetVkHandle(), m_PipelineLayout, nullptr);
+    }
+
+    m_Device = other.m_Device;
+    m_PipelineLayout = other.m_PipelineLayout;
+    other.m_PipelineLayout = nullptr;
+
+    return *this;
 }
 
 bool PipelineLayout::IsNull() const
@@ -39,38 +64,72 @@ VkPipelineLayout PipelineLayout::GetVkPipelineLayout() const
     return m_PipelineLayout;
 }
 
-void Pipeline::Create(VkDevice device, const PipelineDesc& desc)
+Pipeline::~Pipeline()
 {
+    if (m_Pipeline != nullptr)
+    {
+        vkDestroyPipeline(m_Device->GetVkHandle(), m_Pipeline, nullptr);
+    }
+}
+
+Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice)
+{
+    assert(!m_Device->IsNull());
+
     if (desc.type == PipelineType::Compute)
     {
-        DebugReporter::Check(vkCreateComputePipelines(device, nullptr, 1, &desc.computeCreateInfo, nullptr, &pipeline));
+        DebugReporter::Check(vkCreateComputePipelines(
+            m_Device->GetVkHandle(), nullptr, 1, &desc.computeCreateInfo, nullptr, &m_Pipeline));
     }
     else if (desc.type == PipelineType::Graphics)
     {
-        DebugReporter::Check(
-            vkCreateGraphicsPipelines(device, nullptr, 1, &desc.graphicsCreateInfo, nullptr, &pipeline));
+        DebugReporter::Check(vkCreateGraphicsPipelines(
+            m_Device->GetVkHandle(), nullptr, 1, &desc.graphicsCreateInfo, nullptr, &m_Pipeline));
     }
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
     nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
-    nameInfo.objectHandle = (uint64_t) pipeline;
+    nameInfo.objectHandle = (uint64_t) m_Pipeline;
     nameInfo.pObjectName = desc.name.c_str();
-    VK_SET_DEBUG_NAME(device, &nameInfo);
+    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
 }
 
-void Pipeline::Cleanup(VkDevice device)
+Pipeline::Pipeline(Pipeline&& other) noexcept : m_Device(other.m_Device), m_Pipeline(other.m_Pipeline)
 {
-    vkDestroyPipeline(device, pipeline, nullptr);
+    other.m_Pipeline = nullptr;
+}
+
+Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
+{
+    if (m_Pipeline != nullptr)
+    {
+        vkDestroyPipeline(m_Device->GetVkHandle(), m_Pipeline, nullptr);
+    }
+
+    m_Device = other.m_Device;
+    m_Pipeline = other.m_Pipeline;
+    other.m_Pipeline = nullptr;
+
+    return *this;
+}
+
+bool Pipeline::IsNull() const
+{
+    return m_Pipeline == nullptr;
+}
+
+VkPipeline Pipeline::GetVkHandle() const
+{
+    return m_Pipeline;
 }
 
 // ----------------------------------------------------------------------------------
 //                              PIPELINE BUILDER
 // ----------------------------------------------------------------------------------
 
-PipelineBuilder::PipelineBuilder(VkDevice device)
+PipelineBuilder::PipelineBuilder(Device* pDevice) : m_Device(pDevice)
 {
-    assert(device != nullptr);
-    m_Device = device;
+    assert(!m_Device->IsNull());
 
     ClearAll();
 }
@@ -160,7 +219,7 @@ PipelineBuilder& PipelineBuilder::ClearShaders()
 
     for (auto& module : m_ShaderModules)
     {
-        vkDestroyShaderModule(m_Device, module, nullptr);
+        vkDestroyShaderModule(m_Device->GetVkHandle(), module, nullptr);
     }
 
     m_ShaderModules.clear();
@@ -187,12 +246,12 @@ PipelineBuilder& PipelineBuilder::ClearAll()
 
 PipelineBuilder& PipelineBuilder::AddShader(const std::string& shader, VkShaderStageFlagBits stage)
 {
-    std::filesystem::path filepath = PATH_TO_SPIRV + shader;
+    std::filesystem::path filepath = GRACE_SPIRV_DIR "/" + shader;
 
     assert(std::filesystem::exists(filepath));
 
     VkShaderModule shaderModule;
-    if (!CreateShaderModule(m_Device, filepath, shaderModule))
+    if (!CreateShaderModule(m_Device->GetVkHandle(), filepath, shaderModule))
     {
         std::cout << "Failed to build shader module for " << shader << "\n";
     }
@@ -347,42 +406,6 @@ PipelineBuilder& PipelineBuilder::EnableBlendingAlphaBlend()
     m_ColourBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     return *this;
-}
-
-void CreateComputePipeline(VkDevice device,
-                           VkPipeline* pipelineOut,
-                           VkPipelineLayout pipelineLayout,
-                           const std::filesystem::path& path,
-                           const std::string& name)
-{
-    assert(device != nullptr);
-    assert(pipelineLayout != nullptr);
-    assert(std::filesystem::exists(path));
-
-    VkShaderModule shaderModule;
-    if (!CreateShaderModule(device, path, shaderModule))
-    {
-        std::cout << "Failed to build shader module for " << path.string() << "\n";
-    }
-
-    VkPipelineShaderStageCreateInfo stageinfo = ShaderStageCreateInfo(VK_SHADER_STAGE_COMPUTE_BIT, shaderModule);
-
-    VkComputePipelineCreateInfo computePipelineCreateInfo = {};
-    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    computePipelineCreateInfo.pNext = nullptr;
-    computePipelineCreateInfo.layout = pipelineLayout;
-    computePipelineCreateInfo.stage = stageinfo;
-
-    DebugReporter::Check(
-        vkCreateComputePipelines(device, nullptr, 1, &computePipelineCreateInfo, nullptr, pipelineOut));
-
-    VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-    nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
-    nameInfo.objectHandle = (uint64_t) pipelineOut;
-    nameInfo.pObjectName = name.c_str();
-    VK_SET_DEBUG_NAME(device, &nameInfo);
-
-    vkDestroyShaderModule(device, shaderModule, nullptr);
 }
 
 } // namespace Grace

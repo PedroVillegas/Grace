@@ -1,21 +1,27 @@
 #include <iostream>
-#include <set>
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
 
 int main()
 {
-    uint32_t width = 800, height = 600;
+    bool framebufferHasResized = false;
+    uint32_t windowWidth = 800;
+    uint32_t windowHeight = 600;
 
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    GLFWwindow* pWindow = glfwCreateWindow(width, height, "Hello Triangle", nullptr, nullptr);
+    GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Hello Triangle", nullptr, nullptr);
+    glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
+    glfwSetFramebufferSizeCallback(pWindow,
+                                   [](GLFWwindow* pWindow, int width, int height)
+                                   {
+                                       bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
+                                       self = true;
+                                   });
 
-    Grace::Context gpuContext;
-
-    Grace::DeviceDesc deviceDesc = {
+    const Grace::DeviceDesc deviceDesc = {
         .maxImageDescriptors = 65535,
         .maxSamplerDescriptors = 65535,
         .maxBufferDescriptors = 65535,
@@ -24,17 +30,17 @@ int main()
         .pGlfwWindow = pWindow,
     };
 
-    gpuContext.Initialise({ .deviceConfig = deviceDesc });
+    Grace::Context gpuContext({ .deviceConfig = deviceDesc });
     Grace::Device* pDevice = gpuContext.GetDevicePtr();
 
     // Must first create the swapchain with desired extents
-    pDevice->CreateSwapchain({ width, height });
+    pDevice->CreateSwapchain({ windowWidth, windowHeight });
 
     // Grab a Command Pool for the Graphics Queue and allocate a command buffer from it
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Command pool");
-    Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer(pDevice);
+    Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    VkFormat swapchainFormat = pDevice->GetSwapchain().GetFormat();
+    const VkFormat swapchainFormat = pDevice->GetSwapchain().GetFormat();
 
     Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
         .flags = 0,
@@ -43,7 +49,7 @@ int main()
     });
 
     // Create pipeline from hello triangle shader
-    Grace::PipelineBuilder pbuilder(pDevice->GetVkDevice());
+    Grace::PipelineBuilder pbuilder(pDevice);
     pbuilder.AddShader("helloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     pbuilder.AddShader("helloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     pbuilder.SetColourAttachmentFormat(&swapchainFormat);
@@ -55,7 +61,7 @@ int main()
     pbuilder.DisableDepthTest();
     pbuilder.BuildGraphicsPipeline("Hello Triangle Pipeline", pDevice->GetPipelineLayout(helloTrianglePLH));
 
-    Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
     pDevice->FreePipelineLayout(helloTrianglePLH);
 
@@ -71,14 +77,14 @@ int main()
         pDevice->WaitForFences({ pDevice->GetRecentImageAcquiredDesc().inFlightFence });
 
         // Acquire an available image from the swapchain
-        Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ width, height });
+        const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
 
         // Reset the fence only when work has been submitted, otherwise next frame will be waiting on 'work'
         // to finish indefinitely
         pDevice->ResetFences({ fsg.inFlightFence });
 
         // Reset command pool, which will reset all command buffers allocated from it too
-        pCmdPool->Reset(pDevice);
+        pCmdPool->Reset();
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
@@ -88,46 +94,50 @@ int main()
         const Grace::Image& swapchainImg = pDevice->GetSwapchain().GetRecentAcquiredImage();
 
         // Transition swapchain image to a writable layout
-        cmd.CmdAddImageLayoutTransition(pDevice->GetSwapchain().GetRecentAcquiredImage(),
-                                        THSVS_ACCESS_NONE,
-                                        THSVS_ACCESS_GENERAL,
-                                        VK_IMAGE_ASPECT_COLOR_BIT);
-        cmd.CmdExecuteBarriers();
+        cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
+        cmd.PipelineBarrier();
 
-        VkClearValue clear = { .color = { 0.35F, 0.55F, 0.85F, 1.0F } };
-        cmd.CmdBeginDynamicRendering({
-            .renderArea = { width, height },
-            .colorAttachments = { Grace::ColourAttachmentInfo(swapchainImg, &clear) },
+        cmd.ClearColorImage(
+            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+
+        cmd.AddImageBarrier(
+            swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
+        cmd.PipelineBarrier();
+
+        cmd.BeginDebugLabel("Hello Triangle Pass");
+        cmd.BeginDynamicRendering({
+            .renderArea = { .extent = { windowWidth, windowHeight } },
+            .colorAttachments = { Grace::ColourAttachmentInfo(swapchainImg, nullptr) },
         });
 
-        std::vector<VkViewport> viewports = { {
+        const std::vector<VkViewport> viewports = { {
             .x = 0,
             .y = 0,
-            .width = static_cast<float>(width),
-            .height = static_cast<float>(height),
+            .width = static_cast<float>(windowWidth),
+            .height = static_cast<float>(windowHeight),
             .minDepth = 0.0F,
             .maxDepth = 1.0F,
         } };
-        cmd.CmdSetViewport(viewports);
+        cmd.SetViewport(viewports);
 
-        std::vector<VkRect2D> scissors = { {
+        const std::vector<VkRect2D> scissors = { {
             .offset = { 0, 0 },
-            .extent = { width, height },
+            .extent = { windowWidth, windowHeight },
         } };
-        cmd.CmdSetScissor(scissors);
+        cmd.SetScissor(scissors);
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.CmdBindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
-        cmd.CmdDraw(3, 1, 0, 0);
+        cmd.BindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
+        cmd.Draw(3, 1, 0, 0);
 
-        cmd.CmdEndDynamicRendering();
+        cmd.EndDynamicRendering();
+        cmd.EndDebugLabel();
 
         // Transition swapchain image to presentable layout
-        cmd.CmdAddImageLayoutTransition(pDevice->GetSwapchain().GetRecentAcquiredImage(),
-                                        THSVS_ACCESS_GENERAL,
-                                        THSVS_ACCESS_PRESENT,
-                                        VK_IMAGE_ASPECT_COLOR_BIT);
-        cmd.CmdExecuteBarriers();
+        cmd.AddImageBarrier(pDevice->GetSwapchain().GetRecentAcquiredImage(),
+                            { Grace::AccessType::ColorAttachmentReadWrite },
+                            { Grace::AccessType::Present });
+        cmd.PipelineBarrier();
 
         /* Wrap up the frame */
 
@@ -147,30 +157,30 @@ int main()
                         fsg.inFlightFence);
 
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
-        Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
+        const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
 
-        // if (ss == SwapchainStatus::ShouldResize || bFrameBufferResized)
-        // {
-        //     bFrameBufferResized = false;
-        //
-        //     // Handle minimisation
-        //     int width = 0, height = 0;
-        //     glfwGetFramebufferSize(window.GetGLFWwindow(), &width, &height);
-        //     while (width == 0 || height == 0)
-        //     {
-        //         glfwGetFramebufferSize(window.GetGLFWwindow(), &width, &height);
-        //         glfwWaitEvents();
-        //     }
-        //
-        //     window.SetViewportWidth(width);
-        //     window.SetViewportHeight(height);
-        //
-        //     device->CreateSwapchain({ window.GetViewportWidth(), window.GetViewportHeight() });
-        // }
-        // else if (ss == SwapchainStatus::Failure)
-        // {
-        //     LOG_ERROR("Failed to present swap chain image!");
-        // }
+        if (ss == Grace::SwapchainStatus::ShouldResize || framebufferHasResized)
+        {
+            framebufferHasResized = false;
+
+            // Handle minimisation
+            int width = 0;
+            int height = 0;
+            glfwGetFramebufferSize(pWindow, &width, &height);
+            while (width == 0 || height == 0)
+            {
+                glfwGetFramebufferSize(pWindow, &width, &height);
+                glfwWaitEvents();
+            }
+            windowWidth = width;
+            windowHeight = height;
+
+            pDevice->CreateSwapchain({ windowWidth, windowHeight });
+        }
+        else if (ss == Grace::SwapchainStatus::Failure)
+        {
+            break;
+        }
     }
 
     glfwTerminate();

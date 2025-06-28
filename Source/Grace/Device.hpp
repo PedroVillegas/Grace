@@ -6,13 +6,14 @@
 #include <Grace/GpuResourceTable.hpp>
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Swapchain.hpp>
+#include <Grace/GraceExport.h>
 
 struct GLFWwindow;
 
 namespace Grace
 {
 
-struct DeviceDesc
+struct GRACE_EXPORT DeviceDesc
 {
     uint32_t maxImageDescriptors = 65535U;
     uint32_t maxSamplerDescriptors = 65535U;
@@ -22,19 +23,24 @@ struct DeviceDesc
     GLFWwindow* pGlfwWindow = nullptr;
 };
 
-class Device
+class GRACE_EXPORT Device
 {
 public:
+    ~Device();
     Device() = default;
-    ~Device() = default;
+    Device(VkInstance instance, const DeviceDesc& desc);
 
-    void Initialise(VkInstance instance, const DeviceDesc& desc);
+    Device(const Device&) = delete;
+    Device& operator=(const Device&) = delete;
 
-    void Cleanup(VkInstance instance);
+    Device(Device&&) noexcept = delete;
+    Device& operator=(Device&&) noexcept = delete;
 
-    [[nodiscard]] VkDevice GetVkDevice() const;
+    [[nodiscard]] bool IsNull() const;
 
-    [[nodiscard]] VmaAllocator GetAllocator() const;
+    [[nodiscard]] VkDevice GetVkHandle() const;
+
+    [[nodiscard]] VmaAllocator GetVmaHandle() const;
 
     void WaitIdle();
 
@@ -154,17 +160,18 @@ private:
                                                    const std::vector<const char*>& requiredExt) const;
 
 private:
+    VkInstance m_ParentInstance = {};
     VkDevice m_Device = {};
     VmaAllocator m_Allocator = {};
     VkPhysicalDevice m_PhysicalDevice = {};
     VkSurfaceKHR m_SurfaceKHR = {};
-    std::shared_ptr<Swapchain> m_Swapchain = {};
+    std::unique_ptr<Swapchain> m_Swapchain = {};
     std::array<std::optional<uint32_t>, NUM_QUEUE_TYPES> m_QueueFamilyIndices = {};
     std::array<VkQueue, NUM_QUEUE_TYPES> m_Queues = {};
 
-    ResourceManager m_ResourceMgr = {};
-    GpuResourceTable m_ResourceTable = {};
-    CommandGroupAllocator m_CmdGroupAllocator = {};
+    std::unique_ptr<ResourceManager> m_ResourceMgr = {};
+    std::unique_ptr<GpuResourceTable> m_ResourceTable = {};
+    std::unique_ptr<CommandGroupAllocator> m_CmdGroupAllocator = {};
 };
 
 } // namespace Grace
