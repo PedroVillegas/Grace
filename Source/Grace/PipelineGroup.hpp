@@ -7,6 +7,7 @@
 
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -41,9 +42,9 @@ public:
     PipelineLayout(PipelineLayout&& other) noexcept;
     PipelineLayout& operator=(PipelineLayout&& other) noexcept;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkPipelineLayout GetVkPipelineLayout() const;
+    _NODISCARD VkPipelineLayout GetVkPipelineLayout() const;
 
 private:
     Device* m_Device = nullptr;
@@ -54,7 +55,7 @@ private:
 struct GRACE_EXPORT PipelineDesc
 {
     /// Name used to identify the pipeline, e.g. in validation errors
-    std::string name = {};
+    const char* name = {};
     /// Specifies type of pipeline, compute or graphics
     PipelineType type = {};
     /// Structure required to create a compute pipeline
@@ -78,9 +79,9 @@ public:
     Pipeline(Pipeline&& other) noexcept;
     Pipeline& operator=(Pipeline&& other) noexcept;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkPipeline GetVkHandle() const;
+    _NODISCARD VkPipeline GetVkHandle() const;
 
 private:
     Device* m_Device = nullptr;
@@ -100,8 +101,8 @@ public:
     PipelineBuilder(PipelineBuilder&&) noexcept = delete;
     PipelineBuilder& operator=(PipelineBuilder&&) noexcept = delete;
 
-    PipelineBuilder& BuildComputePipeline(const std::string& name, const PipelineLayout& layout);
-    PipelineBuilder& BuildGraphicsPipeline(const std::string& name, const PipelineLayout& layout);
+    PipelineBuilder& BuildComputePipeline(const char* name, const PipelineLayout& layout);
+    PipelineBuilder& BuildGraphicsPipeline(const char* name, const PipelineLayout& layout);
 
     PipelineBuilder& ClearAll();
     PipelineBuilder& ClearShaders();

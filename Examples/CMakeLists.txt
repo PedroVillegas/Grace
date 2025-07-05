@@ -12,10 +12,12 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glfw)
 
-add_executable(GraceExamples)
+add_executable(HelloTriangle)
+target_sources(HelloTriangle PRIVATE 01_HelloTriangle.cpp)
+target_link_libraries(HelloTriangle PRIVATE Grace glfw)
+target_compile_definitions(HelloTriangle PRIVATE USE_GLFW)
 
-target_sources(GraceExamples PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/HelloTriangle/HelloTriangle.cpp)
-
-target_link_libraries(GraceExamples PRIVATE Grace glfw)
-
-target_compile_definitions(GraceExamples PRIVATE USE_GLFW)
+add_executable(VkCube)
+target_sources(VkCube PRIVATE 02_VkCube.cpp)
+target_link_libraries(VkCube PRIVATE Grace glfw)
+target_compile_definitions(VkCube PRIVATE USE_GLFW)

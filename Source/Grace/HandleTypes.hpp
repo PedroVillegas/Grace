@@ -32,7 +32,7 @@ struct GRACE_EXPORT Handle
     {
     }
 
-    [[nodiscard]] bool HasValidHandle() const
+    _NODISCARD bool HasValidHandle() const
     {
         return handle != INVALID_HANDLE;
     }

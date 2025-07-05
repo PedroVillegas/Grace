@@ -70,6 +70,7 @@ set(
     Grace/Sampler.cpp
     Grace/Swapchain.cpp
     Grace/SyncGroup.cpp
+    Grace/QueryManager.cpp
     "${vma_SOURCE_DIR}/src/VmaUsage.cpp"
 )
 

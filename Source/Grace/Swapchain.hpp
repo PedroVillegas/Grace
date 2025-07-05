@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/Image.hpp>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -31,12 +32,12 @@ struct GRACE_EXPORT FrameSyncGroup
     uint32_t imageIndex = ~0U;
 };
 
-class GRACE_EXPORT Swapchain
+class Swapchain
 {
 public:
     ~Swapchain();
     Swapchain() = default;
-    Swapchain(Device* pDevice, VkExtent2D imageExtent);
+    Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync);
 
     Swapchain(const Swapchain&) = delete;
     Swapchain& operator=(const Swapchain&) = delete;
@@ -46,26 +47,26 @@ public:
 
     FrameSyncGroup& AcquireNextImage(Device* device, VkExtent2D imageExtent);
 
-    [[nodiscard]] const FrameSyncGroup& GetRecentFrameSyncGroup() const;
+    _NODISCARD const FrameSyncGroup& GetRecentFrameSyncGroup() const;
 
-    [[nodiscard]] const VkSwapchainKHR& GetVkHandle() const;
+    _NODISCARD const VkSwapchainKHR& GetVkHandle() const;
 
-    [[nodiscard]] SwapchainStatus GetStatus() const;
+    _NODISCARD SwapchainStatus GetStatus() const;
 
-    [[nodiscard]] VkFormat GetFormat() const;
+    _NODISCARD VkFormat GetFormat() const;
 
-    [[nodiscard]] const Image& GetRecentAcquiredImage() const;
+    _NODISCARD const Image& GetRecentAcquiredImage() const;
 
 private:
     void Create(VkExtent2D imageExtent);
 
     void Cleanup();
 
-    VkSurfaceFormatKHR SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    _NODISCARD VkSurfaceFormatKHR SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
-    VkPresentModeKHR SelectSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    _NODISCARD VkPresentModeKHR SelectSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
-    VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
+    _NODISCARD VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
 
 private:
     Device* m_Device = nullptr;
@@ -74,6 +75,7 @@ private:
     std::vector<FrameSyncGroup> m_ImageAcquiredSyncStructs = {};
     uint32_t m_ImageAcquiredCycleIndex = 0U;
     SwapchainStatus m_SwapchainStatus = SwapchainStatus::Unknown;
+    bool m_VSyncOn = true;
 };
 
 } // namespace Grace

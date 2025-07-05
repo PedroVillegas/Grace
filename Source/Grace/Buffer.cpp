@@ -1,5 +1,7 @@
 #include "Buffer.hpp"
 
+#include "HelperFunctions.hpp"
+
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 
@@ -66,12 +68,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 
     if (m_Buffer != nullptr)
     {
-        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
-        nameInfo.objectHandle = (uint64_t) m_Buffer;
-        nameInfo.pObjectName = desc.name.c_str();
-        VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
+        AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
     }
 }
 

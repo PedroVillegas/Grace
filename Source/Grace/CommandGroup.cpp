@@ -35,11 +35,11 @@ CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFa
         m_FreeCommandPools.push(&allocatedPoolsOfQueueFamily.back());
     }
 
-    assert(m_FreeCommandPools.size() > 0);
+    assert(!m_FreeCommandPools.empty());
     CommandPool* ret = m_FreeCommandPools.front();
     m_FreeCommandPools.pop();
 
-    AssignDebugName<VkCommandPool>(m_Device->GetVkHandle(), ret->GetVkCommandPool(), VK_OBJECT_TYPE_COMMAND_POOL, name);
+    AssignDebugName<VkCommandPool>(m_Device->GetVkHandle(), ret->GetVkCommandPool(), name);
 
     return ret;
 }
@@ -111,7 +111,7 @@ CommandBuffer CommandPool::GetOrAllocateCommandBuffer()
         m_CommandBuffers.push_back(allocated);
     }
 
-    return CommandBuffer(m_CommandBuffers[m_CommandBuffersInUse++], m_QueueFamily);
+    return { m_CommandBuffers[m_CommandBuffersInUse++], m_QueueFamily, m_Device->GetQueryManagerPtr() };
 }
 
 QueueFamily CommandPool::GetQueueFamily() const
@@ -124,8 +124,8 @@ VkCommandPool CommandPool::GetVkCommandPool() const
     return m_CommandPool;
 }
 
-CommandBuffer::CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily)
-    : m_CmdBuffer(commandBuffer), m_QueueFamily(queueFamily)
+CommandBuffer::CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr)
+    : m_CmdBuffer(commandBuffer), m_QueueFamily(queueFamily), m_pQueryMgr(pQueryMgr)
 {
 }
 
@@ -178,7 +178,7 @@ void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
 
 void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc& desc) const
 {
-    assert(desc.colorAttachments.size() > 0);
+    assert(!desc.colorAttachments.empty());
     assert(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
 
     VkRenderingInfo renderInfo = {};
@@ -203,13 +203,13 @@ void CommandBuffer::EndDynamicRendering() const
 
 void CommandBuffer::SetViewport(const std::vector<VkViewport>& viewports, uint32_t firstViewport) const
 {
-    assert(viewports.size() > 0);
+    assert(!viewports.empty());
     vkCmdSetViewport(m_CmdBuffer, firstViewport, static_cast<uint32_t>(viewports.size()), viewports.data());
 }
 
 void CommandBuffer::SetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor) const
 {
-    assert(scissors.size() > 0);
+    assert(!scissors.empty());
     vkCmdSetScissor(m_CmdBuffer, firstScissor, static_cast<uint32_t>(scissors.size()), scissors.data());
 }
 
@@ -313,7 +313,7 @@ void CommandBuffer::CopyBufferToImage(const Buffer& buffer,
 {
     assert(!buffer.IsNull());
     assert(!image.IsNull());
-    assert(regions.size() > 0);
+    assert(!regions.empty());
     vkCmdCopyBufferToImage(m_CmdBuffer,
                            buffer.GetVkHandle(),
                            image.GetImage(),
@@ -328,7 +328,7 @@ void CommandBuffer::CopyBuffer(const Buffer& srcBuffer,
 {
     assert(!srcBuffer.IsNull());
     assert(!dstBuffer.IsNull());
-    assert(regions.size() > 0);
+    assert(!regions.empty());
     vkCmdCopyBuffer(m_CmdBuffer,
                     srcBuffer.GetVkHandle(),
                     dstBuffer.GetVkHandle(),
@@ -339,6 +339,81 @@ void CommandBuffer::CopyBuffer(const Buffer& srcBuffer,
 void CommandBuffer::FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const
 {
     vkCmdFillBuffer(m_CmdBuffer, buffer.GetVkHandle(), offset, size, data);
+}
+
+void CommandBuffer::ResetQueryPoolFullRange(QueryType qt, uint32_t frameIndex)
+{
+    assert(m_pQueryMgr);
+    assert(qt != QueryType::Undefined);
+
+    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
+    m_pQueryMgr->ResetQueryGroup(qt);
+
+    uint32_t start = frameIndex * qg.GetRange();
+    uint32_t end = start + qg.GetRange();
+
+    vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+}
+
+void CommandBuffer::ResetQueryPool(QueryType qt, uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex)
+{
+    assert(m_pQueryMgr);
+    assert(qt != QueryType::Undefined);
+
+    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
+    assert(queryCount < qg.GetRange());
+
+    uint32_t start = (frameIndex * qg.GetRange()) + firstQuery;
+    uint32_t end = start + queryCount;
+
+    vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+}
+
+void CommandBuffer::BeginQuery(QueryType qt,
+                               const char* name,
+                               QueryWriteFlags writeFlags,
+                               uint32_t frameIndex,
+                               VkQueryControlFlags controlFlags)
+{
+    QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
+    const uint32_t query = m_pQueryMgr->AddQuery(qt, name);
+
+    const uint32_t offset = frameIndex * qg.GetRange();
+    if (writeFlags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
+    {
+        if (qg.GetQueries()[offset + query + qg.GetValuesPerQuery()] == 0)
+        {
+            return;
+        };
+    }
+
+    vkCmdBeginQuery(m_CmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
+}
+
+void CommandBuffer::EndQuery(QueryType qt, const char* name)
+{
+    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
+    vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
+}
+
+void CommandBuffer::WriteTimestamp(const char* name,
+                                   VkPipelineStageFlags2 stage,
+                                   QueryWriteFlags flags,
+                                   uint32_t frameIndex)
+{
+    QueryGroup& qg = m_pQueryMgr->GetQueryGroup(QueryType::Timestamp);
+    const uint32_t query = m_pQueryMgr->AddQuery(QueryType::Timestamp, name);
+
+    const uint32_t offset = frameIndex * qg.GetRange();
+    if (flags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
+    {
+        if (qg.GetQueries()[offset + query + 1] == 0)
+        {
+            return;
+        };
+    }
+
+    vkCmdWriteTimestamp2(m_CmdBuffer, stage, qg.GetVkQueryPool(), offset + query);
 }
 
 void CommandBuffer::ClearColorImage(const Image& image,

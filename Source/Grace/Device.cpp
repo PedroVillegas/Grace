@@ -23,6 +23,7 @@ Device::~Device()
     m_ResourceMgr.reset();
     m_ResourceTable.reset();
     m_CmdGroupAllocator.reset();
+    m_QueryMgr.reset();
     vmaDestroyAllocator(m_Allocator);
     vkDestroyDevice(m_Device, nullptr);
 }
@@ -30,11 +31,6 @@ Device::~Device()
 Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(instance)
 {
     LogicalDeviceDesc ldd = {};
-
-    if (desc.enableValidationLayers)
-    {
-        ldd.validationLayers.emplace_back("VK_LAYER_KHRONOS_validation");
-    }
 
 #ifdef USE_GLFW
     uint32_t glfwExtensionCount = 0;
@@ -106,6 +102,27 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
                      0,
                      &m_Queues[static_cast<uint32_t>(QueueFamily::Present)]);
 
+    if (m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
+    {
+        const char* queueDebugName = "Grace::Queue::Transfer";
+        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)], queueDebugName);
+    }
+    if (m_Queues[static_cast<uint32_t>(QueueFamily::Compute)] != nullptr)
+    {
+        const char* queueDebugName = "Grace::Queue::Compute";
+        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Compute)], queueDebugName);
+    }
+    if (m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)] != nullptr)
+    {
+        const char* queueDebugName = "Grace::Queue::Graphics";
+        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)], queueDebugName);
+    }
+    if (m_Queues[static_cast<uint32_t>(QueueFamily::Present)] != nullptr)
+    {
+        const char* queueDebugName = "Grace::Queue::Present";
+        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Present)], queueDebugName);
+    }
+
     // Initialize the memory allocator
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.instance = instance;
@@ -114,6 +131,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
+    m_QueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
     m_CmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
     m_ResourceMgr = std::make_unique<ResourceManager>();
     m_ResourceTable = std::make_unique<GpuResourceTable>(
@@ -365,7 +383,7 @@ void Device::FreeCommandBuffer(CommandBuffer commandBuffer)
 
 uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 {
-    assert(queueFamily != QueueFamily::Invalid);
+    assert(queueFamily != QueueFamily::Undefined);
     std::optional<uint32_t> queueFamilyIndex = m_QueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
     assert(queueFamilyIndex.has_value());
     return queueFamilyIndex.value();
@@ -373,10 +391,41 @@ uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 
 VkQueue Device::GetQueue(QueueFamily queueFamily)
 {
-    assert(queueFamily != QueueFamily::Invalid);
+    assert(queueFamily != QueueFamily::Undefined);
     std::optional<uint32_t> queueFamilyIndex = m_QueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
     assert(queueFamilyIndex.has_value());
     return m_Queues[static_cast<uint32_t>(queueFamily)];
+}
+
+QueryManager* Device::GetQueryManagerPtr()
+{
+    return m_QueryMgr.get();
+}
+
+const QueryGroup&
+Device::GetQueryPoolResults(QueryType qt, uint32_t firstQuery, uint32_t queryCount, VkQueryResultFlags flags) const
+{
+    QueryGroup& qg = m_QueryMgr->GetQueryGroup(qt);
+
+    uint32_t qc = qg.GetQueryCount();
+    uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
+
+    if ((flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) != 0)
+    {
+        stride += sizeof(uint64_t);
+    }
+
+    uint32_t dataSize = qc * stride;
+    DebugReporter::Check(vkGetQueryPoolResults(m_Device,
+                                               qg.GetVkQueryPool(),
+                                               0,
+                                               qc,
+                                               dataSize,
+                                               qg.GetQueries().data(),
+                                               stride,
+                                               VK_QUERY_RESULT_64_BIT | flags));
+
+    return qg;
 }
 
 FrameSyncGroup& Device::AcquireNextSwapchainImage(VkExtent2D imageExtent)
@@ -384,12 +433,22 @@ FrameSyncGroup& Device::AcquireNextSwapchainImage(VkExtent2D imageExtent)
     return m_Swapchain->AcquireNextImage(this, imageExtent);
 }
 
+const Image& Device::GetRecentlyAcquiredSwapchainImage() const
+{
+    return m_Swapchain->GetRecentAcquiredImage();
+}
+
 const FrameSyncGroup& Device::GetRecentImageAcquiredDesc()
 {
     return m_Swapchain->GetRecentFrameSyncGroup();
 }
 
-void Device::CreateSwapchain(VkExtent2D imageExtent)
+VkFormat Device::GetSwapchainFormat() const
+{
+    return m_Swapchain->GetFormat();
+}
+
+void Device::CreateSwapchain(VkExtent2D imageExtent, bool vsync)
 {
     if (m_Swapchain != nullptr)
     {
@@ -397,12 +456,7 @@ void Device::CreateSwapchain(VkExtent2D imageExtent)
         m_Swapchain.reset();
     }
 
-    m_Swapchain = std::make_unique<Swapchain>(this, imageExtent);
-}
-
-Swapchain& Device::GetSwapchain() const
-{
-    return *m_Swapchain;
+    m_Swapchain = std::make_unique<Swapchain>(this, imageExtent, vsync);
 }
 
 SwapchainStatus Device::GetSwapchainStatus() const
@@ -499,8 +553,8 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     createInfo.enabledExtensionCount = static_cast<uint32_t>(desc.requiredExt.size());
     createInfo.ppEnabledExtensionNames = desc.requiredExt.data();
     createInfo.pEnabledFeatures = nullptr;
-    createInfo.enabledLayerCount = static_cast<uint32_t>(desc.validationLayers.size());
-    createInfo.ppEnabledLayerNames = desc.validationLayers.data();
+    createInfo.enabledLayerCount = 0;
+    createInfo.ppEnabledLayerNames = nullptr;
 
     DebugReporter::Check(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device));
 }
@@ -552,7 +606,7 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
     assert(minQueueFamilyFound && "Minimum queue family required (Graphics) not found!");
 
     // Create a queue for each family
-    queueCreateInfos.reserve(NUM_QUEUE_TYPES);
+    queueCreateInfos.reserve(static_cast<uint32_t>(QueueFamily::Undefined));
     std::set<uint32_t> uniqueQueueFamilies = {
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),

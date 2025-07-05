@@ -2,11 +2,13 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <Grace/QueryManager.hpp>
 #include <Grace/ResourceManager.hpp>
 #include <Grace/GpuResourceTable.hpp>
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Swapchain.hpp>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 struct GLFWwindow;
 
@@ -18,8 +20,8 @@ struct GRACE_EXPORT DeviceDesc
     uint32_t maxImageDescriptors = 65535U;
     uint32_t maxSamplerDescriptors = 65535U;
     uint32_t maxBufferDescriptors = 65535U;
-    bool enableVsync = true;
-    bool enableValidationLayers = true;
+    uint32_t framesInFlight = 1U;
+    QueryGroupDesc queryGroupDesc = {};
     GLFWwindow* pGlfwWindow = nullptr;
 };
 
@@ -36,11 +38,11 @@ public:
     Device(Device&&) noexcept = delete;
     Device& operator=(Device&&) noexcept = delete;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkDevice GetVkHandle() const;
+    _NODISCARD VkDevice GetVkHandle() const;
 
-    [[nodiscard]] VmaAllocator GetVmaHandle() const;
+    _NODISCARD VmaAllocator GetVmaHandle() const;
 
     void WaitIdle();
 
@@ -56,21 +58,21 @@ public:
                 const std::vector<VkSemaphore>& toSignal,
                 VkFence fence = {});
 
-    [[nodiscard]] VkDescriptorPool& GetSoleDescriptorPool();
+    _NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
 
-    [[nodiscard]] VkDescriptorSet& GetSoleDescriptorSet();
+    _NODISCARD VkDescriptorSet& GetSoleDescriptorSet();
 
-    [[nodiscard]] VkDescriptorSetLayout& GetSoleDescriptorSetLayout();
+    _NODISCARD VkDescriptorSetLayout& GetSoleDescriptorSetLayout();
 
-    [[nodiscard]] VkPipelineLayout& GetSolePipelineLayout();
+    _NODISCARD VkPipelineLayout& GetSolePipelineLayout();
 
     void UpdateBindlessDescriptorSet();
 
     /// BUFFER OPS
 
-    BufferHandle CreateBuffer(const BufferDesc& desc);
+    _NODISCARD BufferHandle CreateBuffer(const BufferDesc& desc);
 
-    Buffer& GetBuffer(const BufferHandle& handle);
+    _NODISCARD Buffer& GetBuffer(const BufferHandle& handle);
 
     void FreeBuffer(BufferHandle& handle);
 
@@ -78,74 +80,82 @@ public:
 
     void SubmitImageView(ImageView& view);
 
-    ImageHandle CreateImage(const ImageDesc& desc);
+    _NODISCARD ImageHandle CreateImage(const ImageDesc& desc);
 
-    Image& GetImage(const ImageHandle& handle);
+    _NODISCARD Image& GetImage(const ImageHandle& handle);
 
-    std::vector<RegistryEntry<Image>>& GetAllImages();
+    _NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
     void FreeImage(ImageHandle& handle);
 
     /// SAMPLER OPS
 
-    SamplerHandle CreateSampler(const SamplerDesc& desc);
+    _NODISCARD SamplerHandle CreateSampler(const SamplerDesc& desc);
 
-    Sampler& GetSampler(const SamplerHandle& handle);
+    _NODISCARD Sampler& GetSampler(const SamplerHandle& handle);
 
     void FreeSampler(SamplerHandle& handle);
 
     /// PIPELINE OPS
 
-    PipelineHandle CreatePipeline(const PipelineDesc& info);
+    _NODISCARD PipelineHandle CreatePipeline(const PipelineDesc& info);
 
-    Pipeline& GetPipeline(const PipelineHandle& handle);
+    _NODISCARD Pipeline& GetPipeline(const PipelineHandle& handle);
 
     void FreePipeline(PipelineHandle& handle);
 
-    PipelineLayoutHandle CreatePipelineLayout(const PipelineLayoutDesc& desc);
+    _NODISCARD PipelineLayoutHandle CreatePipelineLayout(const PipelineLayoutDesc& desc);
 
-    PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
+    _NODISCARD PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
 
     void FreePipelineLayout(PipelineLayoutHandle& handle);
 
     /// COMMAND GROUP OPS
 
-    CommandPool* GetCommandPool(QueueFamily queueFamily, const char* name);
+    _NODISCARD CommandPool* GetCommandPool(QueueFamily queueFamily, const char* name);
 
     void FreeCommandBuffer(CommandBuffer commandBuffer);
 
     /// QUEUE OPS
 
-    SwapchainStatus Present(VkSemaphore waitSemaphore, uint32_t swapchainImageIndex);
+    _NODISCARD SwapchainStatus Present(VkSemaphore waitSemaphore, uint32_t swapchainImageIndex);
 
-    uint32_t GetQueueFamilyIndex(QueueFamily queueFamily);
+    _NODISCARD uint32_t GetQueueFamilyIndex(QueueFamily queueFamily);
 
-    VkQueue GetQueue(QueueFamily queueFamily);
+    _NODISCARD VkQueue GetQueue(QueueFamily queueFamily);
+
+    /// QUERY OPS
+
+    _NODISCARD QueryManager* GetQueryManagerPtr();
+
+    _NODISCARD const QueryGroup&
+    GetQueryPoolResults(QueryType qt, uint32_t firstQuery, uint32_t queryCount, VkQueryResultFlags flags) const;
 
     /// SWAPCHAIN OPS
 
-    FrameSyncGroup& AcquireNextSwapchainImage(VkExtent2D imageExtent);
+    _NODISCARD FrameSyncGroup& AcquireNextSwapchainImage(VkExtent2D imageExtent);
 
-    const FrameSyncGroup& GetRecentImageAcquiredDesc();
+    _NODISCARD const Image& GetRecentlyAcquiredSwapchainImage() const;
 
-    void CreateSwapchain(VkExtent2D imageExtent);
+    _NODISCARD const FrameSyncGroup& GetRecentImageAcquiredDesc();
 
-    Swapchain& GetSwapchain() const;
+    _NODISCARD VkFormat GetSwapchainFormat() const;
 
-    SwapchainStatus GetSwapchainStatus() const;
+    _NODISCARD SwapchainStatus GetSwapchainStatus() const;
+
+    void CreateSwapchain(VkExtent2D imageExtent, bool vsync = true);
 
     /// MISC
 
-    VkPhysicalDevice GetPhysicalDevice() const;
+    _NODISCARD VkPhysicalDevice GetPhysicalDevice() const;
 
-    VkSurfaceKHR GetSurface() const;
+    _NODISCARD VkSurfaceKHR GetSurface() const;
 
 private:
     struct LogicalDeviceDesc
     {
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         std::vector<const char*> requiredExt;
-        std::vector<const char*> validationLayers;
     };
 
     void ConfigurePhysicalDevice(VkInstance instance, const std::vector<const char*>& requiredExt);
@@ -154,10 +164,10 @@ private:
 
     void ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateInfos);
 
-    [[nodiscard]] bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const;
+    _NODISCARD bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const;
 
-    [[nodiscard]] bool CheckDeviceExtensionSupport(VkPhysicalDevice device,
-                                                   const std::vector<const char*>& requiredExt) const;
+    _NODISCARD bool CheckDeviceExtensionSupport(VkPhysicalDevice device,
+                                                const std::vector<const char*>& requiredExt) const;
 
 private:
     VkInstance m_ParentInstance = {};
@@ -165,10 +175,11 @@ private:
     VmaAllocator m_Allocator = {};
     VkPhysicalDevice m_PhysicalDevice = {};
     VkSurfaceKHR m_SurfaceKHR = {};
-    std::unique_ptr<Swapchain> m_Swapchain = {};
-    std::array<std::optional<uint32_t>, NUM_QUEUE_TYPES> m_QueueFamilyIndices = {};
-    std::array<VkQueue, NUM_QUEUE_TYPES> m_Queues = {};
+    std::array<std::optional<uint32_t>, static_cast<uint32_t>(QueueFamily::Undefined)> m_QueueFamilyIndices = {};
+    std::array<VkQueue, static_cast<uint32_t>(QueueFamily::Undefined)> m_Queues = {};
 
+    std::unique_ptr<Swapchain> m_Swapchain = {};
+    std::unique_ptr<QueryManager> m_QueryMgr = {};
     std::unique_ptr<ResourceManager> m_ResourceMgr = {};
     std::unique_ptr<GpuResourceTable> m_ResourceTable = {};
     std::unique_ptr<CommandGroupAllocator> m_CmdGroupAllocator = {};

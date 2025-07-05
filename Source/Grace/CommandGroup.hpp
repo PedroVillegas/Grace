@@ -1,5 +1,7 @@
 #pragma once
 
+#include "QueryManager.hpp"
+
 #include <array>
 #include <queue>
 
@@ -10,13 +12,12 @@
 #include <Grace/Types.hpp>
 #include <Grace/SyncGroup.hpp>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
 
 class Device;
-
-constexpr uint32_t NUM_QUEUE_TYPES = 4U;
 
 enum class QueueFamily : uint32_t
 {
@@ -29,7 +30,7 @@ enum class QueueFamily : uint32_t
     /// Queue supporting present operations
     Present,
     /// Queue is undefined
-    Invalid
+    Undefined
 };
 
 class CommandBuffer;
@@ -48,16 +49,16 @@ public:
 
     void Reset();
 
-    [[nodiscard]] CommandBuffer GetOrAllocateCommandBuffer();
+    _NODISCARD CommandBuffer GetOrAllocateCommandBuffer();
 
-    [[nodiscard]] QueueFamily GetQueueFamily() const;
+    _NODISCARD QueueFamily GetQueueFamily() const;
 
-    [[nodiscard]] VkCommandPool GetVkCommandPool() const;
+    _NODISCARD VkCommandPool GetVkCommandPool() const;
 
 private:
     Device* m_Device = nullptr;
     VkCommandPool m_CommandPool = nullptr;
-    QueueFamily m_QueueFamily = QueueFamily::Invalid;
+    QueueFamily m_QueueFamily = QueueFamily::Undefined;
     std::vector<VkCommandBuffer> m_CommandBuffers = {};
     uint32_t m_CommandBuffersInUse = 0;
 };
@@ -67,7 +68,7 @@ class GRACE_EXPORT CommandBuffer
 public:
     ~CommandBuffer() = default;
     CommandBuffer() = default;
-    CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily);
+    CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr);
 
     CommandBuffer(const CommandBuffer&) = default;
     CommandBuffer& operator=(const CommandBuffer&) = default;
@@ -75,9 +76,9 @@ public:
     CommandBuffer(CommandBuffer&&) noexcept = default;
     CommandBuffer& operator=(CommandBuffer&&) noexcept = default;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkCommandBuffer GetVkCommandBuffer() const;
+    _NODISCARD VkCommandBuffer GetVkCommandBuffer() const;
 
     /// UNIVERSAL OPS
 
@@ -95,9 +96,9 @@ public:
 
     void PushConstants(VkPipelineLayout pipelineLayout, uint32_t size, const void* data) const;
 
-    void BeginDebugLabel(const char* label, const std::array<float, 4>& color = {0.6F, 0.6F, 0.6F, 1.0F}) const;
+    void BeginDebugLabel(const char* label, const std::array<float, 4>& color = { 0.6F, 0.6F, 0.6F, 1.0F }) const;
 
-    void InsertDebugLabel(const char* label, const std::array<float, 4>& color = {0.6F, 0.6F, 0.6F, 1.0F}) const;
+    void InsertDebugLabel(const char* label, const std::array<float, 4>& color = { 0.6F, 0.6F, 0.6F, 1.0F }) const;
 
     void EndDebugLabel() const;
 
@@ -165,10 +166,30 @@ public:
     void
     FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
 
+    /// QUERY OPS
+
+    void ResetQueryPoolFullRange(QueryType qt, uint32_t frameIndex = 0U);
+
+    void ResetQueryPool(QueryType qt, uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex = 0U);
+
+    void BeginQuery(QueryType qt,
+                    const char* name,
+                    QueryWriteFlags writeFlags = QueryWriteFlags::None,
+                    uint32_t frameIndex = 0U,
+                    VkQueryControlFlags controlFlags = 0);
+
+    void EndQuery(QueryType qt, const char* name);
+
+    void WriteTimestamp(const char* name,
+                        VkPipelineStageFlags2 stage,
+                        QueryWriteFlags flags = QueryWriteFlags::None,
+                        uint32_t frameIndex = 0U);
+
 private:
     VkCommandBuffer m_CmdBuffer = {};
-    QueueFamily m_QueueFamily = QueueFamily::Invalid;
     BarrierBuilder m_BarrierBuilder = {};
+    QueueFamily m_QueueFamily = QueueFamily::Undefined;
+    QueryManager* m_pQueryMgr = nullptr;
 };
 
 class GRACE_EXPORT CommandGroupAllocator
@@ -184,7 +205,7 @@ public:
     CommandGroupAllocator(CommandGroupAllocator&&) noexcept = delete;
     CommandGroupAllocator& operator=(CommandGroupAllocator&&) noexcept = delete;
 
-    CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
+    _NODISCARD CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
 
     void ReturnCommandPool(CommandPool* commandPool);
 
@@ -196,7 +217,7 @@ private:
     Device* m_Device = nullptr;
     // Use std::deque here to prevent any pointer invalidations. No performance hit since
     // new CommandPools are strictly inserted/removed from either end
-    std::array<std::deque<CommandPool>, NUM_QUEUE_TYPES> m_AllCommandPoolsAllocated = {};
+    std::array<std::deque<CommandPool>, static_cast<uint32_t>(QueueFamily::Undefined)> m_AllCommandPoolsAllocated = {};
     std::queue<CommandPool*> m_FreeCommandPools = {};
 };
 

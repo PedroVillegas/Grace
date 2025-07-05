@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -12,7 +13,7 @@ namespace Grace
 class Image;
 class Buffer;
 
-[[nodiscard]] GRACE_EXPORT VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask);
+_NODISCARD GRACE_EXPORT VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask);
 
 /// Defines a bunch of potential resource usages
 enum class AccessType : uint64_t

@@ -1,5 +1,7 @@
 #include "Image.hpp"
 
+#include "HelperFunctions.hpp"
+
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
 
@@ -46,11 +48,7 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : m_Device(pDev
 
     if (m_View != nullptr)
     {
-        VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
-        nameInfo.objectHandle = (uint64_t) m_View;
-        nameInfo.pObjectName = desc.name.c_str();
-        VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
+        AssignDebugName<VkImageView>(m_Device->GetVkHandle(), m_View, desc.name);
     }
 }
 
@@ -138,11 +136,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
     if (m_Image != nullptr)
     {
-        VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
-        nameInfo.objectHandle = (uint64_t) m_Image;
-        nameInfo.pObjectName = desc.name.c_str();
-        VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
+        AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
     }
 }
 
@@ -167,12 +161,9 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
                                   .levelCount = 1,
                               });
 
+    if (m_Image != nullptr)
     {
-        VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
-        nameInfo.objectHandle = (uint64_t) m_Image;
-        nameInfo.pObjectName = desc.name.c_str();
-        VK_SET_DEBUG_NAME(pDevice->GetVkHandle(), &nameInfo);
+        AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
     }
 }
 

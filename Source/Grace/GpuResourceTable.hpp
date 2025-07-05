@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vk_mem_alloc.h>
 #include <Grace/DescriptorGroup.hpp>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -33,7 +33,7 @@ public:
     void AppendFreeSlot(const uint32_t slot);
 
     /// @returns Index to first unoccupied slot.
-    [[nodiscard]] uint32_t FindAvailableSlot();
+    _NODISCARD uint32_t FindAvailableSlot();
 
 private:
     uint32_t m_MaxSlots = std::numeric_limits<uint16_t>::max();

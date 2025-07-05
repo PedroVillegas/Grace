@@ -9,6 +9,7 @@
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/HandleTypes.hpp>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -117,13 +118,13 @@ class ResourceManager
 {
 public:
     template <typename Res, typename... Args>
-    [[nodiscard]] Handle<Res> Create(Args&&... args)
+    _NODISCARD Handle<Res> Create(Args&&... args)
     {
         return ResourceRegistry<Res>().Register(std::forward<Args>(args)...);
     }
 
     template <typename Res>
-    [[nodiscard]] Res& Get(Handle<Res> handle)
+    _NODISCARD Res& Get(Handle<Res> handle)
     {
         return ResourceRegistry<Res>().Get(handle);
     }
@@ -135,7 +136,7 @@ public:
     }
 
     /// Fetches ALL Images found in the Image's Registry
-    [[nodiscard]] std::vector<RegistryEntry<Image>>& GetAllImages();
+    _NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
     template <typename>

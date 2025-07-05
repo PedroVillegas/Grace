@@ -87,11 +87,10 @@ Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice
             m_Device->GetVkHandle(), nullptr, 1, &desc.graphicsCreateInfo, nullptr, &m_Pipeline));
     }
 
-    VkDebugUtilsObjectNameInfoEXT nameInfo = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-    nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
-    nameInfo.objectHandle = (uint64_t) m_Pipeline;
-    nameInfo.pObjectName = desc.name.c_str();
-    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfo);
+    if (m_Pipeline != nullptr)
+    {
+        AssignDebugName<VkPipeline>(m_Device->GetVkHandle(), m_Pipeline, desc.name);
+    }
 }
 
 Pipeline::Pipeline(Pipeline&& other) noexcept : m_Device(other.m_Device), m_Pipeline(other.m_Pipeline)
@@ -139,7 +138,7 @@ PipelineBuilder::~PipelineBuilder()
     ClearAll();
 }
 
-PipelineBuilder& PipelineBuilder::BuildComputePipeline(const std::string& name, const PipelineLayout& layout)
+PipelineBuilder& PipelineBuilder::BuildComputePipeline(const char* name, const PipelineLayout& layout)
 {
     assert(!layout.IsNull());
     assert(m_ShaderStages.size() == 1);
@@ -159,7 +158,7 @@ PipelineBuilder& PipelineBuilder::BuildComputePipeline(const std::string& name, 
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::BuildGraphicsPipeline(const std::string& name, const PipelineLayout& layout)
+PipelineBuilder& PipelineBuilder::BuildGraphicsPipeline(const char* name, const PipelineLayout& layout)
 {
     assert(!layout.IsNull());
     assert(m_ShaderStages.size() > 1);

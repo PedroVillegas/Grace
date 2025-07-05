@@ -5,6 +5,9 @@
 #include <deque>
 
 #include <vulkan/vulkan.h>
+#include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
+
 namespace Grace
 {
 
@@ -59,11 +62,11 @@ public:
     /// @param pNext Optional pointer to next struct for `VkDescriptorSetAllocateInfo`.
     ///
     /// @returns Allocated `VkDescriptorSet` corresponding to given layout.
-    [[nodiscard]] VkDescriptorSet Allocate(VkDescriptorSetLayout layout, void* pNext = nullptr);
+    _NODISCARD VkDescriptorSet Allocate(VkDescriptorSetLayout layout, void* pNext = nullptr);
 
 private:
-    [[nodiscard]] VkDescriptorPool GetPool();
-    [[nodiscard]] VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
+    _NODISCARD VkDescriptorPool GetPool();
+    _NODISCARD VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
     VkDevice m_Device = {};
 
@@ -193,7 +196,7 @@ public:
     /// @param flags Flags for layout creation e.g. Update-After-Bind.
     ///
     /// @returns `VkDescriptorSetLayout` of all bindings added thus far.
-    [[nodiscard]] VkDescriptorSetLayout
+    _NODISCARD VkDescriptorSetLayout
     Build(VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 
     /// @brief Clear all bindings that have been added.

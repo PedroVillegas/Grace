@@ -5,6 +5,7 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -15,7 +16,7 @@ class Device;
 struct GRACE_EXPORT BufferDesc
 {
     /// Name used to identify the buffer, e.g. in validation errors
-    std::string name;
+    const char* name;
     /// Total allocation size in Bytes
     size_t allocSize;
     /// Specifies how the buffer is allowed to be used
@@ -40,19 +41,19 @@ public:
     Buffer& operator=(Buffer&& other) noexcept;
 
     /// @returns `true` if associated `VkBuffer` or `VmaAllocation` are null.
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
     /// @returns `VkBuffer` which holds the actual data of the buffer.
-    [[nodiscard]] VkBuffer GetVkHandle() const;
+    _NODISCARD VkBuffer GetVkHandle() const;
 
     /// @returns Pointer to the memory location of the buffer on the device.
-    [[nodiscard]] uint64_t GetBDA() const;
+    _NODISCARD uint64_t GetBDA() const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
-    [[nodiscard]] VmaAllocation GetAllocation() const;
+    _NODISCARD VmaAllocation GetAllocation() const;
 
     /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
-    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo() const;
+    _NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
     Device* m_Device = nullptr;

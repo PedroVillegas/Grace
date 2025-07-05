@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -38,15 +39,15 @@ public:
     Sampler(Sampler&& other) noexcept;
     Sampler& operator=(Sampler&& other) noexcept;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkSampler GetVkHandle() const;
+    _NODISCARD VkSampler GetVkHandle() const;
 
     /// Sets index to resource in bindless array of Samplers for access on GPU.
     void SetSamplerId(const uint32_t id);
 
     /// @returns Index to resource in bindless array of Samplers for access on GPU.
-    [[nodiscard]] uint32_t GetSamplerId() const;
+    _NODISCARD uint32_t GetSamplerId() const;
 
 private:
     Device* m_Device = nullptr;

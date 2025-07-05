@@ -181,11 +181,14 @@ bool CreateShaderModule(VkDevice device, const std::filesystem::path& filename, 
 
     auto shaderCode = ReadSpvFile(filename);
 
-    VkShaderModuleCreateInfo createInfo = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                                            .codeSize = shaderCode.size(),
-                                            .pCode = reinterpret_cast<const uint32_t*>(shaderCode.data()) };
+    VkShaderModuleCreateInfo smci = {};
+    smci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    smci.codeSize = shaderCode.size();
+    smci.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
 
-    DebugReporter::Check(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
+    DebugReporter::Check(vkCreateShaderModule(device, &smci, nullptr, &shaderModule));
+    const std::string shaderModuleDebugName = filename.filename().string();
+    AssignDebugName<VkShaderModule>(device, shaderModule, shaderModuleDebugName.c_str());
 
     return true;
 }

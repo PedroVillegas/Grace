@@ -49,10 +49,13 @@ void Swapchain::Create(VkExtent2D imageExtent)
     const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surfaceKHR);
 
     const VkSurfaceFormatKHR surfaceFormat = SelectSwapSurfaceFormat(swapChainSupport.formats);
-    const VkPresentModeKHR presentMode = SelectSwapPresentMode(swapChainSupport.presentModes);
-#ifdef NO_VSYNC
-    presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-#endif
+    VkPresentModeKHR presentMode = SelectSwapPresentMode(swapChainSupport.presentModes);
+
+    if (!m_VSyncOn)
+    {
+        presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+
     VkExtent2D extent = SelectSwapExtent(imageExtent, swapChainSupport.capabilities);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -108,6 +111,7 @@ void Swapchain::Create(VkExtent2D imageExtent)
     }
 
     m_Swapchain = tempSwapchain;
+    AssignDebugName<VkSwapchainKHR>(m_Device->GetVkHandle(), m_Swapchain, "Grace::SwapchainKHR");
 
     std::vector<VkImage> tempImages = {};
     vkGetSwapchainImagesKHR(m_Device->GetVkHandle(), m_Swapchain, &imageCount, nullptr);
@@ -117,11 +121,12 @@ void Swapchain::Create(VkExtent2D imageExtent)
 
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
+        const std::string name = "Grace::SwapchainImage::" + std::to_string(i);
         m_Images[i] = Image(
             m_Device,
             tempImages[i],
             {
-                .name = "Swapchain " + std::to_string(i),
+                .name = name.c_str(),
                 .dimensions = { extent.width, extent.height, 1 },
                 .format = surfaceFormat.format,
                 .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -129,21 +134,30 @@ void Swapchain::Create(VkExtent2D imageExtent)
             });
     }
 
-    for (auto& sync : m_ImageAcquiredSyncStructs)
+    for (uint32_t i = 0; i < m_ImageAcquiredSyncStructs.size(); ++i)
     {
+        FrameSyncGroup& sync = m_ImageAcquiredSyncStructs[i];
+
         VkSemaphoreCreateInfo semaphoreInfo = {};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         semaphoreInfo.pNext = nullptr;
         semaphoreInfo.flags = 0;
 
         DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.acquireSemaphore));
+        const std::string acquireSemaphoreDebugName = "Grace::Semaphore::Acquire::" + std::to_string(i);
+        AssignDebugName<VkSemaphore>(m_Device->GetVkHandle(), sync.acquireSemaphore, acquireSemaphoreDebugName.c_str());
+
         DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.presentSemaphore));
+        const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
+        AssignDebugName<VkSemaphore>(m_Device->GetVkHandle(), sync.presentSemaphore, presentSemaphoreDebugName.c_str());
 
         VkFenceCreateInfo fenceInfo = {};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.pNext = nullptr;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         DebugReporter::Check(vkCreateFence(m_Device->GetVkHandle(), &fenceInfo, nullptr, &sync.inFlightFence));
+        const std::string inFlightFenceDebugName = "Grace::Fence::InFlight::" + std::to_string(i);
+        AssignDebugName<VkFence>(m_Device->GetVkHandle(), sync.inFlightFence, inFlightFenceDebugName.c_str());
     }
 }
 
@@ -165,7 +179,7 @@ Swapchain::~Swapchain()
     Cleanup();
 }
 
-Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent) : m_Device(pDevice)
+Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : m_Device(pDevice), m_VSyncOn(vsync)
 {
     assert(!m_Device->IsNull());
 

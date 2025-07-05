@@ -5,6 +5,7 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -14,7 +15,7 @@ class Image;
 
 struct GRACE_EXPORT ImageViewDesc
 {
-    std::string name;
+    const char* name;
     Image* image;
     uint32_t mipLevel;
     uint32_t levelCount;
@@ -35,17 +36,17 @@ public:
     ImageView(ImageView&& other) noexcept;
     ImageView& operator=(ImageView&& other) noexcept;
 
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
-    [[nodiscard]] VkImageView GetVkHandle() const;
+    _NODISCARD VkImageView GetVkHandle() const;
 
     void MakeNull();
 
-    [[nodiscard]] uint32_t GetStorageImgId() const;
+    _NODISCARD uint32_t GetStorageImgId() const;
 
     void SetStorageImgId(uint32_t storageImgId);
 
-    [[nodiscard]] VkImageUsageFlags GetUsageFlags() const;
+    _NODISCARD VkImageUsageFlags GetUsageFlags() const;
 
 private:
     Device* m_Device = nullptr;
@@ -58,7 +59,7 @@ private:
 struct GRACE_EXPORT ImageDesc
 {
     /// Name used to identify the image, e.g. in validation errors
-    std::string name;
+    const char* name;
     /// Specifies the image's dimensions
     VkExtent3D dimensions;
     /// Specifies the image's format
@@ -92,54 +93,54 @@ public:
     void SetSampledImgId(uint32_t id);
 
     /// @returns Index to resource in bindless array of Storage Images for access on GPU.
-    [[nodiscard]] uint32_t GetStorageImgId() const;
+    _NODISCARD uint32_t GetStorageImgId() const;
 
     /// @returns Index to resource in bindless array of Sampled Images for access on GPU.
-    [[nodiscard]] uint32_t GetSampledImgId() const;
+    _NODISCARD uint32_t GetSampledImgId() const;
 
     /// @returns `true` if associated `VkImage`, `VkImageView` or `VmaAllocation` are null.
-    [[nodiscard]] bool IsNull() const;
+    _NODISCARD bool IsNull() const;
 
     /// @returns `VkImage` of image which holds actual data.
-    [[nodiscard]] VkImage GetImage() const;
+    _NODISCARD VkImage GetImage() const;
 
     /// @returns `VkImageView` of image which tells you how the data is stored.
-    [[nodiscard]] const ImageView& GetDefaultView() const;
+    _NODISCARD const ImageView& GetDefaultView() const;
 
     /// @returns Format per pixel of image.
-    [[nodiscard]] VkFormat GetFormat() const;
+    _NODISCARD VkFormat GetFormat() const;
 
     /// @returns Format per pixel of image as `const *`.
-    [[nodiscard]] const VkFormat* GetFormatPtr() const;
+    _NODISCARD const VkFormat* GetFormatPtr() const;
 
     /// @returns VkExtent2D of image.
-    [[nodiscard]] VkExtent2D GetExtent2D() const;
+    _NODISCARD VkExtent2D GetExtent2D() const;
 
     /// @returns VkExtent3D of image.
-    [[nodiscard]] VkExtent3D GetExtent3D() const;
+    _NODISCARD VkExtent3D GetExtent3D() const;
 
     /// @returns Width of image.
-    [[nodiscard]] uint32_t GetWidth() const;
+    _NODISCARD uint32_t GetWidth() const;
 
     /// @returns Height of image.
-    [[nodiscard]] uint32_t GetHeight() const;
+    _NODISCARD uint32_t GetHeight() const;
 
     /// @returns Depth of image.
-    [[nodiscard]] uint32_t GetDepth() const;
+    _NODISCARD uint32_t GetDepth() const;
 
-    [[nodiscard]] uint32_t GetMaxMipLevels() const;
+    _NODISCARD uint32_t GetMaxMipLevels() const;
 
     /// @returns Usage flags used to create image.
-    [[nodiscard]] VkImageUsageFlags GetUsageFlags() const;
+    _NODISCARD VkImageUsageFlags GetUsageFlags() const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
-    [[nodiscard]] VmaAllocation GetAllocation() const;
+    _NODISCARD VmaAllocation GetAllocation() const;
 
     /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
-    [[nodiscard]] VmaAllocationInfo2 GetAllocationInfo() const;
+    _NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
-    [[nodiscard]] VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
+    _NODISCARD VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
 
     Device* m_Device = nullptr;
     ImageView m_DefaultView = {};
