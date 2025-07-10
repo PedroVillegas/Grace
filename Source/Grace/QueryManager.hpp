@@ -1,8 +1,11 @@
 #pragma once
 
 #include <array>
+#include <cassert>
+#include <filesystem>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
@@ -12,14 +15,6 @@ namespace Grace
 {
 
 class Device;
-
-enum class QueryType : uint32_t
-{
-    Timestamp = 0,
-    Occlusion,
-    PipelineStatistics,
-    Undefined,
-};
 
 enum class QueryWriteFlags : uint32_t
 {
@@ -39,7 +34,7 @@ namespace TimestampUnits
 {
 
 template <double Val>
-struct DurationUnits
+struct GRACE_EXPORT DurationUnits
 {
     static constexpr double value = Val;
 };
@@ -51,8 +46,33 @@ using Seconds = DurationUnits<1E-09>;
 
 } // namespace TimestampUnits
 
+namespace QueryType
+{
+
+struct QueryTypeBase
+{
+};
+
+struct GRACE_EXPORT Timestamp : QueryTypeBase
+{
+};
+
+struct GRACE_EXPORT Occlusion : QueryTypeBase
+{
+};
+
+struct GRACE_EXPORT PipelineStatistics : QueryTypeBase
+{
+};
+
+} // namespace QueryType
+
+template <typename Ty>
 class GRACE_EXPORT QueryGroup
 {
+    static_assert(std::derived_from<Ty, QueryType::QueryTypeBase>,
+                  "QueryGroup type not derived from QueryGroupType::QueryTypeBase!");
+
 public:
     ~QueryGroup() = default;
     QueryGroup() = default;
@@ -63,65 +83,117 @@ public:
     QueryGroup(QueryGroup&& other) noexcept = delete;
     QueryGroup& operator=(QueryGroup&& other) noexcept = delete;
 
-    _NODISCARD VkQueryPool GetVkQueryPool() const;
+    _NODISCARD VkQueryPool GetVkQueryPool() const
+    {
+        return m_QueryPool;
+    }
 
-    _NODISCARD std::vector<uint64_t>& GetQueries();
+    _NODISCARD std::vector<uint64_t>& GetQueries()
+    {
+        return m_Queries;
+    }
 
-    _NODISCARD uint64_t GetQuery(const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const;
+    _NODISCARD uint64_t GetQuery(const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
+    {
+        const uint32_t offset = GetQueryOffset(name);
+        return m_Queries[(m_Range * frameIndex) + offset + relativeBit];
+    }
 
     void
-    GetQueryIfAvailable(uint64_t& inout, const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const;
+    GetQueryIfAvailable(uint64_t& inout, const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
+    {
+        const uint32_t offset = GetQueryOffset(name);
+        const uint32_t queryOffsetMultiFrame = ((m_Range - 1) * frameIndex) + (offset * (m_ValuesPerQuery + 1));
+        // The query's availability bit immediately proceeds the n values of the query
+        if (m_Queries[queryOffsetMultiFrame + 1] != 0)
+        {
+            inout = m_Queries[queryOffsetMultiFrame + relativeBit];
+        }
+    }
 
-    _NODISCARD uint32_t GetQueryOffset(const char* name) const;
+    _NODISCARD uint32_t GetQueryOffset(const char* name) const
+    {
+        assert(name != nullptr);
+        assert(m_NamedQueryMap.contains(name));
+        return m_NamedQueryMap.at(name);
+    }
 
-    _NODISCARD uint32_t GetRange() const;
+    _NODISCARD uint32_t GetRange() const
+    {
+        return m_Range;
+    }
 
-    _NODISCARD uint32_t GetQueryCount() const;
+    _NODISCARD uint32_t GetQueryCount() const
+    {
+        return m_QueriesWrittenSinceLastReset;
+    }
 
-    _NODISCARD uint32_t GetValuesPerQuery() const;
+    _NODISCARD uint32_t GetValuesPerQuery() const
+    {
+        return m_ValuesPerQuery;
+    }
 
-    template <typename UnitsType>
-    _NODISCARD double Duration(const char* start, const char* end) const
+    template <typename UnitsType, typename U = Ty>
+    _NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, double>
+    Duration(const char* start, const char* end, uint32_t frameIndex = 0U) const
     {
         static_assert(std::is_same_v<UnitsType, TimestampUnits::Nanoseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Microseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Milliseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Seconds>);
 
-        double duration = static_cast<double>(GetQuery(end) - GetQuery(start)) * static_cast<double>(m_TimestampPeriod)
-                        * UnitsType::value;
+        double duration = static_cast<double>(GetQuery(end, 0, frameIndex) - GetQuery(start, 0, frameIndex))
+                        * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
 
         return duration;
     }
 
-    template <typename UnitsType>
-    _NODISCARD double DurationIfAvailable(const char* start, const char* end) const
+    template <typename UnitsType, typename U = Ty>
+    _NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, void>
+    DurationIfAvailable(double& inout, const char* start, const char* end, uint32_t frameIndex = 0U) const
     {
         static_assert(std::is_same_v<UnitsType, TimestampUnits::Nanoseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Microseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Milliseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Seconds>);
 
-        double duration = static_cast<double>(GetQuery(end) - GetQuery(start)) * static_cast<double>(m_TimestampPeriod)
-                        * UnitsType::value;
+        uint64_t startTicks = 0;
+        uint64_t endTicks = 0;
 
-        return duration;
+        GetQueryIfAvailable(startTicks, start, 0, frameIndex);
+        GetQueryIfAvailable(endTicks, end, 0, frameIndex);
+
+        if (startTicks > 0 && endTicks > 0)
+        {
+            inout =
+                static_cast<double>(endTicks - startTicks) * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
+        }
     }
 
 private:
-    _NODISCARD uint32_t AddQuery(const char* name);
+    _NODISCARD uint32_t AddQuery(const char* name)
+    {
+        const uint32_t offset = m_QueriesWrittenSinceLastReset++;
+        m_NamedQueryMap[name] = offset;
+        return offset;
+    }
 
 private:
     VkQueryPool m_QueryPool = nullptr;
     std::vector<uint64_t> m_Queries = {};
     // Only need one named query map per query group since query indices are constant
-    std::unordered_map<const char*, uint32_t> m_NamedQueryMap = {};
+    std::unordered_map<std::string, uint32_t> m_NamedQueryMap = {};
     uint32_t m_QueriesWrittenSinceLastReset = 0U;
     uint32_t m_ValuesPerQuery = 1U;
-    float m_TimestampPeriod = 0.0f;
+    uint32_t m_Range = 0U;
+    float m_TimestampPeriod = 0.0F;
 
     friend class QueryManager;
 };
+
+using TimestampQueryGroup = QueryGroup<QueryType::Timestamp>;
+using OcclusionQueryGroup = QueryGroup<QueryType::Occlusion>;
+using PipelineStatsQueryGroup = QueryGroup<QueryType::PipelineStatistics>;
 
 class QueryManager
 {
@@ -136,15 +208,45 @@ public:
     QueryManager(QueryManager&& other) noexcept = delete;
     QueryManager& operator=(QueryManager&& other) noexcept = delete;
 
-    _NODISCARD QueryGroup& GetQueryGroup(QueryType qt);
+    template <typename T>
+    _NODISCARD QueryGroup<T>& GetQueryGroup()
+    {
+        static_assert(std::derived_from<T, QueryType::QueryTypeBase>,
+                      "QueryGroup type not derived from QueryGroupType::QueryTypeBase!");
 
-    _NODISCARD uint32_t AddQuery(QueryType qt, const char* name);
+        if constexpr (std::is_same_v<T, QueryType::Timestamp>)
+        {
+            return m_TimestampQueryGroup;
+        }
+        else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
+        {
+            return m_OcclusionQueryGroup;
+        }
+        else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
+        {
+            return m_PipelineStatsQueryGroup;
+        }
+    }
 
-    void ResetQueryGroup(QueryType qt);
+    template <typename T>
+    _NODISCARD uint32_t AddQuery(const char* name)
+    {
+        QueryGroup<T>& qg = GetQueryGroup<T>();
+        return qg.AddQuery(name);
+    }
+
+    template <typename T>
+    void ResetQueryGroup()
+    {
+        QueryGroup<T>& qg = GetQueryGroup<T>();
+        qg.m_QueriesWrittenSinceLastReset = 0;
+    }
 
 private:
     Device* m_pDevice = nullptr;
-    std::array<QueryGroup, static_cast<uint32_t>(QueryType::Undefined)> m_QueryGroups = {};
+    TimestampQueryGroup m_TimestampQueryGroup = {};
+    OcclusionQueryGroup m_OcclusionQueryGroup = {};
+    PipelineStatsQueryGroup m_PipelineStatsQueryGroup = {};
 };
 
 } // namespace Grace

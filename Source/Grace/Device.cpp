@@ -158,10 +158,22 @@ void Device::WaitIdle()
     vkDeviceWaitIdle(m_Device);
 }
 
+void Device::WaitForFence(const Fence& fence, uint64_t timeout)
+{
+    std::array waitOn = { fence.GetVkFence() };
+    vkWaitForFences(m_Device, 1, waitOn.data(), VK_TRUE, timeout);
+}
+
 void Device::WaitForFences(const std::vector<VkFence>& fences, uint64_t timeout, bool waitAll)
 {
     vkWaitForFences(
         m_Device, static_cast<uint32_t>(fences.size()), fences.data(), static_cast<VkBool32>(waitAll), timeout);
+}
+
+void Device::ResetFence(const Fence& fence)
+{
+    std::array reset = { fence.GetVkFence() };
+    vkResetFences(m_Device, 1, reset.data());
 }
 
 void Device::ResetFences(const std::vector<VkFence>& fences)
@@ -173,7 +185,7 @@ void Device::Submit(QueueFamily queue,
                     const std::vector<CommandBuffer>& cmds,
                     const std::vector<VkSemaphore>& waitOn,
                     const std::vector<VkSemaphore>& toSignal,
-                    VkFence fence)
+                    const Fence& fence)
 {
     uint32_t N = static_cast<uint32_t>(cmds.size());
     std::vector<VkSubmitInfo2> submitInfos(N);
@@ -212,7 +224,7 @@ void Device::Submit(QueueFamily queue,
         }
     }
 
-    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fence));
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fence.GetVkFence()));
 }
 
 SwapchainStatus Device::Present(VkSemaphore waitSemaphore, uint32_t swapchainImageIndex)
@@ -371,6 +383,21 @@ void Device::FreePipelineLayout(PipelineLayoutHandle& handle)
     m_ResourceMgr->Free<PipelineLayout>(handle);
 }
 
+FenceHandle Device::CreateFence(const FenceDesc& desc)
+{
+    return m_ResourceMgr->Create<Fence>(this, desc);
+}
+
+Fence& Device::GetFence(const FenceHandle& handle)
+{
+    return m_ResourceMgr->Get<Fence>(handle);
+}
+
+void Device::FreeFence(FenceHandle& handle)
+{
+    m_ResourceMgr->Free<Fence>(handle);
+}
+
 CommandPool* Device::GetCommandPool(QueueFamily queueFamily, const char* name)
 {
     return m_CmdGroupAllocator->GetOrAllocateCommandPool(queueFamily, name);
@@ -400,32 +427,6 @@ VkQueue Device::GetQueue(QueueFamily queueFamily)
 QueryManager* Device::GetQueryManagerPtr()
 {
     return m_QueryMgr.get();
-}
-
-const QueryGroup&
-Device::GetQueryPoolResults(QueryType qt, uint32_t firstQuery, uint32_t queryCount, VkQueryResultFlags flags) const
-{
-    QueryGroup& qg = m_QueryMgr->GetQueryGroup(qt);
-
-    uint32_t qc = qg.GetQueryCount();
-    uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
-
-    if ((flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) != 0)
-    {
-        stride += sizeof(uint64_t);
-    }
-
-    uint32_t dataSize = qc * stride;
-    DebugReporter::Check(vkGetQueryPoolResults(m_Device,
-                                               qg.GetVkQueryPool(),
-                                               0,
-                                               qc,
-                                               dataSize,
-                                               qg.GetQueries().data(),
-                                               stride,
-                                               VK_QUERY_RESULT_64_BIT | flags));
-
-    return qg;
 }
 
 FrameSyncGroup& Device::AcquireNextSwapchainImage(VkExtent2D imageExtent)

@@ -1,11 +1,26 @@
 #include <chrono>
 #include <format>
+#include <iostream>
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
 
+struct FrameData
+{
+    Grace::CommandPool* pCmdPool = nullptr;
+    Grace::CommandBuffer cmd = {};
+    Grace::FenceHandle inFlightFence = {};
+};
+
 int main()
 {
+    constexpr uint32_t FRAMES_IN_FLIGHT = 2;
+    uint32_t frameIndex = 0;
+
+    // Timings
+    double vkCubePassTime = 0.0;
+    double gpuFrameTime = 0.0;
+
     bool vsync = true;
     bool framebufferHasResized = false;
     uint32_t windowWidth = 800;
@@ -27,7 +42,11 @@ int main()
         .maxImageDescriptors = 65535,
         .maxSamplerDescriptors = 65535,
         .maxBufferDescriptors = 65535,
-        .framesInFlight = 1,
+        .framesInFlight = FRAMES_IN_FLIGHT,
+        .queryGroupDesc = {
+            .timestampQueriesCount = 8,
+            .pipelineStatisticsFlags = VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+        },
         .pGlfwWindow = pWindow,
     };
 
@@ -37,9 +56,22 @@ int main()
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
-    // Grab a Command Pool for the Graphics Queue and allocate a command buffer from it
-    Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Command pool");
-    Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
+    std::array<FrameData, FRAMES_IN_FLIGHT> frame = {};
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
+    {
+        const std::string cmdPoolDebugName = "CommandPool::" + std::to_string(i);
+        Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, cmdPoolDebugName.c_str());
+        frame[i] = {
+            .pCmdPool = pCmdPool,
+            .cmd = pCmdPool->GetOrAllocateCommandBuffer(),
+        };
+
+        const std::string fenceDebugName = "InFlightFence::" + std::to_string(i);
+        frame[i].inFlightFence = pDevice->CreateFence({
+            .name = fenceDebugName.c_str(),
+            .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
+        });
+    }
 
     const VkFormat swapchainFormat = pDevice->GetSwapchainFormat();
 
@@ -64,8 +96,6 @@ int main()
 
     const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
-    pDevice->FreePipelineLayout(helloTrianglePLH);
-
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 
@@ -76,23 +106,27 @@ int main()
         /* Prepare the frame */
 
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFences({ pDevice->GetRecentImageAcquiredDesc().inFlightFence });
+        pDevice->WaitForFence(pDevice->GetFence(frame[frameIndex].inFlightFence));
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
 
         // Reset the fence only when work has been submitted, otherwise next frame will be waiting on 'work'
         // to finish indefinitely
-        pDevice->ResetFences({ fsg.inFlightFence });
+        pDevice->ResetFence(pDevice->GetFence(frame[frameIndex].inFlightFence));
 
         // Reset command pool, which will reset all command buffers allocated from it too
-        pCmdPool->Reset();
+        frame[frameIndex].pCmdPool->Reset();
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
+        Grace::CommandBuffer& cmd = frame[frameIndex].cmd;
         cmd.BeginRecording();
-        cmd.ResetQueryPoolFullRange(Grace::QueryType::Timestamp);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+        cmd.WriteTimestamp("GPU Frame Begin",
+                           VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                           frameIndex,
+                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
 
         /* Record commands */
 
@@ -132,11 +166,15 @@ int main()
         // Bind helloTriangle pipeline and execute a draw call
         cmd.BindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
 
-        cmd.WriteTimestamp(
-            "VkCube Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("VkCube Pass Begin",
+                           VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                           frameIndex,
+                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
         cmd.Draw(3, 1, 0, 0);
-        cmd.WriteTimestamp(
-            "VkCube Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("VkCube Pass End",
+                           VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                           frameIndex,
+                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
 
         cmd.EndDynamicRendering();
         cmd.EndDebugLabel();
@@ -149,7 +187,10 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+        cmd.WriteTimestamp("GPU Frame End",
+                           VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                           frameIndex,
+                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -164,23 +205,24 @@ int main()
                         { cmd },
                         { fsg.acquireSemaphore },
                         { fsg.presentSemaphore },
-                        fsg.inFlightFence);
+                        pDevice->GetFence(frame[frameIndex].inFlightFence));
 
-        const Grace::QueryGroup& tgq =
-            pDevice->GetQueryPoolResults(Grace::QueryType::Timestamp, 0, 0, VK_QUERY_RESULT_WAIT_BIT);
+        // Present image as soon as it is safe to do so - when presentSemaphore is signalled
+        const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
+
+        pDevice->WaitIdle();
+
+        const Grace::TimestampQueryGroup& tqg = pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(
+            0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT, frameIndex);
 
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
 
-        float helloTrianglePassTime =
-            static_cast<float>(tgq.GetQuery("VkCube Pass End") - tgq.GetQuery("VkCube Pass Begin"))
-            * props.limits.timestampPeriod / 1000000.0F;
+        tqg.DurationIfAvailable<Grace::TimestampUnits::Milliseconds>(
+            vkCubePassTime, "VkCube Pass Begin", "VkCube Pass End", frameIndex);
 
-        float gpuFrameTime = static_cast<float>(tgq.GetQuery("GPU Frame End") - tgq.GetQuery("GPU Frame Begin"))
-                           * props.limits.timestampPeriod / 1000000.0F;
-
-        // Present image as soon as it is safe to do so - when presentSemaphore is signalled
-        const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
+        tqg.DurationIfAvailable<Grace::TimestampUnits::Milliseconds>(
+            gpuFrameTime, "GPU Frame Begin", "GPU Frame End", frameIndex);
 
         if (ss == Grace::SwapchainStatus::ShouldResize || framebufferHasResized)
         {
@@ -211,9 +253,11 @@ int main()
 
         std::string windowTitle = std::format("CPU Frame Time: {}ms | GPU Frame Time: {}ms | VkCube Pass: {}ms",
                                               cpuFrameTime,
-                                              gpuFrameTime,
-                                              helloTrianglePassTime);
+                                              static_cast<float>(gpuFrameTime),
+                                              static_cast<float>(vkCubePassTime));
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
+
+        frameIndex = (frameIndex + 1) % FRAMES_IN_FLIGHT;
     }
 
     glfwTerminate();

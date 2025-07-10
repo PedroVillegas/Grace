@@ -150,14 +150,6 @@ void Swapchain::Create(VkExtent2D imageExtent)
         DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.presentSemaphore));
         const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
         AssignDebugName<VkSemaphore>(m_Device->GetVkHandle(), sync.presentSemaphore, presentSemaphoreDebugName.c_str());
-
-        VkFenceCreateInfo fenceInfo = {};
-        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceInfo.pNext = nullptr;
-        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        DebugReporter::Check(vkCreateFence(m_Device->GetVkHandle(), &fenceInfo, nullptr, &sync.inFlightFence));
-        const std::string inFlightFenceDebugName = "Grace::Fence::InFlight::" + std::to_string(i);
-        AssignDebugName<VkFence>(m_Device->GetVkHandle(), sync.inFlightFence, inFlightFenceDebugName.c_str());
     }
 }
 
@@ -167,7 +159,6 @@ void Swapchain::Cleanup()
     {
         vkDestroySemaphore(m_Device->GetVkHandle(), sync.acquireSemaphore, nullptr);
         vkDestroySemaphore(m_Device->GetVkHandle(), sync.presentSemaphore, nullptr);
-        vkDestroyFence(m_Device->GetVkHandle(), sync.inFlightFence, nullptr);
     }
 
     // Destroys VkSwapchain and VkImages

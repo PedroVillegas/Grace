@@ -8,6 +8,7 @@
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
+#include <Grace/Fence.hpp>
 #include <Grace/HandleTypes.hpp>
 #include <Grace/Macros.hpp>
 
@@ -36,16 +37,16 @@ public:
     Registry() = default;
     ~Registry() = default;
 
-    inline std::vector<RegistryEntry<Res>>& GetAll()
+    std::vector<RegistryEntry<Res>>& GetAll()
     {
         return m_Registry;
     }
 
     template <typename... Args>
-    inline Handle<Res> Register(Args&&... args)
+    Handle<Res> Register(Args&&... args)
     {
         // Use free slots if any available
-        if (m_FreeSlots.size() > 0)
+        if (!m_FreeSlots.empty())
         {
             Handle<Res> newHandle = m_FreeSlots.front();
             m_FreeSlots.pop();
@@ -61,7 +62,7 @@ public:
         return Handle<Res>(index, newValidator);
     }
 
-    inline Res& Get(const Handle<Res>& resourceHandle)
+    Res& Get(const Handle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.handle < m_Registry.size();
@@ -72,7 +73,7 @@ public:
         return m_Registry[resourceHandle.handle].resource;
     }
 
-    inline void Free(Handle<Res>& resourceHandle)
+    void Free(Handle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.handle < m_Registry.size();
@@ -89,16 +90,6 @@ public:
         // Invalidate resourceHandle
         resourceHandle.handle = INVALID_HANDLE;
         resourceHandle.validator = INVALID_VALIDATOR;
-    }
-
-    template <typename... Args>
-    inline void FreeAll(Args&&... args)
-    {
-        for (auto& slot : m_Registry)
-        {
-            if (slot.validator != INVALID_VALIDATOR)
-                slot.resource.Cleanup(std::forward<Args>(args)...);
-        }
     }
 
 private:
@@ -139,50 +130,15 @@ public:
     _NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
-    template <typename>
+    template <typename Res>
     auto& ResourceRegistry();
 
-    template <>
-    auto& ResourceRegistry<Image>()
-    {
-        return m_ImagesRegistry;
-    };
-
-    template <>
-    auto& ResourceRegistry<Buffer>()
-    {
-        return m_BuffersRegistry;
-    };
-
-    template <>
-    auto& ResourceRegistry<Sampler>()
-    {
-        return m_SamplersRegistry;
-    };
-
-    template <>
-    auto& ResourceRegistry<Pipeline>()
-    {
-        return m_PipelinesRegistry;
-    };
-
-    template <>
-    auto& ResourceRegistry<PipelineLayout>()
-    {
-        return m_PipelineLayoutsRegistry;
-    };
-
-private:
-    /// Container of all images created.
-    Registry<Image> m_ImagesRegistry;
-    /// Container of all buffers created.
-    Registry<Buffer> m_BuffersRegistry;
-    /// Container of all samplers created.
-    Registry<Sampler> m_SamplersRegistry;
-    /// Container of all pipelines created.
-    Registry<Pipeline> m_PipelinesRegistry;
-    /// Container of pipeline layouts created.
-    Registry<PipelineLayout> m_PipelineLayoutsRegistry;
+    GRACE_DEFINE_RESOURCE_REGISTRY(Image, m_ImagesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Buffer, m_BuffersRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Sampler, m_SamplersRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Pipeline, m_PipelinesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(PipelineLayout, m_PipelineLayoutsRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Fence, m_FencesRegistry);
 };
 
 } // namespace Grace

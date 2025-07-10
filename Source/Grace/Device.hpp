@@ -8,6 +8,7 @@
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Swapchain.hpp>
 #include <Grace/GraceExport.h>
+#include <Grace/DebugReporter.hpp>
 #include <Grace/Macros.hpp>
 
 struct GLFWwindow;
@@ -46,9 +47,13 @@ public:
 
     void WaitIdle();
 
+    void WaitForFence(const Fence& fence, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
     void WaitForFences(const std::vector<VkFence>& fences,
                        uint64_t timeout = std::numeric_limits<uint64_t>::max(),
                        bool waitAll = true);
+
+    void ResetFence(const Fence& fence);
 
     void ResetFences(const std::vector<VkFence>& fences);
 
@@ -56,7 +61,7 @@ public:
                 const std::vector<CommandBuffer>& cmds,
                 const std::vector<VkSemaphore>& waitOn,
                 const std::vector<VkSemaphore>& toSignal,
-                VkFence fence = {});
+                const Fence& fence = {});
 
     _NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
 
@@ -110,6 +115,14 @@ public:
 
     void FreePipelineLayout(PipelineLayoutHandle& handle);
 
+    /// SYNC OPS
+
+    _NODISCARD FenceHandle CreateFence(const FenceDesc& desc);
+
+    _NODISCARD Fence& GetFence(const FenceHandle& handle);
+
+    void FreeFence(FenceHandle& handle);
+
     /// COMMAND GROUP OPS
 
     _NODISCARD CommandPool* GetCommandPool(QueueFamily queueFamily, const char* name);
@@ -128,8 +141,46 @@ public:
 
     _NODISCARD QueryManager* GetQueryManagerPtr();
 
-    _NODISCARD const QueryGroup&
-    GetQueryPoolResults(QueryType qt, uint32_t firstQuery, uint32_t queryCount, VkQueryResultFlags flags) const;
+    template <typename T>
+    void ResetQueryPoolFullRange(uint32_t frameIndex, QueryWriteFlags flags)
+    {
+        QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
+
+        uint32_t first = frameIndex * qg.GetRange();
+        uint32_t count = qg.GetRange();
+
+        vkResetQueryPool(m_Device, qg.GetVkQueryPool(), first, count);
+        m_QueryMgr->ResetQueryGroup<T>();
+    }
+
+    template <typename T>
+    _NODISCARD const QueryGroup<T>& GetQueryPoolResults(uint32_t firstQuery,
+                                                        uint32_t queryCount,
+                                                        VkQueryResultFlags flags,
+                                                        uint32_t frameIndex = 0U) const
+    {
+        QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
+
+        uint32_t qc = qg.GetQueryCount();
+        uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
+
+        if ((flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) != 0)
+        {
+            stride += sizeof(uint64_t);
+        }
+
+        uint32_t dataSize = qc * stride;
+        DebugReporter::Check(vkGetQueryPoolResults(m_Device,
+                                                   qg.GetVkQueryPool(),
+                                                   frameIndex * qg.GetRange(),
+                                                   qc,
+                                                   dataSize,
+                                                   qg.GetQueries().data(),
+                                                   stride,
+                                                   VK_QUERY_RESULT_64_BIT | flags));
+
+        return qg;
+    }
 
     /// SWAPCHAIN OPS
 

@@ -15,6 +15,7 @@
 #include <Grace/DescriptorGroup.hpp>
 #include <Grace/SyncGroup.hpp>
 #include <Grace/Swapchain.hpp>
+#include <Grace/QueryManager.hpp>
 
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/Types.hpp>

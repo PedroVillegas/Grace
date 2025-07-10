@@ -1,27 +1,23 @@
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <Grace/GraceExport.h>
 
 namespace Grace
 {
 
-const uint32_t INVALID_HANDLE = (1u << 31) - 1;
-const uint32_t INVALID_VALIDATOR = (1u << 31) - 1;
+constexpr uint32_t INVALID_HANDLE = ~0U;
+constexpr uint32_t INVALID_VALIDATOR = ~0U;
 
 template <typename ResourceType>
 struct Handle;
 
-class Buffer;
-class Image;
-class Sampler;
-class Pipeline;
-
-using BufferHandle = Handle<Buffer>;
-using ImageHandle = Handle<Image>;
-using SamplerHandle = Handle<Sampler>;
-using PipelineHandle = Handle<Pipeline>;
-using PipelineLayoutHandle = Handle<PipelineLayout>;
+GRACE_DEFINE_RESOURCE_HANDLE(Buffer);
+GRACE_DEFINE_RESOURCE_HANDLE(Image);
+GRACE_DEFINE_RESOURCE_HANDLE(Sampler);
+GRACE_DEFINE_RESOURCE_HANDLE(Pipeline);
+GRACE_DEFINE_RESOURCE_HANDLE(PipelineLayout);
+GRACE_DEFINE_RESOURCE_HANDLE(Fence);
 
 template <typename ResourceType>
 struct GRACE_EXPORT Handle

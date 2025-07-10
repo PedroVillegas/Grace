@@ -341,77 +341,22 @@ void CommandBuffer::FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize
     vkCmdFillBuffer(m_CmdBuffer, buffer.GetVkHandle(), offset, size, data);
 }
 
-void CommandBuffer::ResetQueryPoolFullRange(QueryType qt, uint32_t frameIndex)
-{
-    assert(m_pQueryMgr);
-    assert(qt != QueryType::Undefined);
-
-    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
-    m_pQueryMgr->ResetQueryGroup(qt);
-
-    uint32_t start = frameIndex * qg.GetRange();
-    uint32_t end = start + qg.GetRange();
-
-    vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
-}
-
-void CommandBuffer::ResetQueryPool(QueryType qt, uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex)
-{
-    assert(m_pQueryMgr);
-    assert(qt != QueryType::Undefined);
-
-    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
-    assert(queryCount < qg.GetRange());
-
-    uint32_t start = (frameIndex * qg.GetRange()) + firstQuery;
-    uint32_t end = start + queryCount;
-
-    vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
-}
-
-void CommandBuffer::BeginQuery(QueryType qt,
-                               const char* name,
-                               QueryWriteFlags writeFlags,
-                               uint32_t frameIndex,
-                               VkQueryControlFlags controlFlags)
-{
-    QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
-    const uint32_t query = m_pQueryMgr->AddQuery(qt, name);
-
-    const uint32_t offset = frameIndex * qg.GetRange();
-    if (writeFlags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
-    {
-        if (qg.GetQueries()[offset + query + qg.GetValuesPerQuery()] == 0)
-        {
-            return;
-        };
-    }
-
-    vkCmdBeginQuery(m_CmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
-}
-
-void CommandBuffer::EndQuery(QueryType qt, const char* name)
-{
-    const QueryGroup& qg = m_pQueryMgr->GetQueryGroup(qt);
-    vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
-}
-
 void CommandBuffer::WriteTimestamp(const char* name,
                                    VkPipelineStageFlags2 stage,
-                                   QueryWriteFlags flags,
-                                   uint32_t frameIndex)
+                                   uint32_t frameIndex,
+                                   QueryWriteFlags flags) const
 {
-    QueryGroup& qg = m_pQueryMgr->GetQueryGroup(QueryType::Timestamp);
-    const uint32_t query = m_pQueryMgr->AddQuery(QueryType::Timestamp, name);
+    const TimestampQueryGroup& qg = m_pQueryMgr->GetQueryGroup<QueryType::Timestamp>();
+    const uint32_t query = m_pQueryMgr->AddQuery<QueryType::Timestamp>(name);
 
-    const uint32_t offset = frameIndex * qg.GetRange();
-    if (flags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
-    {
-        if (qg.GetQueries()[offset + query + 1] == 0)
-        {
-            return;
-        };
-    }
+    const uint32_t offset = frameIndex * (qg.GetRange() - 1);
+    // if (flags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
+    // {
+    //     if (qg.GetQueries()[offset + query + 1] == 0)
+    //     {
+    //         return;
+    //     };
+    // }
 
     vkCmdWriteTimestamp2(m_CmdBuffer, stage, qg.GetVkQueryPool(), offset + query);
 }

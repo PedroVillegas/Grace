@@ -28,7 +28,6 @@ struct GRACE_EXPORT FrameSyncGroup
 {
     VkSemaphore acquireSemaphore = {};
     VkSemaphore presentSemaphore = {};
-    VkFence inFlightFence = {};
     uint32_t imageIndex = ~0U;
 };
 

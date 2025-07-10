@@ -96,10 +96,10 @@ int main()
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
-        cmd.ResetQueryPoolFullRange(Grace::QueryType::Timestamp);
-        cmd.ResetQueryPoolFullRange(Grace::QueryType::PipelineStatistics);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(0);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(0);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
         /* Record commands */
 
@@ -139,15 +139,15 @@ int main()
         // Bind helloTriangle pipeline and execute a draw call
         cmd.BindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
 
-        cmd.BeginQuery(Grace::QueryType::PipelineStatistics, "Hello Triangle Pipeline Stats");
+        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
 
         cmd.WriteTimestamp(
-            "Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, Grace::QueryWriteFlags::None);
+            "Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
         cmd.Draw(3, 1, 0, 0);
         cmd.WriteTimestamp(
-            "Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, Grace::QueryWriteFlags::None);
+            "Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
 
-        cmd.EndQuery(Grace::QueryType::PipelineStatistics, "Hello Triangle Pipeline Stats");
+        cmd.EndQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats");
 
         cmd.EndDynamicRendering();
         cmd.EndDebugLabel();
@@ -160,7 +160,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -180,21 +180,21 @@ int main()
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
         const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
 
-        const Grace::QueryGroup& tgq =
-            pDevice->GetQueryPoolResults(Grace::QueryType::Timestamp, 0, 0, VK_QUERY_RESULT_WAIT_BIT);
+        const Grace::TimestampQueryGroup& tqg =
+            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
 
-        const Grace::QueryGroup& psgq = pDevice->GetQueryPoolResults(
-            Grace::QueryType::PipelineStatistics, 0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+        const Grace::PipelineStatsQueryGroup& psqg = pDevice->GetQueryPoolResults<Grace::QueryType::PipelineStatistics>(
+            0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
 
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
 
         float helloTrianglePassTime =
-            tgq.Duration<Grace::TimestampUnits::Milliseconds>("Hello Triangle Pass Begin", "Hello Triangle Pass End");
+            tqg.Duration<Grace::TimestampUnits::Milliseconds>("Hello Triangle Pass Begin", "Hello Triangle Pass End");
 
-        float gpuFrameTime = tgq.Duration<Grace::TimestampUnits::Milliseconds>("GPU Frame Begin", "GPU Frame End");
+        float gpuFrameTime = tqg.Duration<Grace::TimestampUnits::Milliseconds>("GPU Frame Begin", "GPU Frame End");
 
-        psgq.GetQueryIfAvailable(fragmentInvocations, "Hello Triangle Pipeline Stats", 1);
+        psqg.GetQueryIfAvailable(fragmentInvocations, "Hello Triangle Pipeline Stats", 1);
 
         if (ss == Grace::SwapchainStatus::ShouldResize || framebufferHasResized)
         {

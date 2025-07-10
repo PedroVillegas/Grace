@@ -4,6 +4,7 @@
 
 #include <array>
 #include <queue>
+#include <cassert>
 
 #include <vulkan/vulkan.h>
 #include <Grace/PipelineGroup.hpp>
@@ -168,22 +169,69 @@ public:
 
     /// QUERY OPS
 
-    void ResetQueryPoolFullRange(QueryType qt, uint32_t frameIndex = 0U);
+    template <typename T>
+    void ResetQueryPoolFullRange(uint32_t frameIndex, QueryWriteFlags flags = QueryWriteFlags::None)
+    {
+        assert(m_pQueryMgr);
 
-    void ResetQueryPool(QueryType qt, uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex = 0U);
+        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
+        m_pQueryMgr->ResetQueryGroup<T>();
 
-    void BeginQuery(QueryType qt,
-                    const char* name,
+        // if (flags != QueryWriteFlags::WriteIfPreviousResultIsAvailable)
+        // {
+        uint32_t start = frameIndex * qg.GetRange();
+        uint32_t end = qg.GetRange();
+
+        vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+        // }
+    }
+
+    template <typename T>
+    void ResetQueryPool(uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex)
+    {
+        assert(m_pQueryMgr);
+
+        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
+        assert(queryCount < qg.GetRange());
+
+        uint32_t start = (frameIndex * qg.GetRange()) + firstQuery;
+        uint32_t end = start + queryCount;
+
+        vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+    }
+
+    template <typename T>
+    void BeginQuery(const char* name,
+                    uint32_t frameIndex,
                     QueryWriteFlags writeFlags = QueryWriteFlags::None,
-                    uint32_t frameIndex = 0U,
-                    VkQueryControlFlags controlFlags = 0);
+                    VkQueryControlFlags controlFlags = 0)
+    {
+        QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
+        const uint32_t query = m_pQueryMgr->AddQuery<T>(name);
 
-    void EndQuery(QueryType qt, const char* name);
+        const uint32_t offset = frameIndex * qg.GetRange();
+        if (writeFlags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
+        {
+            if (qg.GetQueries()[offset + query + qg.GetValuesPerQuery()] == 0)
+            {
+                return;
+            };
+        }
+
+        vkCmdBeginQuery(m_CmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
+    }
+
+    template <typename T>
+    void EndQuery(const char* name)
+    {
+        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
+        vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
+    }
 
     void WriteTimestamp(const char* name,
                         VkPipelineStageFlags2 stage,
-                        QueryWriteFlags flags = QueryWriteFlags::None,
-                        uint32_t frameIndex = 0U);
+                        uint32_t frameIndex,
+                        QueryWriteFlags flags = QueryWriteFlags::None) const;
 
 private:
     VkCommandBuffer m_CmdBuffer = {};

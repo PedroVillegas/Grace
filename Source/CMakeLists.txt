@@ -71,6 +71,7 @@ set(
     Grace/Swapchain.cpp
     Grace/SyncGroup.cpp
     Grace/QueryManager.cpp
+    Grace/Fence.cpp
     "${vma_SOURCE_DIR}/src/VmaUsage.cpp"
 )
 
