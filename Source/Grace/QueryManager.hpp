@@ -67,11 +67,11 @@ struct GRACE_EXPORT PipelineStatistics : QueryTypeBase
 
 } // namespace QueryType
 
-template <typename Ty>
+template <typename QueryTy>
 class GRACE_EXPORT QueryGroup
 {
-    static_assert(std::derived_from<Ty, QueryType::QueryTypeBase>,
-                  "QueryGroup type not derived from QueryGroupType::QueryTypeBase!");
+    static_assert(std::derived_from<QueryTy, QueryType::QueryTypeBase>,
+                  "QueryGroup type must be derived from QueryGroupType::QueryTypeBase!");
 
 public:
     ~QueryGroup() = default;
@@ -83,17 +83,17 @@ public:
     QueryGroup(QueryGroup&& other) noexcept = delete;
     QueryGroup& operator=(QueryGroup&& other) noexcept = delete;
 
-    _NODISCARD VkQueryPool GetVkQueryPool() const
+    GRACE_NODISCARD VkQueryPool GetVkQueryPool() const
     {
         return m_QueryPool;
     }
 
-    _NODISCARD std::vector<uint64_t>& GetQueries()
+    GRACE_NODISCARD std::vector<uint64_t>& GetQueries()
     {
         return m_Queries;
     }
 
-    _NODISCARD uint64_t GetQuery(const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
+    GRACE_NODISCARD uint64_t GetQuery(const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
     {
         const uint32_t offset = GetQueryOffset(name);
         return m_Queries[(m_Range * frameIndex) + offset + relativeBit];
@@ -111,30 +111,30 @@ public:
         }
     }
 
-    _NODISCARD uint32_t GetQueryOffset(const char* name) const
+    GRACE_NODISCARD uint32_t GetQueryOffset(const char* name) const
     {
         assert(name != nullptr);
         assert(m_NamedQueryMap.contains(name));
         return m_NamedQueryMap.at(name);
     }
 
-    _NODISCARD uint32_t GetRange() const
+    GRACE_NODISCARD uint32_t GetRange() const
     {
         return m_Range;
     }
 
-    _NODISCARD uint32_t GetQueryCount() const
+    GRACE_NODISCARD uint32_t GetQueryCount() const
     {
         return m_QueriesWrittenSinceLastReset;
     }
 
-    _NODISCARD uint32_t GetValuesPerQuery() const
+    GRACE_NODISCARD uint32_t GetValuesPerQuery() const
     {
         return m_ValuesPerQuery;
     }
 
-    template <typename UnitsType, typename U = Ty>
-    _NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, double>
+    template <typename UnitsType, typename U = QueryTy>
+    GRACE_NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, double>
     Duration(const char* start, const char* end, uint32_t frameIndex = 0U) const
     {
         static_assert(std::is_same_v<UnitsType, TimestampUnits::Nanoseconds>
@@ -148,8 +148,8 @@ public:
         return duration;
     }
 
-    template <typename UnitsType, typename U = Ty>
-    _NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, void>
+    template <typename UnitsType, typename U = QueryTy>
+    GRACE_NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, void>
     DurationIfAvailable(double& inout, const char* start, const char* end, uint32_t frameIndex = 0U) const
     {
         static_assert(std::is_same_v<UnitsType, TimestampUnits::Nanoseconds>
@@ -171,7 +171,7 @@ public:
     }
 
 private:
-    _NODISCARD uint32_t AddQuery(const char* name)
+    GRACE_NODISCARD uint32_t AddQuery(const char* name)
     {
         const uint32_t offset = m_QueriesWrittenSinceLastReset++;
         m_NamedQueryMap[name] = offset;
@@ -209,10 +209,10 @@ public:
     QueryManager& operator=(QueryManager&& other) noexcept = delete;
 
     template <typename T>
-    _NODISCARD QueryGroup<T>& GetQueryGroup()
+    GRACE_NODISCARD QueryGroup<T>& GetQueryGroup()
     {
         static_assert(std::derived_from<T, QueryType::QueryTypeBase>,
-                      "QueryGroup type not derived from QueryGroupType::QueryTypeBase!");
+                      "QueryGroup type must be derived from QueryGroupType::QueryTypeBase!");
 
         if constexpr (std::is_same_v<T, QueryType::Timestamp>)
         {
@@ -229,7 +229,7 @@ public:
     }
 
     template <typename T>
-    _NODISCARD uint32_t AddQuery(const char* name)
+    GRACE_NODISCARD uint32_t AddQuery(const char* name)
     {
         QueryGroup<T>& qg = GetQueryGroup<T>();
         return qg.AddQuery(name);

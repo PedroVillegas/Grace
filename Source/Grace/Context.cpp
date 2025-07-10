@@ -3,8 +3,6 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 
-#include <iostream>
-#include <cassert>
 #include <cstring>
 
 #ifdef USE_GLFW

@@ -39,15 +39,15 @@ public:
     Sampler(Sampler&& other) noexcept;
     Sampler& operator=(Sampler&& other) noexcept;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkSampler GetVkHandle() const;
+    GRACE_NODISCARD VkSampler GetVkHandle() const;
 
     /// Sets index to resource in bindless array of Samplers for access on GPU.
     void SetSamplerId(const uint32_t id);
 
     /// @returns Index to resource in bindless array of Samplers for access on GPU.
-    _NODISCARD uint32_t GetSamplerId() const;
+    GRACE_NODISCARD uint32_t GetSamplerId() const;
 
 private:
     Device* m_Device = nullptr;

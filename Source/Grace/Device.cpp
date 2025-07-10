@@ -181,10 +181,38 @@ void Device::ResetFences(const std::vector<VkFence>& fences)
     vkResetFences(m_Device, static_cast<uint32_t>(fences.size()), fences.data());
 }
 
-void Device::Submit(QueueFamily queue,
+void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, const Fence& fence)
+{
+    VkCommandBufferSubmitInfo cmdInfo = {};
+    cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmdInfo.pNext = nullptr;
+    cmdInfo.commandBuffer = cmd.GetVkCommandBuffer();
+    cmdInfo.deviceMask = 0;
+
+    VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
+    waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    waitSemaphoreInfo.pNext = nullptr;
+    waitSemaphoreInfo.semaphore = fsg.acquireSemaphore.GetVkSemaphore();
+    waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    waitSemaphoreInfo.deviceIndex = 0;
+    waitSemaphoreInfo.value = 1;
+
+    VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
+    signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    signalSemaphoreInfo.pNext = nullptr;
+    signalSemaphoreInfo.semaphore = fsg.presentSemaphore.GetVkSemaphore();
+    signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    signalSemaphoreInfo.deviceIndex = 0;
+    signalSemaphoreInfo.value = 1;
+
+    VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
+
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), 1, &submitInfo, fence.GetVkFence()));
+}
+
+void Device::BatchSubmit(QueueFamily queue,
                     const std::vector<CommandBuffer>& cmds,
-                    const std::vector<VkSemaphore>& waitOn,
-                    const std::vector<VkSemaphore>& toSignal,
+                    const std::vector<FrameSyncGroup>& fsgs,
                     const Fence& fence)
 {
     uint32_t N = static_cast<uint32_t>(cmds.size());
@@ -198,12 +226,12 @@ void Device::Submit(QueueFamily queue,
         cmdInfo.commandBuffer = cmds[i].GetVkCommandBuffer();
         cmdInfo.deviceMask = 0;
 
-        if (!waitOn.empty())
+        if (!fsgs.empty())
         {
             VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
             waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
             waitSemaphoreInfo.pNext = nullptr;
-            waitSemaphoreInfo.semaphore = waitOn[i];
+            waitSemaphoreInfo.semaphore = fsgs[i].acquireSemaphore.GetVkSemaphore();
             waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             waitSemaphoreInfo.deviceIndex = 0;
             waitSemaphoreInfo.value = 1;
@@ -211,7 +239,7 @@ void Device::Submit(QueueFamily queue,
             VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
             signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
             signalSemaphoreInfo.pNext = nullptr;
-            signalSemaphoreInfo.semaphore = toSignal[i];
+            signalSemaphoreInfo.semaphore = fsgs[i].presentSemaphore.GetVkSemaphore();
             signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             signalSemaphoreInfo.deviceIndex = 0;
             signalSemaphoreInfo.value = 1;
@@ -227,13 +255,14 @@ void Device::Submit(QueueFamily queue,
     DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fence.GetVkFence()));
 }
 
-SwapchainStatus Device::Present(VkSemaphore waitSemaphore, uint32_t swapchainImageIndex)
+SwapchainStatus Device::Present(const BinarySemaphore& waitOn, uint32_t swapchainImageIndex)
 {
+    std::array waitSemaphore = { waitOn.GetVkSemaphore() };
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &waitSemaphore;
+    presentInfo.pWaitSemaphores = waitSemaphore.data();
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_Swapchain->GetVkHandle();
     presentInfo.pImageIndices = &swapchainImageIndex;
@@ -396,6 +425,36 @@ Fence& Device::GetFence(const FenceHandle& handle)
 void Device::FreeFence(FenceHandle& handle)
 {
     m_ResourceMgr->Free<Fence>(handle);
+}
+
+BinarySemaphoreHandle Device::CreateBinarySemaphore(const SemaphoreDesc& desc)
+{
+    return m_ResourceMgr->Create<BinarySemaphore>(this, desc);
+}
+
+BinarySemaphore& Device::GetBinarySemaphore(const BinarySemaphoreHandle& handle)
+{
+    return m_ResourceMgr->Get<BinarySemaphore>(handle);
+}
+
+void Device::FreeBinarySemaphore(BinarySemaphoreHandle& handle)
+{
+    m_ResourceMgr->Free<BinarySemaphore>(handle);
+}
+
+TimelineSemaphoreHandle Device::CreateTimelineSemaphore(const SemaphoreDesc& desc)
+{
+    return m_ResourceMgr->Create<TimelineSemaphore>(this, desc);
+}
+
+TimelineSemaphore& Device::GetTimelineSemaphore(const TimelineSemaphoreHandle& handle)
+{
+    return m_ResourceMgr->Get<TimelineSemaphore>(handle);
+}
+
+void Device::FreeTimelineSemaphore(TimelineSemaphoreHandle& handle)
+{
+    m_ResourceMgr->Free<TimelineSemaphore>(handle);
 }
 
 CommandPool* Device::GetCommandPool(QueueFamily queueFamily, const char* name)

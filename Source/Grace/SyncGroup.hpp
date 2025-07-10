@@ -13,7 +13,7 @@ namespace Grace
 class Image;
 class Buffer;
 
-_NODISCARD GRACE_EXPORT VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask);
+GRACE_NODISCARD GRACE_EXPORT VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask);
 
 /// Defines a bunch of potential resource usages
 enum class AccessType : uint64_t

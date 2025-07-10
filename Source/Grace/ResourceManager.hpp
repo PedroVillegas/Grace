@@ -9,6 +9,7 @@
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
+#include <Grace/Semaphore.hpp>
 #include <Grace/HandleTypes.hpp>
 #include <Grace/Macros.hpp>
 
@@ -109,13 +110,13 @@ class ResourceManager
 {
 public:
     template <typename Res, typename... Args>
-    _NODISCARD Handle<Res> Create(Args&&... args)
+    GRACE_NODISCARD Handle<Res> Create(Args&&... args)
     {
         return ResourceRegistry<Res>().Register(std::forward<Args>(args)...);
     }
 
     template <typename Res>
-    _NODISCARD Res& Get(Handle<Res> handle)
+    GRACE_NODISCARD Res& Get(Handle<Res> handle)
     {
         return ResourceRegistry<Res>().Get(handle);
     }
@@ -127,7 +128,7 @@ public:
     }
 
     /// Fetches ALL Images found in the Image's Registry
-    _NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
+    GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
     template <typename Res>
@@ -139,6 +140,8 @@ private:
     GRACE_DEFINE_RESOURCE_REGISTRY(Pipeline, m_PipelinesRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(PipelineLayout, m_PipelineLayoutsRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(Fence, m_FencesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(BinarySemaphore, m_BinarySemaphoresRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(TimelineSemaphore, m_TimelineSemaphoresRegistry);
 };
 
 } // namespace Grace

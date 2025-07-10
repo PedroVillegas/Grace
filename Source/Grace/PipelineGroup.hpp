@@ -42,9 +42,9 @@ public:
     PipelineLayout(PipelineLayout&& other) noexcept;
     PipelineLayout& operator=(PipelineLayout&& other) noexcept;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkPipelineLayout GetVkPipelineLayout() const;
+    GRACE_NODISCARD VkPipelineLayout GetVkPipelineLayout() const;
 
 private:
     Device* m_Device = nullptr;
@@ -79,9 +79,9 @@ public:
     Pipeline(Pipeline&& other) noexcept;
     Pipeline& operator=(Pipeline&& other) noexcept;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkPipeline GetVkHandle() const;
+    GRACE_NODISCARD VkPipeline GetVkHandle() const;
 
 private:
     Device* m_Device = nullptr;

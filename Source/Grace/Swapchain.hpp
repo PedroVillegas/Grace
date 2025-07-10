@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan.h>
 #include <Grace/Image.hpp>
+#include <Grace/Semaphore.hpp>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
 
@@ -26,8 +27,8 @@ enum class SwapchainStatus : uint8_t
 
 struct GRACE_EXPORT FrameSyncGroup
 {
-    VkSemaphore acquireSemaphore = {};
-    VkSemaphore presentSemaphore = {};
+    BinarySemaphore acquireSemaphore = {};
+    BinarySemaphore presentSemaphore = {};
     uint32_t imageIndex = ~0U;
 };
 
@@ -46,26 +47,26 @@ public:
 
     FrameSyncGroup& AcquireNextImage(Device* device, VkExtent2D imageExtent);
 
-    _NODISCARD const FrameSyncGroup& GetRecentFrameSyncGroup() const;
+    GRACE_NODISCARD const FrameSyncGroup& GetRecentFrameSyncGroup() const;
 
-    _NODISCARD const VkSwapchainKHR& GetVkHandle() const;
+    GRACE_NODISCARD const VkSwapchainKHR& GetVkHandle() const;
 
-    _NODISCARD SwapchainStatus GetStatus() const;
+    GRACE_NODISCARD SwapchainStatus GetStatus() const;
 
-    _NODISCARD VkFormat GetFormat() const;
+    GRACE_NODISCARD VkFormat GetFormat() const;
 
-    _NODISCARD const Image& GetRecentAcquiredImage() const;
+    GRACE_NODISCARD const Image& GetRecentAcquiredImage() const;
 
 private:
     void Create(VkExtent2D imageExtent);
 
     void Cleanup();
 
-    _NODISCARD VkSurfaceFormatKHR SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    GRACE_NODISCARD VkSurfaceFormatKHR SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
-    _NODISCARD VkPresentModeKHR SelectSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    GRACE_NODISCARD VkPresentModeKHR SelectSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
-    _NODISCARD VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
+    GRACE_NODISCARD VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
 
 private:
     Device* m_Device = nullptr;

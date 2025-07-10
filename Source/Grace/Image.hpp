@@ -36,17 +36,17 @@ public:
     ImageView(ImageView&& other) noexcept;
     ImageView& operator=(ImageView&& other) noexcept;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkImageView GetVkHandle() const;
+    GRACE_NODISCARD VkImageView GetVkHandle() const;
 
     void MakeNull();
 
-    _NODISCARD uint32_t GetStorageImgId() const;
+    GRACE_NODISCARD uint32_t GetStorageImgId() const;
 
     void SetStorageImgId(uint32_t storageImgId);
 
-    _NODISCARD VkImageUsageFlags GetUsageFlags() const;
+    GRACE_NODISCARD VkImageUsageFlags GetUsageFlags() const;
 
 private:
     Device* m_Device = nullptr;
@@ -93,54 +93,54 @@ public:
     void SetSampledImgId(uint32_t id);
 
     /// @returns Index to resource in bindless array of Storage Images for access on GPU.
-    _NODISCARD uint32_t GetStorageImgId() const;
+    GRACE_NODISCARD uint32_t GetStorageImgId() const;
 
     /// @returns Index to resource in bindless array of Sampled Images for access on GPU.
-    _NODISCARD uint32_t GetSampledImgId() const;
+    GRACE_NODISCARD uint32_t GetSampledImgId() const;
 
     /// @returns `true` if associated `VkImage`, `VkImageView` or `VmaAllocation` are null.
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
     /// @returns `VkImage` of image which holds actual data.
-    _NODISCARD VkImage GetImage() const;
+    GRACE_NODISCARD VkImage GetImage() const;
 
     /// @returns `VkImageView` of image which tells you how the data is stored.
-    _NODISCARD const ImageView& GetDefaultView() const;
+    GRACE_NODISCARD const ImageView& GetDefaultView() const;
 
     /// @returns Format per pixel of image.
-    _NODISCARD VkFormat GetFormat() const;
+    GRACE_NODISCARD VkFormat GetFormat() const;
 
     /// @returns Format per pixel of image as `const *`.
-    _NODISCARD const VkFormat* GetFormatPtr() const;
+    GRACE_NODISCARD const VkFormat* GetFormatPtr() const;
 
     /// @returns VkExtent2D of image.
-    _NODISCARD VkExtent2D GetExtent2D() const;
+    GRACE_NODISCARD VkExtent2D GetExtent2D() const;
 
     /// @returns VkExtent3D of image.
-    _NODISCARD VkExtent3D GetExtent3D() const;
+    GRACE_NODISCARD VkExtent3D GetExtent3D() const;
 
     /// @returns Width of image.
-    _NODISCARD uint32_t GetWidth() const;
+    GRACE_NODISCARD uint32_t GetWidth() const;
 
     /// @returns Height of image.
-    _NODISCARD uint32_t GetHeight() const;
+    GRACE_NODISCARD uint32_t GetHeight() const;
 
     /// @returns Depth of image.
-    _NODISCARD uint32_t GetDepth() const;
+    GRACE_NODISCARD uint32_t GetDepth() const;
 
-    _NODISCARD uint32_t GetMaxMipLevels() const;
+    GRACE_NODISCARD uint32_t GetMaxMipLevels() const;
 
     /// @returns Usage flags used to create image.
-    _NODISCARD VkImageUsageFlags GetUsageFlags() const;
+    GRACE_NODISCARD VkImageUsageFlags GetUsageFlags() const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
-    _NODISCARD VmaAllocation GetAllocation() const;
+    GRACE_NODISCARD VmaAllocation GetAllocation() const;
 
     /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
-    _NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
+    GRACE_NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
-    _NODISCARD VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
+    GRACE_NODISCARD VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
 
     Device* m_Device = nullptr;
     ImageView m_DefaultView = {};

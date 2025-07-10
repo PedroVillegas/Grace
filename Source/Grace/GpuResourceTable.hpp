@@ -33,7 +33,7 @@ public:
     void AppendFreeSlot(const uint32_t slot);
 
     /// @returns Index to first unoccupied slot.
-    _NODISCARD uint32_t FindAvailableSlot();
+    GRACE_NODISCARD uint32_t FindAvailableSlot();
 
 private:
     uint32_t m_MaxSlots = std::numeric_limits<uint16_t>::max();

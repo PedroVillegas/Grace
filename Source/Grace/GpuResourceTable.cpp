@@ -103,7 +103,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t
     nameInfoGDSL.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
     nameInfoGDSL.objectHandle = (uint64_t) soleDescriptorSetLayout;
     nameInfoGDSL.pObjectName = "Sole Descriptor Set Layout";
-    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDSL);
+    GRACE_SET_VK_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDSL);
 
     // Allocate global descriptor set
     VkDescriptorSetAllocateInfo allocInfo = {};
@@ -119,7 +119,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t
     nameInfoGDS.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET;
     nameInfoGDS.objectHandle = (uint64_t) soleDescriptorSet;
     nameInfoGDS.pObjectName = "Sole Descriptor Set";
-    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDS);
+    GRACE_SET_VK_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGDS);
 
     // Create global pipeline layout
     VkPushConstantRange pushConstants = {};
@@ -140,7 +140,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t
     nameInfoGPL.objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
     nameInfoGPL.objectHandle = (uint64_t) solePipelineLayout;
     nameInfoGPL.pObjectName = "Sole Pipeline Layout";
-    VK_SET_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGPL);
+    GRACE_SET_VK_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGPL);
 }
 
 void GpuResourceTable::SubmitImage(Image& image)

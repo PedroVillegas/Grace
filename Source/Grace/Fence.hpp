@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {
@@ -29,9 +30,9 @@ public:
     Fence(Fence&& other) noexcept;
     Fence& operator=(Fence&& other) noexcept;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD const VkFence GetVkFence() const;
+    GRACE_NODISCARD const VkFence GetVkFence() const;
 
 private:
     Device* m_pDevice = nullptr;

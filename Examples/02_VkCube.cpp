@@ -201,11 +201,7 @@ int main()
         // wait on the acquireSemaphore to be signalled
         // Once the submission is complete, one can be sure that the swapchain image is no
         // longer being written to, so presentSemaphore is signalled
-        pDevice->Submit(Grace::QueueFamily::Graphics,
-                        { cmd },
-                        { fsg.acquireSemaphore },
-                        { fsg.presentSemaphore },
-                        pDevice->GetFence(frame[frameIndex].inFlightFence));
+        pDevice->Submit(Grace::QueueFamily::Graphics, cmd, fsg, pDevice->GetFence(frame[frameIndex].inFlightFence));
 
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
         const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);

@@ -6,8 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Image.hpp>
-#include <Grace/Buffer.hpp>
-#include <Grace/Context.hpp>
+#include <Grace/OptionalPFN.hpp>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
 
@@ -228,16 +227,16 @@ void AssignDebugName(VkDevice device, VK_HANDLE handle, const char* name)
     nameInfo.objectType = objectType;
     nameInfo.objectHandle = uint64_t(handle);
     nameInfo.pObjectName = name;
-    VK_SET_DEBUG_NAME(device, &nameInfo);
+    GRACE_SET_VK_DEBUG_NAME(device, &nameInfo);
 }
 
-_NODISCARD GRACE_EXPORT VkRenderingAttachmentInfo ColourAttachmentInfo(
+GRACE_NODISCARD GRACE_EXPORT VkRenderingAttachmentInfo ColourAttachmentInfo(
     const Image& image, VkClearValue* clear, VkImageLayout imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-_NODISCARD GRACE_EXPORT VkRenderingAttachmentInfo
+GRACE_NODISCARD GRACE_EXPORT VkRenderingAttachmentInfo
 DepthAttachmentInfo(const Image& image, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-_NODISCARD GRACE_EXPORT VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
+GRACE_NODISCARD GRACE_EXPORT VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
                                                       uint32_t colourAttachmentCount,
                                                       const VkRenderingAttachmentInfo* pColourAttachments,
                                                       const VkRenderingAttachmentInfo* pDepthAttachment);
@@ -250,18 +249,18 @@ void CopyImageToImage(CommandBuffer cmd,
                       uint32_t srcMipLevel = 0U,
                       uint32_t dstMipLevel = 0U);
 
-_NODISCARD VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
+GRACE_NODISCARD VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                                     VkSemaphoreSubmitInfo* signalSemaphoreInfo,
                                     VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 
 void GenerateMipmaps(CommandBuffer& cmd, const Image& image);
 
-_NODISCARD std::vector<char> ReadSpvFile(const std::filesystem::path& filename);
+GRACE_NODISCARD std::vector<char> ReadSpvFile(const std::filesystem::path& filename);
 
-_NODISCARD bool
+GRACE_NODISCARD bool
 CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule);
 
-_NODISCARD VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module);
+GRACE_NODISCARD VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module);
 
 struct QueueFamilyIndices
 {
@@ -276,7 +275,7 @@ struct QueueFamilyIndices
     }
 };
 
-_NODISCARD QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR);
+GRACE_NODISCARD QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR);
 
 struct SwapChainSupportDetails
 {
@@ -285,6 +284,6 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR> presentModes = {};
 };
 
-_NODISCARD SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR);
+GRACE_NODISCARD SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR);
 
 } // namespace Grace

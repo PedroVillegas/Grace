@@ -9,8 +9,6 @@
 #include <glfw/glfw3.h>
 #endif
 
-#include <iostream>
-
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -122,45 +120,31 @@ void Swapchain::Create(VkExtent2D imageExtent)
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
         const std::string name = "Grace::SwapchainImage::" + std::to_string(i);
-        m_Images[i] = Image(
-            m_Device,
-            tempImages[i],
-            {
-                .name = name.c_str(),
-                .dimensions = { extent.width, extent.height, 1 },
-                .format = surfaceFormat.format,
-                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                .mipmapped = false,
-            });
+        m_Images[i] = Image(m_Device,
+                            tempImages[i],
+                            {
+                                .name = name.c_str(),
+                                .dimensions = { extent.width, extent.height, 1 },
+                                .format = surfaceFormat.format,
+                                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                .mipmapped = false,
+                            });
     }
 
     for (uint32_t i = 0; i < m_ImageAcquiredSyncStructs.size(); ++i)
     {
         FrameSyncGroup& sync = m_ImageAcquiredSyncStructs[i];
 
-        VkSemaphoreCreateInfo semaphoreInfo = {};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        semaphoreInfo.pNext = nullptr;
-        semaphoreInfo.flags = 0;
-
-        DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.acquireSemaphore));
         const std::string acquireSemaphoreDebugName = "Grace::Semaphore::Acquire::" + std::to_string(i);
-        AssignDebugName<VkSemaphore>(m_Device->GetVkHandle(), sync.acquireSemaphore, acquireSemaphoreDebugName.c_str());
+        sync.acquireSemaphore = BinarySemaphore(m_Device, { .name = acquireSemaphoreDebugName.c_str() });
 
-        DebugReporter::Check(vkCreateSemaphore(m_Device->GetVkHandle(), &semaphoreInfo, nullptr, &sync.presentSemaphore));
         const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
-        AssignDebugName<VkSemaphore>(m_Device->GetVkHandle(), sync.presentSemaphore, presentSemaphoreDebugName.c_str());
+        sync.presentSemaphore = BinarySemaphore(m_Device, { .name = presentSemaphoreDebugName.c_str() });
     }
 }
 
 void Swapchain::Cleanup()
 {
-    for (auto& sync : m_ImageAcquiredSyncStructs)
-    {
-        vkDestroySemaphore(m_Device->GetVkHandle(), sync.acquireSemaphore, nullptr);
-        vkDestroySemaphore(m_Device->GetVkHandle(), sync.presentSemaphore, nullptr);
-    }
-
     // Destroys VkSwapchain and VkImages
     vkDestroySwapchainKHR(m_Device->GetVkHandle(), m_Swapchain, nullptr);
 }
@@ -185,8 +169,12 @@ FrameSyncGroup& Swapchain::AcquireNextImage(Device* device, VkExtent2D imageExte
     FrameSyncGroup& frameSync = m_ImageAcquiredSyncStructs[m_ImageAcquiredCycleIndex];
 
     // Acquire an image from the swap chain
-    VkResult result = vkAcquireNextImageKHR(
-        device->GetVkHandle(), m_Swapchain, UINT64_MAX, frameSync.acquireSemaphore, nullptr, &frameSync.imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device->GetVkHandle(),
+                                            m_Swapchain,
+                                            UINT64_MAX,
+                                            frameSync.acquireSemaphore.GetVkSemaphore(),
+                                            nullptr,
+                                            &frameSync.imageIndex);
 
     // Check if swap chain is still adequate to present
     if (result == VK_ERROR_OUT_OF_DATE_KHR)

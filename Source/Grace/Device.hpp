@@ -39,11 +39,11 @@ public:
     Device(Device&&) noexcept = delete;
     Device& operator=(Device&&) noexcept = delete;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkDevice GetVkHandle() const;
+    GRACE_NODISCARD VkDevice GetVkHandle() const;
 
-    _NODISCARD VmaAllocator GetVmaHandle() const;
+    GRACE_NODISCARD VmaAllocator GetVmaHandle() const;
 
     void WaitIdle();
 
@@ -58,26 +58,30 @@ public:
     void ResetFences(const std::vector<VkFence>& fences);
 
     void Submit(QueueFamily queue,
-                const std::vector<CommandBuffer>& cmds,
-                const std::vector<VkSemaphore>& waitOn,
-                const std::vector<VkSemaphore>& toSignal,
+                const CommandBuffer& cmd,
+                const FrameSyncGroup& fsg,
                 const Fence& fence = {});
 
-    _NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
+    void BatchSubmit(QueueFamily queue,
+                     const std::vector<CommandBuffer>& cmds,
+                     const std::vector<FrameSyncGroup>& fsgs,
+                     const Fence& fence = {});
 
-    _NODISCARD VkDescriptorSet& GetSoleDescriptorSet();
+    GRACE_NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
 
-    _NODISCARD VkDescriptorSetLayout& GetSoleDescriptorSetLayout();
+    GRACE_NODISCARD VkDescriptorSet& GetSoleDescriptorSet();
 
-    _NODISCARD VkPipelineLayout& GetSolePipelineLayout();
+    GRACE_NODISCARD VkDescriptorSetLayout& GetSoleDescriptorSetLayout();
+
+    GRACE_NODISCARD VkPipelineLayout& GetSolePipelineLayout();
 
     void UpdateBindlessDescriptorSet();
 
     /// BUFFER OPS
 
-    _NODISCARD BufferHandle CreateBuffer(const BufferDesc& desc);
+    GRACE_NODISCARD BufferHandle CreateBuffer(const BufferDesc& desc);
 
-    _NODISCARD Buffer& GetBuffer(const BufferHandle& handle);
+    GRACE_NODISCARD Buffer& GetBuffer(const BufferHandle& handle);
 
     void FreeBuffer(BufferHandle& handle);
 
@@ -85,61 +89,73 @@ public:
 
     void SubmitImageView(ImageView& view);
 
-    _NODISCARD ImageHandle CreateImage(const ImageDesc& desc);
+    GRACE_NODISCARD ImageHandle CreateImage(const ImageDesc& desc);
 
-    _NODISCARD Image& GetImage(const ImageHandle& handle);
+    GRACE_NODISCARD Image& GetImage(const ImageHandle& handle);
 
-    _NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
+    GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
     void FreeImage(ImageHandle& handle);
 
     /// SAMPLER OPS
 
-    _NODISCARD SamplerHandle CreateSampler(const SamplerDesc& desc);
+    GRACE_NODISCARD SamplerHandle CreateSampler(const SamplerDesc& desc);
 
-    _NODISCARD Sampler& GetSampler(const SamplerHandle& handle);
+    GRACE_NODISCARD Sampler& GetSampler(const SamplerHandle& handle);
 
     void FreeSampler(SamplerHandle& handle);
 
     /// PIPELINE OPS
 
-    _NODISCARD PipelineHandle CreatePipeline(const PipelineDesc& info);
+    GRACE_NODISCARD PipelineHandle CreatePipeline(const PipelineDesc& info);
 
-    _NODISCARD Pipeline& GetPipeline(const PipelineHandle& handle);
+    GRACE_NODISCARD Pipeline& GetPipeline(const PipelineHandle& handle);
 
     void FreePipeline(PipelineHandle& handle);
 
-    _NODISCARD PipelineLayoutHandle CreatePipelineLayout(const PipelineLayoutDesc& desc);
+    GRACE_NODISCARD PipelineLayoutHandle CreatePipelineLayout(const PipelineLayoutDesc& desc);
 
-    _NODISCARD PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
+    GRACE_NODISCARD PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
 
     void FreePipelineLayout(PipelineLayoutHandle& handle);
 
     /// SYNC OPS
 
-    _NODISCARD FenceHandle CreateFence(const FenceDesc& desc);
+    GRACE_NODISCARD FenceHandle CreateFence(const FenceDesc& desc);
 
-    _NODISCARD Fence& GetFence(const FenceHandle& handle);
+    GRACE_NODISCARD Fence& GetFence(const FenceHandle& handle);
 
     void FreeFence(FenceHandle& handle);
 
+    GRACE_NODISCARD BinarySemaphoreHandle CreateBinarySemaphore(const SemaphoreDesc& desc);
+
+    GRACE_NODISCARD BinarySemaphore& GetBinarySemaphore(const BinarySemaphoreHandle& handle);
+
+    void FreeBinarySemaphore(BinarySemaphoreHandle& handle);
+
+    GRACE_NODISCARD TimelineSemaphoreHandle CreateTimelineSemaphore(const SemaphoreDesc& desc);
+
+    GRACE_NODISCARD TimelineSemaphore& GetTimelineSemaphore(const TimelineSemaphoreHandle& handle);
+
+    void FreeTimelineSemaphore(TimelineSemaphoreHandle& handle);
+
     /// COMMAND GROUP OPS
 
-    _NODISCARD CommandPool* GetCommandPool(QueueFamily queueFamily, const char* name);
+    GRACE_NODISCARD CommandPool* GetCommandPool(QueueFamily queueFamily, const char* name);
 
     void FreeCommandBuffer(CommandBuffer commandBuffer);
 
     /// QUEUE OPS
 
-    _NODISCARD SwapchainStatus Present(VkSemaphore waitSemaphore, uint32_t swapchainImageIndex);
+    GRACE_NODISCARD SwapchainStatus Present(const BinarySemaphore& waitOn, uint32_t swapchainImageIndex);
 
-    _NODISCARD uint32_t GetQueueFamilyIndex(QueueFamily queueFamily);
+    GRACE_NODISCARD uint32_t GetQueueFamilyIndex(QueueFamily queueFamily);
 
-    _NODISCARD VkQueue GetQueue(QueueFamily queueFamily);
+    GRACE_NODISCARD VkQueue GetQueue(QueueFamily queueFamily);
 
     /// QUERY OPS
 
-    _NODISCARD QueryManager* GetQueryManagerPtr();
+    GRACE_NODISCARD QueryManager* GetQueryManagerPtr();
 
     template <typename T>
     void ResetQueryPoolFullRange(uint32_t frameIndex, QueryWriteFlags flags)
@@ -154,10 +170,10 @@ public:
     }
 
     template <typename T>
-    _NODISCARD const QueryGroup<T>& GetQueryPoolResults(uint32_t firstQuery,
-                                                        uint32_t queryCount,
-                                                        VkQueryResultFlags flags,
-                                                        uint32_t frameIndex = 0U) const
+    GRACE_NODISCARD const QueryGroup<T>& GetQueryPoolResults(uint32_t firstQuery,
+                                                             uint32_t queryCount,
+                                                             VkQueryResultFlags flags,
+                                                             uint32_t frameIndex = 0U) const
     {
         QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
 
@@ -184,23 +200,23 @@ public:
 
     /// SWAPCHAIN OPS
 
-    _NODISCARD FrameSyncGroup& AcquireNextSwapchainImage(VkExtent2D imageExtent);
+    GRACE_NODISCARD FrameSyncGroup& AcquireNextSwapchainImage(VkExtent2D imageExtent);
 
-    _NODISCARD const Image& GetRecentlyAcquiredSwapchainImage() const;
+    GRACE_NODISCARD const Image& GetRecentlyAcquiredSwapchainImage() const;
 
-    _NODISCARD const FrameSyncGroup& GetRecentImageAcquiredDesc();
+    GRACE_NODISCARD const FrameSyncGroup& GetRecentImageAcquiredDesc();
 
-    _NODISCARD VkFormat GetSwapchainFormat() const;
+    GRACE_NODISCARD VkFormat GetSwapchainFormat() const;
 
-    _NODISCARD SwapchainStatus GetSwapchainStatus() const;
+    GRACE_NODISCARD SwapchainStatus GetSwapchainStatus() const;
 
     void CreateSwapchain(VkExtent2D imageExtent, bool vsync = true);
 
     /// MISC
 
-    _NODISCARD VkPhysicalDevice GetPhysicalDevice() const;
+    GRACE_NODISCARD VkPhysicalDevice GetPhysicalDevice() const;
 
-    _NODISCARD VkSurfaceKHR GetSurface() const;
+    GRACE_NODISCARD VkSurfaceKHR GetSurface() const;
 
 private:
     struct LogicalDeviceDesc
@@ -215,10 +231,10 @@ private:
 
     void ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateInfos);
 
-    _NODISCARD bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const;
+    GRACE_NODISCARD bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const;
 
-    _NODISCARD bool CheckDeviceExtensionSupport(VkPhysicalDevice device,
-                                                const std::vector<const char*>& requiredExt) const;
+    GRACE_NODISCARD bool CheckDeviceExtensionSupport(VkPhysicalDevice device,
+                                                     const std::vector<const char*>& requiredExt) const;
 
 private:
     VkInstance m_ParentInstance = {};

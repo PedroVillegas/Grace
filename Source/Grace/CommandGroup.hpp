@@ -50,11 +50,11 @@ public:
 
     void Reset();
 
-    _NODISCARD CommandBuffer GetOrAllocateCommandBuffer();
+    GRACE_NODISCARD CommandBuffer GetOrAllocateCommandBuffer();
 
-    _NODISCARD QueueFamily GetQueueFamily() const;
+    GRACE_NODISCARD QueueFamily GetQueueFamily() const;
 
-    _NODISCARD VkCommandPool GetVkCommandPool() const;
+    GRACE_NODISCARD VkCommandPool GetVkCommandPool() const;
 
 private:
     Device* m_Device = nullptr;
@@ -77,9 +77,9 @@ public:
     CommandBuffer(CommandBuffer&&) noexcept = default;
     CommandBuffer& operator=(CommandBuffer&&) noexcept = default;
 
-    _NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool IsNull() const;
 
-    _NODISCARD VkCommandBuffer GetVkCommandBuffer() const;
+    GRACE_NODISCARD VkCommandBuffer GetVkCommandBuffer() const;
 
     /// UNIVERSAL OPS
 
@@ -253,7 +253,7 @@ public:
     CommandGroupAllocator(CommandGroupAllocator&&) noexcept = delete;
     CommandGroupAllocator& operator=(CommandGroupAllocator&&) noexcept = delete;
 
-    _NODISCARD CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
+    GRACE_NODISCARD CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
 
     void ReturnCommandPool(CommandPool* commandPool);
 

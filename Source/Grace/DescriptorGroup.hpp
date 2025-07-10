@@ -62,11 +62,11 @@ public:
     /// @param pNext Optional pointer to next struct for `VkDescriptorSetAllocateInfo`.
     ///
     /// @returns Allocated `VkDescriptorSet` corresponding to given layout.
-    _NODISCARD VkDescriptorSet Allocate(VkDescriptorSetLayout layout, void* pNext = nullptr);
+    GRACE_NODISCARD VkDescriptorSet Allocate(VkDescriptorSetLayout layout, void* pNext = nullptr);
 
 private:
-    _NODISCARD VkDescriptorPool GetPool();
-    _NODISCARD VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
+    GRACE_NODISCARD VkDescriptorPool GetPool();
+    GRACE_NODISCARD VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
     VkDevice m_Device = {};
 
@@ -196,7 +196,7 @@ public:
     /// @param flags Flags for layout creation e.g. Update-After-Bind.
     ///
     /// @returns `VkDescriptorSetLayout` of all bindings added thus far.
-    _NODISCARD VkDescriptorSetLayout
+    GRACE_NODISCARD VkDescriptorSetLayout
     Build(VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 
     /// @brief Clear all bindings that have been added.
