@@ -2,6 +2,7 @@
 
 #include <Grace/DescriptorGroup.hpp>
 #include <Grace/Macros.hpp>
+#include <Grace/HandleTypes.hpp>
 
 namespace Grace
 {
@@ -87,7 +88,7 @@ public:
     /// The one and only `VkDescriptorSet` required.
     VkDescriptorSet soleDescriptorSet = {};
     /// The one and only `VkPipelineLayout` required.
-    VkPipelineLayout solePipelineLayout = {};
+    PipelineLayoutHandle solePipelineLayout = {};
 
 private:
     Device* m_Device = nullptr;

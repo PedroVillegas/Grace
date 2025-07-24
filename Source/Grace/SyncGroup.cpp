@@ -3,9 +3,9 @@
 #include <cassert>
 
 #include <Grace/DebugReporter.hpp>
+#include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
-
-#include "CommandGroup.hpp"
+#include <Grace/CommandGroup.hpp>
 
 namespace Grace
 {

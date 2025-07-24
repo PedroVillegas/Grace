@@ -1,15 +1,13 @@
 #pragma once
 
-#include "QueryManager.hpp"
-
 #include <array>
 #include <queue>
 #include <cassert>
 
 #include <vulkan/vulkan.h>
 #include <Grace/PipelineGroup.hpp>
-#include <Grace/Image.hpp>
-#include <Grace/Buffer.hpp>
+#include <Grace/QueryManager.hpp>
+#include <Grace/HandleTypes.hpp>
 #include <Grace/Types.hpp>
 #include <Grace/SyncGroup.hpp>
 #include <Grace/GraceExport.h>
@@ -69,7 +67,7 @@ class GRACE_EXPORT CommandBuffer
 public:
     ~CommandBuffer() = default;
     CommandBuffer() = default;
-    CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr);
+    CommandBuffer(Device* pDevice, VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr);
 
     CommandBuffer(const CommandBuffer&) = default;
     CommandBuffer& operator=(const CommandBuffer&) = default;
@@ -79,7 +77,7 @@ public:
 
     GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD VkCommandBuffer GetVkCommandBuffer() const;
+    GRACE_NODISCARD const VkCommandBuffer& GetVkCommandBuffer() const;
 
     /// UNIVERSAL OPS
 
@@ -89,6 +87,8 @@ public:
                         const VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr) const;
 
     void EndRecording() const;
+
+    void BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bindPoint) const;
 
     void BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
                             VkPipelineLayout layout,
@@ -105,11 +105,11 @@ public:
 
     /// SYNC OPS
 
-    void AddBufferBarrier(const Buffer& buffer,
+    void AddBufferBarrier(BufferHandle buffer,
                           std::vector<AccessType>&& accessesBefore,
                           std::vector<AccessType>&& accessesAfter);
 
-    void AddImageBarrier(const Image& image,
+    void AddImageBarrier(ImageHandle image,
                          std::vector<AccessType>&& accessesBefore,
                          std::vector<AccessType>&& accessesAfter);
 
@@ -127,9 +127,7 @@ public:
 
     void SetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor = 0) const;
 
-    void BindGraphicsPipeline(const Pipeline& pipeline) const;
-
-    void BindIndexBuffer(const Buffer& buffer, VkDeviceSize offset, VkIndexType indexType) const;
+    void BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) const;
 
     void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
 
@@ -139,33 +137,31 @@ public:
                      int32_t vertexOffset,
                      uint32_t firstInstance) const;
 
-    void DrawIndexedIndirect(const Buffer& buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) const;
+    void DrawIndexedIndirect(BufferHandle buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) const;
 
     /// COMPUTE OPS
 
-    void BindComputePipeline(const Pipeline& pipeline) const;
-
     void Dispatch(uint32_t x, uint32_t y = 1, uint32_t z = 1) const;
 
-    void DispatchIndirect(const Buffer& buffer, uint64_t offset) const;
+    void DispatchIndirect(BufferHandle buffer, uint64_t offset) const;
 
     /// TRANSFER OPS
 
     void BlitImage(const VkBlitImageInfo2& blitInfo) const;
 
-    void ClearColorImage(const Image& image,
+    void ClearColorImage(ImageHandle image,
                          const VkClearColorValue& color,
                          const std::vector<VkImageSubresourceRange>& ranges) const;
 
-    void CopyBufferToImage(const Buffer& buffer,
-                           const Image& image,
+    void CopyBufferToImage(BufferHandle buffer,
+                           ImageHandle image,
                            VkImageLayout dstLayout,
                            const std::vector<VkBufferImageCopy>& regions) const;
 
-    void CopyBuffer(const Buffer& srcBuffer, const Buffer& dstBuffer, const std::vector<VkBufferCopy>& regions) const;
+    void CopyBuffer(BufferHandle srcBuffer, BufferHandle dstBuffer, const std::vector<VkBufferCopy>& regions) const;
 
     void
-    FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
+    FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
 
     /// QUERY OPS
 
@@ -234,6 +230,7 @@ public:
                         QueryWriteFlags flags = QueryWriteFlags::None) const;
 
 private:
+    Device* m_pDevice = nullptr;
     VkCommandBuffer m_CmdBuffer = {};
     BarrierBuilder m_BarrierBuilder = {};
     QueueFamily m_QueueFamily = QueueFamily::Undefined;
@@ -262,7 +259,7 @@ public:
     void FreeCommandBuffer();
 
 private:
-    Device* m_Device = nullptr;
+    Device* m_pDevice = nullptr;
     // Use std::deque here to prevent any pointer invalidations. No performance hit since
     // new CommandPools are strictly inserted/removed from either end
     std::array<std::deque<CommandPool>, static_cast<uint32_t>(QueueFamily::Undefined)> m_AllCommandPoolsAllocated = {};

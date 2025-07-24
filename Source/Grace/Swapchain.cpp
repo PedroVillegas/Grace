@@ -26,13 +26,13 @@ SwapchainStatus Swapchain::GetStatus() const
     return m_SwapchainStatus;
 }
 
-VkFormat Swapchain::GetFormat() const
+const VkFormat& Swapchain::GetFormat() const
 {
     // All images have the same format
-    return m_Images[0].GetFormat();
+    return m_Device->GetImage(m_Images[0]).GetFormat();
 }
 
-const Image& Swapchain::GetRecentAcquiredImage() const
+ImageHandle Swapchain::GetRecentAcquiredImage() const
 {
     const FrameSyncGroup& sync = GetRecentFrameSyncGroup();
     assert(sync.imageIndex != ~0U);
@@ -120,15 +120,15 @@ void Swapchain::Create(VkExtent2D imageExtent)
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
         const std::string name = "Grace::SwapchainImage::" + std::to_string(i);
-        m_Images[i] = Image(m_Device,
-                            tempImages[i],
-                            {
-                                .name = name.c_str(),
-                                .dimensions = { extent.width, extent.height, 1 },
-                                .format = surfaceFormat.format,
-                                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                .mipmapped = false,
-                            });
+        m_Images[i] = m_Device->CreateSwapchainImage(
+            tempImages[i],
+            {
+                .name = name.c_str(),
+                .dimensions = { extent.width, extent.height, 1 },
+                .format = surfaceFormat.format,
+                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                .mipmapped = false,
+            });
     }
 
     for (uint32_t i = 0; i < m_ImageAcquiredSyncStructs.size(); ++i)
@@ -136,10 +136,10 @@ void Swapchain::Create(VkExtent2D imageExtent)
         FrameSyncGroup& sync = m_ImageAcquiredSyncStructs[i];
 
         const std::string acquireSemaphoreDebugName = "Grace::Semaphore::Acquire::" + std::to_string(i);
-        sync.acquireSemaphore = BinarySemaphore(m_Device, { .name = acquireSemaphoreDebugName.c_str() });
+        sync.acquireSemaphore = m_Device->CreateBinarySemaphore({ .name = acquireSemaphoreDebugName.c_str() });
 
         const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
-        sync.presentSemaphore = BinarySemaphore(m_Device, { .name = presentSemaphoreDebugName.c_str() });
+        sync.presentSemaphore = m_Device->CreateBinarySemaphore({ .name = presentSemaphoreDebugName.c_str() });
     }
 }
 
@@ -161,18 +161,19 @@ Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : m_De
     Create(imageExtent);
 }
 
-FrameSyncGroup& Swapchain::AcquireNextImage(Device* device, VkExtent2D imageExtent)
+FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
 {
     // Advance the cycle index
     m_ImageAcquiredCycleIndex = (m_ImageAcquiredCycleIndex + 1) % (m_ImageAcquiredSyncStructs.size() - 1);
     // Get FrameSyncGroup instance, that is not currently in use, from the cycle
     FrameSyncGroup& frameSync = m_ImageAcquiredSyncStructs[m_ImageAcquiredCycleIndex];
+    const BinarySemaphore& acqSem = m_Device->GetBinarySemaphore(frameSync.acquireSemaphore);
 
     // Acquire an image from the swap chain
-    VkResult result = vkAcquireNextImageKHR(device->GetVkHandle(),
+    VkResult result = vkAcquireNextImageKHR(m_Device->GetVkHandle(),
                                             m_Swapchain,
                                             UINT64_MAX,
-                                            frameSync.acquireSemaphore.GetVkSemaphore(),
+                                            acqSem.GetVkSemaphore(),
                                             nullptr,
                                             &frameSync.imageIndex);
 

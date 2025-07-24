@@ -13,7 +13,7 @@ namespace Grace
 
 ImageView::~ImageView()
 {
-    if (m_View != nullptr && m_ParentImage != nullptr)
+    if (m_Device != nullptr)
     {
         vkDestroyImageView(m_Device->GetVkHandle(), m_View, nullptr);
     }
@@ -45,11 +45,7 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : m_Device(pDev
     info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
     DebugReporter::Check(vkCreateImageView(m_Device->GetVkHandle(), &info, nullptr, &m_View));
-
-    if (m_View != nullptr)
-    {
-        AssignDebugName<VkImageView>(m_Device->GetVkHandle(), m_View, desc.name);
-    }
+    AssignDebugName<VkImageView>(m_Device->GetVkHandle(), m_View, desc.name);
 }
 
 ImageView::ImageView(ImageView&& other) noexcept
@@ -60,9 +56,16 @@ ImageView::ImageView(ImageView&& other) noexcept
 
 ImageView& ImageView::operator=(ImageView&& other) noexcept
 {
+    if (m_Device != nullptr)
+    {
+        vkDestroyImageView(m_Device->GetVkHandle(), m_View, nullptr);
+    }
+
     m_Device = other.m_Device;
     m_ParentImage = other.m_ParentImage;
     m_View = other.m_View;
+    other.m_Device = nullptr;
+    other.m_ParentImage = nullptr;
     other.m_View = nullptr;
 
     return *this;
@@ -100,7 +103,7 @@ VkImageUsageFlags ImageView::GetUsageFlags() const
 
 Image::~Image()
 {
-    if (!m_IsSwapchainImage)
+    if (m_Device != nullptr && !m_IsSwapchainImage)
     {
         vmaDestroyImage(m_Device->GetVmaHandle(), m_Image, m_Allocation);
     }
@@ -114,17 +117,28 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
     const uint32_t mipLevels = desc.mipmapped ? GetMaxMipLevels() : 1;
 
-    VkImageCreateInfo imgInfo = ImageCreateInfo(desc.usage);
-    imgInfo.mipLevels = mipLevels;
+    VkImageCreateInfo imgcinfo = {};
+    imgcinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imgcinfo.pNext = nullptr;
+    imgcinfo.flags = 0;
+    imgcinfo.imageType = VK_IMAGE_TYPE_2D;
+    imgcinfo.format = m_Format;
+    imgcinfo.extent = m_Extent;
+    imgcinfo.mipLevels = mipLevels;
+    imgcinfo.arrayLayers = 1;
+    imgcinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imgcinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imgcinfo.usage = desc.usage;
+    imgcinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    // For the draw image, we want to allocate it from gpu local memory
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     // Allocate and create the image
     DebugReporter::Check(
-        vmaCreateImage(m_Device->GetVmaHandle(), &imgInfo, &allocInfo, &m_Image, &m_Allocation, nullptr));
+        vmaCreateImage(m_Device->GetVmaHandle(), &imgcinfo, &allocInfo, &m_Image, &m_Allocation, nullptr));
+    AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
 
     m_DefaultView = ImageView(m_Device,
                               {
@@ -133,11 +147,6 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
                                   .mipLevel = 0,
                                   .levelCount = mipLevels,
                               });
-
-    if (m_Image != nullptr)
-    {
-        AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
-    }
 }
 
 Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
@@ -148,11 +157,6 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
     assert(image != nullptr);
     assert(desc.usage != 0);
 
-    const uint32_t mipLevels = desc.mipmapped ? GetMaxMipLevels() : 1;
-
-    VkImageCreateInfo imgInfo = ImageCreateInfo(desc.usage);
-    imgInfo.mipLevels = mipLevels;
-
     m_DefaultView = ImageView(pDevice,
                               {
                                   .name = desc.name,
@@ -161,10 +165,7 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
                                   .levelCount = 1,
                               });
 
-    if (m_Image != nullptr)
-    {
-        AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
-    }
+    AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
 }
 
 Image::Image(Image&& other) noexcept
@@ -172,14 +173,16 @@ Image::Image(Image&& other) noexcept
       m_Allocation(other.m_Allocation), m_Extent(other.m_Extent), m_Format(other.m_Format),
       m_UsageFlags(other.m_UsageFlags), m_IsSwapchainImage(other.m_IsSwapchainImage)
 {
-    other.m_Image = nullptr;
+    other.m_Device = VK_NULL_HANDLE;
+    other.m_Image = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
 }
 
 Image& Image::operator=(Image&& other) noexcept
 {
-    if (m_Device != nullptr)
+    if (m_Device != nullptr && !m_IsSwapchainImage)
     {
-        vmaDestroyImage(m_Device->GetVmaHandle(), m_Image, nullptr);
+        vmaDestroyImage(m_Device->GetVmaHandle(), m_Image, m_Allocation);
     }
 
     m_Device = other.m_Device;
@@ -190,29 +193,11 @@ Image& Image::operator=(Image&& other) noexcept
     m_UsageFlags = other.m_UsageFlags;
     m_IsSwapchainImage = other.m_IsSwapchainImage;
     m_DefaultView = std::move(other.m_DefaultView);
-    other.m_Image = nullptr;
+    other.m_Device = VK_NULL_HANDLE;
+    other.m_Image = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
 
     return *this;
-}
-
-VkImageCreateInfo Image::ImageCreateInfo(VkImageUsageFlags usageFlags) const
-{
-    VkImageCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    info.pNext = nullptr;
-    info.imageType = VK_IMAGE_TYPE_2D;
-    info.format = m_Format;
-    info.extent = m_Extent;
-    info.mipLevels = 1;
-    info.arrayLayers = 1;
-    info.samples = VK_SAMPLE_COUNT_1_BIT;
-
-    // Optimal tiling, which means the image is stored on the best gpu format
-    info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    info.usage = usageFlags;
-    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    return info;
 }
 
 void Image::SetStorageImgId(uint32_t id)
@@ -243,7 +228,7 @@ bool Image::IsNull() const
     return m_Image == nullptr || m_DefaultView.GetVkHandle() == nullptr || needsAllocationCheck || m_UsageFlags == 0;
 }
 
-VkImage Image::GetImage() const
+const VkImage& Image::GetImage() const
 {
     return m_Image;
 }
@@ -253,14 +238,9 @@ const ImageView& Image::GetDefaultView() const
     return m_DefaultView;
 }
 
-VkFormat Image::GetFormat() const
+const VkFormat& Image::GetFormat() const
 {
     return m_Format;
-}
-
-const VkFormat* Image::GetFormatPtr() const
-{
-    return &m_Format;
 }
 
 VkExtent2D Image::GetExtent2D() const
@@ -268,7 +248,7 @@ VkExtent2D Image::GetExtent2D() const
     return { m_Extent.width, m_Extent.height };
 }
 
-VkExtent3D Image::GetExtent3D() const
+const VkExtent3D& Image::GetExtent3D() const
 {
     return m_Extent;
 }
@@ -298,7 +278,7 @@ VkImageUsageFlags Image::GetUsageFlags() const
     return m_UsageFlags;
 }
 
-VmaAllocation Image::GetAllocation() const
+const VmaAllocation& Image::GetAllocation() const
 {
     return m_Allocation;
 }

@@ -35,9 +35,6 @@ template <typename Res>
 class Registry
 {
 public:
-    Registry() = default;
-    ~Registry() = default;
-
     std::vector<RegistryEntry<Res>>& GetAll()
     {
         return m_Registry;
@@ -86,7 +83,7 @@ public:
         m_Registry[resourceHandle.handle].validator = INVALID_VALIDATOR;
 
         // Slot is freed up and can be reused for the next resource created
-        m_FreeSlots.emplace(resourceHandle.handle, resourceHandle.validator);
+        m_FreeSlots.emplace(resourceHandle.handle, ++m_Validator);
 
         // Invalidate resourceHandle
         resourceHandle.handle = INVALID_HANDLE;

@@ -24,6 +24,7 @@ Grace::Fence::Fence(Device* pDevice, const FenceDesc& desc) : m_pDevice(pDevice)
 
 Grace::Fence::Fence(Fence&& other) noexcept : m_pDevice(other.m_pDevice), m_Fence(other.m_Fence)
 {
+    other.m_pDevice = nullptr;
     other.m_Fence = VK_NULL_HANDLE;
 }
 
@@ -46,7 +47,7 @@ bool Grace::Fence::IsNull() const
     return m_Fence == VK_NULL_HANDLE;
 }
 
-const VkFence Grace::Fence::GetVkFence() const
+const VkFence& Grace::Fence::GetVkFence() const
 {
     return m_Fence;
 }

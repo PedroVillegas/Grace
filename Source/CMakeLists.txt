@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
         vma
         DOWNLOAD_EXTRACT_TIMESTAMP true
-        URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.2.1.zip
+        URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
 )
 FetchContent_MakeAvailable(vma)
 
@@ -72,7 +72,8 @@ set(
     Grace/SyncGroup.cpp
     Grace/QueryManager.cpp
     Grace/Fence.cpp
-    "${vma_SOURCE_DIR}/src/VmaUsage.cpp"
+    Grace/Semaphore.cpp
+    Grace/VmaUsage.cpp
 )
 
 target_sources(
@@ -106,11 +107,11 @@ target_include_directories(
     Grace
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Vulkan_INCLUDE_DIRS}
+    PUBLIC ${vma_SOURCE_DIR}/include/
 )
 
 target_link_libraries(
     Grace
-    PUBLIC VulkanMemoryAllocator
     PUBLIC ${Vulkan_LIBRARIES}
 )
 

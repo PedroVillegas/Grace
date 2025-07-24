@@ -66,15 +66,12 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
         m_DeviceAddress = vkGetBufferDeviceAddress(m_Device->GetVkHandle(), &deviceAddressInfo);
     }
 
-    if (m_Buffer != nullptr)
-    {
-        AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
-    }
+    AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
 }
 
 Buffer::~Buffer()
 {
-    if (m_Buffer != nullptr)
+    if (m_Device)
     {
         vmaDestroyBuffer(m_Device->GetVmaHandle(), m_Buffer, m_Allocation);
     }
@@ -84,7 +81,9 @@ Buffer::Buffer(Buffer&& other) noexcept
     : m_Device(other.m_Device), m_Buffer(other.m_Buffer), m_Allocation(other.m_Allocation),
       m_DeviceAddress(other.m_DeviceAddress)
 {
-    other.m_Buffer = nullptr;
+    other.m_Device = VK_NULL_HANDLE;
+    other.m_Buffer = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
 }
 
 Buffer& Buffer::operator=(Buffer&& other) noexcept
@@ -95,7 +94,9 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept
     m_Buffer = other.m_Buffer;
     m_Allocation = other.m_Allocation;
     m_DeviceAddress = other.m_DeviceAddress;
-    other.m_Buffer = nullptr;
+    other.m_Device = VK_NULL_HANDLE;
+    other.m_Buffer = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
 
     return *this;
 }

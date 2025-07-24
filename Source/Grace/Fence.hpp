@@ -32,7 +32,7 @@ public:
 
     GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD const VkFence GetVkFence() const;
+    GRACE_NODISCARD const VkFence& GetVkFence() const;
 
 private:
     Device* m_pDevice = nullptr;

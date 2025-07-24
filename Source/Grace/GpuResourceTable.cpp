@@ -39,7 +39,6 @@ GpuResourceTable::~GpuResourceTable()
 {
     vkDestroyDescriptorPool(m_Device->GetVkHandle(), soleDescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(m_Device->GetVkHandle(), soleDescriptorSetLayout, nullptr);
-    vkDestroyPipelineLayout(m_Device->GetVkHandle(), solePipelineLayout, nullptr);
 }
 
 GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers)
@@ -134,13 +133,19 @@ GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
 
-    DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &pipelineLayoutInfo, nullptr, &solePipelineLayout));
+    solePipelineLayout = m_Device->CreatePipelineLayout({
+        .flags = 0,
+        .setLayouts = {soleDescriptorSetLayout},
+        .pushConstantRanges = { pushConstants}
+    });
 
-    VkDebugUtilsObjectNameInfoEXT nameInfoGPL = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-    nameInfoGPL.objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
-    nameInfoGPL.objectHandle = (uint64_t) solePipelineLayout;
-    nameInfoGPL.pObjectName = "Sole Pipeline Layout";
-    GRACE_SET_VK_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGPL);
+    // DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &pipelineLayoutInfo, nullptr, &solePipelineLayout));
+    //
+    // VkDebugUtilsObjectNameInfoEXT nameInfoGPL = { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+    // nameInfoGPL.objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
+    // nameInfoGPL.objectHandle = (uint64_t) solePipelineLayout;
+    // nameInfoGPL.pObjectName = "Sole Pipeline Layout";
+    // GRACE_SET_VK_DEBUG_NAME(m_Device->GetVkHandle(), &nameInfoGPL);
 }
 
 void GpuResourceTable::SubmitImage(Image& image)

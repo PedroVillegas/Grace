@@ -158,9 +158,10 @@ PipelineBuilder& PipelineBuilder::BuildComputePipeline(const char* name, const P
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::BuildGraphicsPipeline(const char* name, const PipelineLayout& layout)
+PipelineBuilder& PipelineBuilder::BuildGraphicsPipeline(const char* name, PipelineLayoutHandle layout)
 {
-    assert(!layout.IsNull());
+    const PipelineLayout& pl = m_Device->GetPipelineLayout(layout);
+    assert(!pl.IsNull());
     assert(m_ShaderStages.size() > 1);
     assert(m_ShaderModules.size() > 1);
 
@@ -191,7 +192,7 @@ PipelineBuilder& PipelineBuilder::BuildGraphicsPipeline(const char* name, const 
     graphicsPipelineCreateInfo.pMultisampleState = &m_Multisampling;
     graphicsPipelineCreateInfo.pColorBlendState = &m_ColourBlending;
     graphicsPipelineCreateInfo.pDepthStencilState = &m_DepthStencil;
-    graphicsPipelineCreateInfo.layout = layout.GetVkPipelineLayout();
+    graphicsPipelineCreateInfo.layout = pl.GetVkPipelineLayout();
 
     m_DynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     m_DynamicInfo.pNext = nullptr;

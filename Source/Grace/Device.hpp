@@ -47,35 +47,19 @@ public:
 
     void WaitIdle();
 
-    void WaitForFence(const Fence& fence, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-
-    void WaitForFences(const std::vector<VkFence>& fences,
-                       uint64_t timeout = std::numeric_limits<uint64_t>::max(),
-                       bool waitAll = true);
-
-    void ResetFence(const Fence& fence);
-
-    void ResetFences(const std::vector<VkFence>& fences);
-
-    void Submit(QueueFamily queue,
-                const CommandBuffer& cmd,
-                const FrameSyncGroup& fsg,
-                const Fence& fence = {});
-
-    void BatchSubmit(QueueFamily queue,
-                     const std::vector<CommandBuffer>& cmds,
-                     const std::vector<FrameSyncGroup>& fsgs,
-                     const Fence& fence = {});
-
     GRACE_NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
 
     GRACE_NODISCARD VkDescriptorSet& GetSoleDescriptorSet();
 
     GRACE_NODISCARD VkDescriptorSetLayout& GetSoleDescriptorSetLayout();
 
-    GRACE_NODISCARD VkPipelineLayout& GetSolePipelineLayout();
+    GRACE_NODISCARD PipelineLayoutHandle GetSolePipelineLayout();
 
     void UpdateBindlessDescriptorSet();
+
+    void CopyMemoryToHostVisibleBuffer(BufferHandle dst, VkDeviceSize offsetIntoDst, const void* pHostMem, VkDeviceSize hostMemBytes);
+
+    void CopyMemoryToHostVisibleImage(ImageHandle dst, VkDeviceSize offsetIntoDst, const void* pHostMem, VkDeviceSize hostMemBytes);
 
     /// BUFFER OPS
 
@@ -90,6 +74,8 @@ public:
     void SubmitImageView(ImageView& view);
 
     GRACE_NODISCARD ImageHandle CreateImage(const ImageDesc& desc);
+
+    GRACE_NODISCARD ImageHandle CreateSwapchainImage(VkImage image, const ImageDesc& desc);
 
     GRACE_NODISCARD Image& GetImage(const ImageHandle& handle);
 
@@ -121,6 +107,16 @@ public:
 
     /// SYNC OPS
 
+    void WaitForFence(FenceHandle fence, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
+    void WaitForFences(const std::vector<VkFence>& fences,
+                       uint64_t timeout = std::numeric_limits<uint64_t>::max(),
+                       bool waitAll = true);
+
+    void ResetFence(FenceHandle fence);
+
+    void ResetFences(const std::vector<VkFence>& fences);
+
     GRACE_NODISCARD FenceHandle CreateFence(const FenceDesc& desc);
 
     GRACE_NODISCARD Fence& GetFence(const FenceHandle& handle);
@@ -145,9 +141,25 @@ public:
 
     void FreeCommandBuffer(CommandBuffer commandBuffer);
 
+    GRACE_NODISCARD CommandBuffer& BeginSingleTimeCommands();
+
+    void EndAndSubmitSingleTimeCommands();
+
     /// QUEUE OPS
 
-    GRACE_NODISCARD SwapchainStatus Present(const BinarySemaphore& waitOn, uint32_t swapchainImageIndex);
+    void SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd);
+
+    void Submit(QueueFamily queue,
+                const CommandBuffer& cmd,
+                const FrameSyncGroup& fsg,
+                FenceHandle fence);
+
+    void BatchSubmit(QueueFamily queue,
+                     const std::vector<CommandBuffer>& cmds,
+                     const std::vector<FrameSyncGroup>& fsgs,
+                     FenceHandle fence);
+
+    GRACE_NODISCARD SwapchainStatus Present(const FrameSyncGroup& fsg);
 
     GRACE_NODISCARD uint32_t GetQueueFamilyIndex(QueueFamily queueFamily);
 
@@ -202,11 +214,11 @@ public:
 
     GRACE_NODISCARD FrameSyncGroup& AcquireNextSwapchainImage(VkExtent2D imageExtent);
 
-    GRACE_NODISCARD const Image& GetRecentlyAcquiredSwapchainImage() const;
+    GRACE_NODISCARD ImageHandle GetRecentlyAcquiredSwapchainImage() const;
 
     GRACE_NODISCARD const FrameSyncGroup& GetRecentImageAcquiredDesc();
 
-    GRACE_NODISCARD VkFormat GetSwapchainFormat() const;
+    GRACE_NODISCARD const VkFormat& GetSwapchainFormat() const;
 
     GRACE_NODISCARD SwapchainStatus GetSwapchainStatus() const;
 
@@ -244,6 +256,8 @@ private:
     VkSurfaceKHR m_SurfaceKHR = {};
     std::array<std::optional<uint32_t>, static_cast<uint32_t>(QueueFamily::Undefined)> m_QueueFamilyIndices = {};
     std::array<VkQueue, static_cast<uint32_t>(QueueFamily::Undefined)> m_Queues = {};
+    CommandPool* m_SingleTimeCmdsPool = nullptr;
+    CommandBuffer m_SingleTimeCmdsBuffer = {};
 
     std::unique_ptr<Swapchain> m_Swapchain = {};
     std::unique_ptr<QueryManager> m_QueryMgr = {};

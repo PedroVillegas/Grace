@@ -9,7 +9,7 @@
 namespace Grace
 {
 
-CommandGroupAllocator::CommandGroupAllocator(Device* device) : m_Device(device)
+CommandGroupAllocator::CommandGroupAllocator(Device* device) : m_pDevice(device)
 {
 }
 
@@ -26,12 +26,12 @@ CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFa
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.pNext = nullptr;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = m_Device->GetQueueFamilyIndex(queueFamily);
+        poolInfo.queueFamilyIndex = m_pDevice->GetQueueFamilyIndex(queueFamily);
 
         VkCommandPool allocatedCmdPool = {};
-        DebugReporter::Check(vkCreateCommandPool(m_Device->GetVkHandle(), &poolInfo, nullptr, &allocatedCmdPool));
+        DebugReporter::Check(vkCreateCommandPool(m_pDevice->GetVkHandle(), &poolInfo, nullptr, &allocatedCmdPool));
 
-        allocatedPoolsOfQueueFamily.emplace_back(m_Device, allocatedCmdPool, queueFamily);
+        allocatedPoolsOfQueueFamily.emplace_back(m_pDevice, allocatedCmdPool, queueFamily);
         m_FreeCommandPools.push(&allocatedPoolsOfQueueFamily.back());
     }
 
@@ -39,7 +39,7 @@ CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFa
     CommandPool* ret = m_FreeCommandPools.front();
     m_FreeCommandPools.pop();
 
-    AssignDebugName<VkCommandPool>(m_Device->GetVkHandle(), ret->GetVkCommandPool(), name);
+    AssignDebugName<VkCommandPool>(m_pDevice->GetVkHandle(), ret->GetVkCommandPool(), name);
 
     return ret;
 }
@@ -111,7 +111,7 @@ CommandBuffer CommandPool::GetOrAllocateCommandBuffer()
         m_CommandBuffers.push_back(allocated);
     }
 
-    return { m_CommandBuffers[m_CommandBuffersInUse++], m_QueueFamily, m_Device->GetQueryManagerPtr() };
+    return { m_Device, m_CommandBuffers[m_CommandBuffersInUse++], m_QueueFamily, m_Device->GetQueryManagerPtr() };
 }
 
 QueueFamily CommandPool::GetQueueFamily() const
@@ -124,8 +124,8 @@ VkCommandPool CommandPool::GetVkCommandPool() const
     return m_CommandPool;
 }
 
-CommandBuffer::CommandBuffer(VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr)
-    : m_CmdBuffer(commandBuffer), m_QueueFamily(queueFamily), m_pQueryMgr(pQueryMgr)
+CommandBuffer::CommandBuffer(Device* pDevice, VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr)
+    : m_pDevice(pDevice), m_CmdBuffer(commandBuffer), m_QueueFamily(queueFamily), m_pQueryMgr(pQueryMgr)
 {
 }
 
@@ -134,7 +134,7 @@ bool CommandBuffer::IsNull() const
     return m_CmdBuffer == nullptr;
 }
 
-VkCommandBuffer CommandBuffer::GetVkCommandBuffer() const
+const VkCommandBuffer& CommandBuffer::GetVkCommandBuffer() const
 {
     return m_CmdBuffer;
 }
@@ -159,6 +159,14 @@ void CommandBuffer::BeginRecording(VkCommandBufferUsageFlags usageFlags,
 void CommandBuffer::EndRecording() const
 {
     DebugReporter::Check(vkEndCommandBuffer(m_CmdBuffer));
+}
+
+void CommandBuffer::BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bindPoint) const
+{
+    const Pipeline& p = m_pDevice->GetPipeline(pipeline);
+    assert(!p.IsNull());
+
+    vkCmdBindPipeline(m_CmdBuffer, bindPoint, p.GetVkHandle());
 }
 
 void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
@@ -253,18 +261,20 @@ void CommandBuffer::EndDebugLabel() const
     vkCmdEndDebugUtilsLabelEXT_Meta(m_CmdBuffer);
 }
 
-void CommandBuffer::AddBufferBarrier(const Buffer& buffer,
+void CommandBuffer::AddBufferBarrier(BufferHandle buffer,
                                      std::vector<AccessType>&& accessesBefore,
                                      std::vector<AccessType>&& accessesAfter)
 {
-    m_BarrierBuilder.AddBufferBarrier(buffer, std::move(accessesBefore), std::move(accessesAfter));
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    m_BarrierBuilder.AddBufferBarrier(buf, std::move(accessesBefore), std::move(accessesAfter));
 }
 
-void CommandBuffer::AddImageBarrier(const Image& image,
+void CommandBuffer::AddImageBarrier(ImageHandle image,
                                     std::vector<AccessType>&& accessesBefore,
                                     std::vector<AccessType>&& accessesAfter)
 {
-    m_BarrierBuilder.AddImageBarrier(image, std::move(accessesBefore), std::move(accessesAfter));
+    const Image& img = m_pDevice->GetImage(image);
+    m_BarrierBuilder.AddImageBarrier(img, std::move(accessesBefore), std::move(accessesAfter));
 }
 
 void CommandBuffer::AddMemoryBarrier(std::vector<AccessType>&& accessesBefore, std::vector<AccessType>&& accessesAfter)
@@ -277,28 +287,16 @@ void CommandBuffer::PipelineBarrier()
     m_BarrierBuilder.PipelineBarrier(m_CmdBuffer);
 }
 
-void CommandBuffer::BindGraphicsPipeline(const Pipeline& pipeline) const
-{
-    assert(!pipeline.IsNull());
-
-    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.GetVkHandle());
-}
-
-void CommandBuffer::BindComputePipeline(const Pipeline& pipeline) const
-{
-    assert(!pipeline.IsNull());
-
-    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.GetVkHandle());
-}
-
 void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) const
 {
     vkCmdDispatch(m_CmdBuffer, x, y, z);
 }
 
-void CommandBuffer::DispatchIndirect(const Buffer& buffer, uint64_t offset) const
+void CommandBuffer::DispatchIndirect(BufferHandle buffer, uint64_t offset) const
 {
-    vkCmdDispatchIndirect(m_CmdBuffer, buffer.GetVkHandle(), offset);
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    assert(!buf.IsNull());
+    vkCmdDispatchIndirect(m_CmdBuffer, buf.GetVkHandle(), offset);
 }
 
 void CommandBuffer::BlitImage(const VkBlitImageInfo2& blitInfo) const
@@ -306,39 +304,45 @@ void CommandBuffer::BlitImage(const VkBlitImageInfo2& blitInfo) const
     vkCmdBlitImage2(m_CmdBuffer, &blitInfo);
 }
 
-void CommandBuffer::CopyBufferToImage(const Buffer& buffer,
-                                      const Image& image,
+void CommandBuffer::CopyBufferToImage(BufferHandle buffer,
+                                      ImageHandle image,
                                       VkImageLayout dstLayout,
                                       const std::vector<VkBufferImageCopy>& regions) const
 {
-    assert(!buffer.IsNull());
-    assert(!image.IsNull());
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!buf.IsNull());
+    assert(!img.IsNull());
     assert(!regions.empty());
     vkCmdCopyBufferToImage(m_CmdBuffer,
-                           buffer.GetVkHandle(),
-                           image.GetImage(),
+                           buf.GetVkHandle(),
+                           img.GetImage(),
                            dstLayout,
                            static_cast<uint32_t>(regions.size()),
                            regions.data());
 }
 
-void CommandBuffer::CopyBuffer(const Buffer& srcBuffer,
-                               const Buffer& dstBuffer,
+void CommandBuffer::CopyBuffer(BufferHandle srcBuffer,
+                               BufferHandle dstBuffer,
                                const std::vector<VkBufferCopy>& regions) const
 {
-    assert(!srcBuffer.IsNull());
-    assert(!dstBuffer.IsNull());
+    const Buffer& srcbuf = m_pDevice->GetBuffer(srcBuffer);
+    const Buffer& dstbuf = m_pDevice->GetBuffer(dstBuffer);
+
+    assert(!srcbuf.IsNull());
+    assert(!dstbuf.IsNull());
     assert(!regions.empty());
     vkCmdCopyBuffer(m_CmdBuffer,
-                    srcBuffer.GetVkHandle(),
-                    dstBuffer.GetVkHandle(),
+                    srcbuf.GetVkHandle(),
+                    dstbuf.GetVkHandle(),
                     static_cast<uint32_t>(regions.size()),
                     regions.data());
 }
 
-void CommandBuffer::FillBuffer(const Buffer& buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const
+void CommandBuffer::FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const
 {
-    vkCmdFillBuffer(m_CmdBuffer, buffer.GetVkHandle(), offset, size, data);
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    vkCmdFillBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, size, data);
 }
 
 void CommandBuffer::WriteTimestamp(const char* name,
@@ -361,21 +365,25 @@ void CommandBuffer::WriteTimestamp(const char* name,
     vkCmdWriteTimestamp2(m_CmdBuffer, stage, qg.GetVkQueryPool(), offset + query);
 }
 
-void CommandBuffer::ClearColorImage(const Image& image,
+void CommandBuffer::ClearColorImage(ImageHandle image,
                                     const VkClearColorValue& color,
                                     const std::vector<VkImageSubresourceRange>& ranges) const
 {
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!img.IsNull());
     vkCmdClearColorImage(m_CmdBuffer,
-                         image.GetImage(),
+                         img.GetImage(),
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          &color,
                          static_cast<uint32_t>(ranges.size()),
                          ranges.data());
 }
 
-void CommandBuffer::BindIndexBuffer(const Buffer& buffer, VkDeviceSize offset, VkIndexType indexType) const
+void CommandBuffer::BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) const
 {
-    vkCmdBindIndexBuffer(m_CmdBuffer, buffer.GetVkHandle(), offset, indexType);
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    assert(!buf.IsNull());
+    vkCmdBindIndexBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, indexType);
 }
 
 void CommandBuffer::Draw(uint32_t vertexCount,
@@ -395,12 +403,14 @@ void CommandBuffer::DrawIndexed(uint32_t indexCount,
     vkCmdDrawIndexed(m_CmdBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
-void CommandBuffer::DrawIndexedIndirect(const Buffer& buffer,
+void CommandBuffer::DrawIndexedIndirect(BufferHandle buffer,
                                         VkDeviceSize offset,
                                         uint32_t drawCount,
                                         uint32_t stride) const
 {
-    vkCmdDrawIndexedIndirect(m_CmdBuffer, buffer.GetVkHandle(), offset, drawCount, stride);
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    assert(!buf.IsNull());
+    vkCmdDrawIndexedIndirect(m_CmdBuffer, buf.GetVkHandle(), offset, drawCount, stride);
 }
 
 } // namespace Grace

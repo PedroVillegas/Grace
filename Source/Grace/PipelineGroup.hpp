@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/HandleTypes.hpp>
 
 namespace Grace
 {
@@ -102,7 +103,7 @@ public:
     PipelineBuilder& operator=(PipelineBuilder&&) noexcept = delete;
 
     PipelineBuilder& BuildComputePipeline(const char* name, const PipelineLayout& layout);
-    PipelineBuilder& BuildGraphicsPipeline(const char* name, const PipelineLayout& layout);
+    PipelineBuilder& BuildGraphicsPipeline(const char* name, PipelineLayoutHandle layout);
 
     PipelineBuilder& ClearAll();
     PipelineBuilder& ClearShaders();

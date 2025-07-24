@@ -14,8 +14,11 @@ int main()
     uint32_t windowHeight = 600;
 
     glfwInit();
+    const GLFWvidmode* vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_POSITION_X, (vm->width - windowWidth) / 2);
+    glfwWindowHint(GLFW_POSITION_Y, (vm->height - windowHeight) / 2);
     GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Hello Triangle", nullptr, nullptr);
     glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
     glfwSetFramebufferSizeCallback(pWindow,
@@ -57,8 +60,8 @@ int main()
 
     // Create pipeline from hello triangle shader
     Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("helloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    pbuilder.AddShader("helloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    pbuilder.AddShader("01_HelloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    pbuilder.AddShader("01_HelloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     pbuilder.SetColourAttachmentFormat(&swapchainFormat);
     pbuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pbuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
@@ -66,11 +69,16 @@ int main()
     pbuilder.SetMultisamplingNone();
     pbuilder.DisableBlending();
     pbuilder.DisableDepthTest();
-    pbuilder.BuildGraphicsPipeline("Hello Triangle Pipeline", pDevice->GetPipelineLayout(helloTrianglePLH));
+    pbuilder.BuildGraphicsPipeline("Hello Triangle Pipeline", helloTrianglePLH);
 
     const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
     pDevice->FreePipelineLayout(helloTrianglePLH);
+
+    Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+        .name = "InFlightFence",
+        .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
+    });
 
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
@@ -82,14 +90,14 @@ int main()
         /* Prepare the frame */
 
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFences({ pDevice->GetRecentImageAcquiredDesc().inFlightFence });
+        pDevice->WaitForFence(inFlightFence);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
 
         // Reset the fence only when work has been submitted, otherwise next frame will be waiting on 'work'
         // to finish indefinitely
-        pDevice->ResetFences({ fsg.inFlightFence });
+        pDevice->ResetFence(inFlightFence);
 
         // Reset command pool, which will reset all command buffers allocated from it too
         pCmdPool->Reset();
@@ -103,7 +111,7 @@ int main()
 
         /* Record commands */
 
-        const Grace::Image& swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
+        Grace::ImageHandle swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
 
         // Transition swapchain image to a writable layout
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
@@ -119,7 +127,7 @@ int main()
         cmd.BeginDebugLabel("Hello Triangle Pass");
         cmd.BeginDynamicRendering({
             .renderArea = { .extent = { windowWidth, windowHeight } },
-            .colorAttachments = { Grace::ColourAttachmentInfo(swapchainImg, nullptr) },
+            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->GetImage(swapchainImg), nullptr) },
         });
 
         cmd.SetViewport({ {
@@ -137,7 +145,7 @@ int main()
         } });
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
+        cmd.BindPipeline(helloTrianglePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
         cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
 
@@ -171,14 +179,10 @@ int main()
         // wait on the acquireSemaphore to be signalled
         // Once the submission is complete, one can be sure that the swapchain image is no
         // longer being written to, so presentSemaphore is signalled
-        pDevice->Submit(Grace::QueueFamily::Graphics,
-                        { cmd },
-                        { fsg.acquireSemaphore },
-                        { fsg.presentSemaphore },
-                        fsg.inFlightFence);
+        pDevice->Submit(Grace::QueueFamily::Graphics, cmd, fsg, inFlightFence);
 
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
-        const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
+        const Grace::SwapchainStatus ss = pDevice->Present(fsg);
 
         const Grace::TimestampQueryGroup& tqg =
             pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
