@@ -3,14 +3,14 @@
 #ifdef _WIN32
 
 #if !defined(NOMINMAX)
-    #define NOMINMAX
+#define NOMINMAX
 #endif
 
 #if !defined(WIN32_LEAN_AND_MEAN)
-    #define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
 
-#endif  // #ifdef _WIN32
+#endif // #ifdef _WIN32
 
 #ifdef _MSVC_LANG
 
@@ -37,41 +37,43 @@ include all public interface declarations. Example:
 // #define VMA_VULKAN_VERSION 1001000 // Vulkan 1.1
 // #define VMA_VULKAN_VERSION 1000000 // Vulkan 1.0
 
-// #define VMA_DEBUG_LOG(format, ...) do { \
-//         printf(format, __VA_ARGS__); \
-//         printf("\n"); \
-//     } while(false)
+// #define VMA_DEBUG_LOG_FORMAT(format, ...) \
+//     do                                    \
+//     {                                     \
+//         printf((format), __VA_ARGS__);    \
+//         printf("\n");                     \
+//     } while (false)
 
 #pragma warning(push, 4)
-#pragma warning(disable: 4127) // conditional expression is constant
-#pragma warning(disable: 4100) // unreferenced formal parameter
-#pragma warning(disable: 4189) // local variable is initialized but not referenced
-#pragma warning(disable: 4324) // structure was padded due to alignment specifier
-#pragma warning(disable: 4820) // 'X': 'N' bytes padding added after data member 'X'
+#pragma warning(disable : 4127) // conditional expression is constant
+#pragma warning(disable : 4100) // unreferenced formal parameter
+#pragma warning(disable : 4189) // local variable is initialized but not referenced
+#pragma warning(disable : 4324) // structure was padded due to alignment specifier
+#pragma warning(disable : 4820) // 'X': 'N' bytes padding added after data member 'X'
 
-#endif  // #ifdef _MSVC_LANG
+#endif // #ifdef _MSVC_LANG
 
 #ifdef __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wtautological-compare" // comparison of unsigned expression < 0 is always false
-    #pragma clang diagnostic ignored "-Wunused-private-field"
-    #pragma clang diagnostic ignored "-Wunused-parameter"
-    #pragma clang diagnostic ignored "-Wmissing-field-initializers"
-    #pragma clang diagnostic ignored "-Wnullability-completeness"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare" // comparison of unsigned expression < 0 is always false
+#pragma clang diagnostic ignored "-Wunused-private-field"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wnullability-completeness"
 #endif
 
 #ifdef VMA_VOLK_HEADER_PATH
-    #include VMA_VOLK_HEADER_PATH
+#include VMA_VOLK_HEADER_PATH
 #else
-    #include <vulkan/vulkan.h>
+#include <vulkan/vulkan.h>
 #endif
 
 #include <vk_mem_alloc.h>
 
 #ifdef __clang__
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #endif
 
 #ifdef _MSVC_LANG
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif

@@ -91,11 +91,11 @@ public:
     void BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bindPoint) const;
 
     void BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
-                            VkPipelineLayout layout,
+                            PipelineLayoutHandle layout,
                             uint32_t firstSet,
                             const std::vector<VkDescriptorSet>& descriptorSets) const;
 
-    void PushConstants(VkPipelineLayout pipelineLayout, uint32_t size, const void* data) const;
+    void PushConstants(PipelineLayoutHandle layout, uint32_t size, const void* data) const;
 
     void BeginDebugLabel(const char* label, const std::array<float, 4>& color = { 0.6F, 0.6F, 0.6F, 1.0F }) const;
 
@@ -166,20 +166,17 @@ public:
     /// QUERY OPS
 
     template <typename T>
-    void ResetQueryPoolFullRange(uint32_t frameIndex, QueryWriteFlags flags = QueryWriteFlags::None)
+    void ResetQueryPoolFullRange(uint32_t frameIndex)
     {
         assert(m_pQueryMgr);
 
         const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
         m_pQueryMgr->ResetQueryGroup<T>();
 
-        // if (flags != QueryWriteFlags::WriteIfPreviousResultIsAvailable)
-        // {
         uint32_t start = frameIndex * qg.GetRange();
         uint32_t end = qg.GetRange();
 
         vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
-        // }
     }
 
     template <typename T>
@@ -224,10 +221,7 @@ public:
         vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
     }
 
-    void WriteTimestamp(const char* name,
-                        VkPipelineStageFlags2 stage,
-                        uint32_t frameIndex,
-                        QueryWriteFlags flags = QueryWriteFlags::None) const;
+    void WriteTimestamp(const char* name, VkPipelineStageFlags2 stage, uint32_t frameIndex) const;
 
 private:
     Device* m_pDevice = nullptr;

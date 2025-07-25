@@ -32,6 +32,7 @@ PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) 
     plcInfo.pPushConstantRanges = desc.pushConstantRanges.data();
 
     DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &plcInfo, nullptr, &m_PipelineLayout));
+    AssignDebugName(m_Device->GetVkHandle(), m_PipelineLayout, desc.name);
 }
 
 PipelineLayout::PipelineLayout(PipelineLayout&& other) noexcept

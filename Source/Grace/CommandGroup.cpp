@@ -170,13 +170,15 @@ void CommandBuffer::BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bi
 }
 
 void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
-                                       VkPipelineLayout layout,
+                                       PipelineLayoutHandle layout,
                                        uint32_t firstSet,
                                        const std::vector<VkDescriptorSet>& descriptorSets) const
 {
+    const PipelineLayout& pl = m_pDevice->GetPipelineLayout(layout);
+    assert(!pl.IsNull());
     vkCmdBindDescriptorSets(m_CmdBuffer,
                             pipelineBindPoint,
-                            layout,
+                            pl.GetVkPipelineLayout(),
                             firstSet,
                             static_cast<uint32_t>(descriptorSets.size()),
                             descriptorSets.data(),
@@ -221,11 +223,12 @@ void CommandBuffer::SetScissor(const std::vector<VkRect2D>& scissors, uint32_t f
     vkCmdSetScissor(m_CmdBuffer, firstScissor, static_cast<uint32_t>(scissors.size()), scissors.data());
 }
 
-void CommandBuffer::PushConstants(VkPipelineLayout pipelineLayout, uint32_t size, const void* data) const
+void CommandBuffer::PushConstants(PipelineLayoutHandle layout, uint32_t size, const void* data) const
 {
-    assert(pipelineLayout != nullptr);
+    const PipelineLayout& pl = m_pDevice->GetPipelineLayout(layout);
+    assert(!pl.IsNull());
     assert(size <= 128);
-    vkCmdPushConstants(m_CmdBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, size, data);
+    vkCmdPushConstants(m_CmdBuffer, pl.GetVkPipelineLayout(), VK_SHADER_STAGE_ALL, 0, size, data);
 }
 
 void CommandBuffer::BeginDebugLabel(const char* label, const std::array<float, 4>& color) const
@@ -347,20 +350,12 @@ void CommandBuffer::FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize 
 
 void CommandBuffer::WriteTimestamp(const char* name,
                                    VkPipelineStageFlags2 stage,
-                                   uint32_t frameIndex,
-                                   QueryWriteFlags flags) const
+                                   uint32_t frameIndex) const
 {
     const TimestampQueryGroup& qg = m_pQueryMgr->GetQueryGroup<QueryType::Timestamp>();
     const uint32_t query = m_pQueryMgr->AddQuery<QueryType::Timestamp>(name);
 
     const uint32_t offset = frameIndex * (qg.GetRange() - 1);
-    // if (flags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
-    // {
-    //     if (qg.GetQueries()[offset + query + 1] == 0)
-    //     {
-    //         return;
-    //     };
-    // }
 
     vkCmdWriteTimestamp2(m_CmdBuffer, stage, qg.GetVkQueryPool(), offset + query);
 }

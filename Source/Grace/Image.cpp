@@ -129,13 +129,14 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
     imgcinfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imgcinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imgcinfo.usage = desc.usage;
+    if (desc.mipmapped)
+        imgcinfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     imgcinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    // Allocate and create the image
     DebugReporter::Check(
         vmaCreateImage(m_Device->GetVmaHandle(), &imgcinfo, &allocInfo, &m_Image, &m_Allocation, nullptr));
     AssignDebugName<VkImage>(m_Device->GetVkHandle(), m_Image, desc.name);
@@ -147,6 +148,157 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
                                   .mipLevel = 0,
                                   .levelCount = mipLevels,
                               });
+
+    if (desc.data != nullptr)
+    {
+        BufferHandle stagingBuffer = pDevice->CreateBuffer({
+            .name = "Staging Buffer",
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .data = nullptr,
+            .size = desc.size,
+        });
+
+        m_Device->CopyMemoryToHostVisibleBuffer(stagingBuffer, 0, desc.data, desc.size);
+
+        CommandBuffer& cmd = m_Device->BeginSingleTimeCommands();
+        const std::string debugLabel = desc.name + std::string(" | Data upload/Mip Gen");
+        cmd.BeginDebugLabel(debugLabel.c_str(), { 1.0F, 1.0F, 1.0F, 1.0F });
+
+        {
+            VkImageMemoryBarrier2 layoutTransition = {};
+            layoutTransition.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            layoutTransition.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+            layoutTransition.srcAccessMask = VK_ACCESS_2_NONE;
+            layoutTransition.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+            layoutTransition.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            layoutTransition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            layoutTransition.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+            layoutTransition.image = m_Image;
+            layoutTransition.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            layoutTransition.subresourceRange.baseMipLevel = 0;
+            layoutTransition.subresourceRange.levelCount = mipLevels;
+            layoutTransition.subresourceRange.baseArrayLayer = 0;
+            layoutTransition.subresourceRange.layerCount = 1;
+
+            VkDependencyInfo depInfo = {};
+            depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            depInfo.imageMemoryBarrierCount = 1;
+            depInfo.pImageMemoryBarriers = &layoutTransition;
+
+            vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
+        }
+
+        // Copy image data to staging buffer, then copy staging buffer to image; image stays gpu visible only
+        VkBufferImageCopy2 copyRegion = {};
+        copyRegion.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
+        copyRegion.pNext = nullptr;
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+        copyRegion.imageOffset = { .x = 0, .y = 0, .z = 0 };
+        copyRegion.imageExtent = { .width = desc.dimensions.width, .height = desc.dimensions.height, .depth = 1 };
+
+        VkCopyBufferToImageInfo2 copyInfo = {};
+        copyInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2;
+        copyInfo.pNext = nullptr;
+        copyInfo.srcBuffer = m_Device->GetBuffer(stagingBuffer).GetVkHandle();
+        copyInfo.dstImage = m_Image;
+        copyInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        copyInfo.regionCount = 1;
+        copyInfo.pRegions = &copyRegion;
+
+        vkCmdCopyBufferToImage2(cmd.GetVkCommandBuffer(), &copyInfo);
+
+        if (desc.mipmapped)
+        {
+            {
+                VkMemoryBarrier2 memBarrier = {};
+                memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+                memBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+                memBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                memBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+                memBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+                VkDependencyInfo depInfo = {};
+                depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+                depInfo.memoryBarrierCount = 1;
+                depInfo.pMemoryBarriers = &memBarrier;
+
+                vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
+            }
+
+            VkExtent2D imageSize = { desc.dimensions.width, desc.dimensions.height };
+            for (uint32_t mip = 0; mip < mipLevels; mip++)
+            {
+                VkExtent2D halfSize = imageSize;
+                halfSize.width /= 2;
+                halfSize.height /= 2;
+
+                VkImageSubresourceRange subres = ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+                subres.baseMipLevel = mip;
+                subres.levelCount = 1;
+
+                if (mip < mipLevels - 1)
+                {
+                    VkImageBlit2 blitRegion = {};
+                    blitRegion.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
+                    blitRegion.pNext = nullptr;
+                    blitRegion.srcOffsets[1].x = imageSize.width;
+                    blitRegion.srcOffsets[1].y = imageSize.height;
+                    blitRegion.srcOffsets[1].z = 1;
+                    blitRegion.dstOffsets[1].x = halfSize.width;
+                    blitRegion.dstOffsets[1].y = halfSize.height;
+                    blitRegion.dstOffsets[1].z = 1;
+                    blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    blitRegion.srcSubresource.baseArrayLayer = 0;
+                    blitRegion.srcSubresource.layerCount = 1;
+                    blitRegion.srcSubresource.mipLevel = mip;
+                    blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    blitRegion.dstSubresource.baseArrayLayer = 0;
+                    blitRegion.dstSubresource.layerCount = 1;
+                    blitRegion.dstSubresource.mipLevel = mip + 1;
+
+                    VkBlitImageInfo2 blitInfo = {};
+                    blitInfo.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
+                    blitInfo.pNext = nullptr;
+                    blitInfo.srcImage = m_Image;
+                    blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                    blitInfo.dstImage = m_Image;
+                    blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                    blitInfo.filter = VK_FILTER_LINEAR;
+                    blitInfo.regionCount = 1;
+                    blitInfo.pRegions = &blitRegion;
+
+                    cmd.BlitImage(blitInfo);
+                    imageSize = halfSize;
+                }
+
+                {
+                    VkMemoryBarrier2 memBarrier = {};
+                    memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+                    memBarrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+                    memBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                    memBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+                    memBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+
+                    VkDependencyInfo depInfo = {};
+                    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+                    depInfo.memoryBarrierCount = 1;
+                    depInfo.pMemoryBarriers = &memBarrier;
+
+                    vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
+                }
+            }
+        }
+        cmd.EndDebugLabel();
+        m_Device->EndAndSubmitSingleTimeCommands();
+        m_Device->FreeBuffer(stagingBuffer);
+    }
 }
 
 Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)

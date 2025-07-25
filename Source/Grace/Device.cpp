@@ -302,22 +302,22 @@ SwapchainStatus Device::Present(const FrameSyncGroup& fsg)
 
 VkDescriptorPool& Device::GetSoleDescriptorPool()
 {
-    return m_ResourceTable->soleDescriptorPool;
+    return m_ResourceTable->bindlessDescriptorPool;
 }
 
 VkDescriptorSet& Device::GetSoleDescriptorSet()
 {
-    return m_ResourceTable->soleDescriptorSet;
+    return m_ResourceTable->bindlessDescriptorSet;
 }
 
 VkDescriptorSetLayout& Device::GetSoleDescriptorSetLayout()
 {
-    return m_ResourceTable->soleDescriptorSetLayout;
+    return m_ResourceTable->bindlessDescriptorSetLayout;
 }
 
 PipelineLayoutHandle Device::GetSolePipelineLayout()
 {
-    return m_ResourceTable->solePipelineLayout;
+    return m_ResourceTable->bindlessPipelineLayout;
 }
 
 void Device::UpdateBindlessDescriptorSet()

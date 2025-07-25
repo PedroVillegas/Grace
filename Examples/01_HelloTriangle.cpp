@@ -149,11 +149,9 @@ int main()
 
         cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
 
-        cmd.WriteTimestamp(
-            "Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0);
         cmd.Draw(3, 1, 0, 0);
-        cmd.WriteTimestamp(
-            "Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0);
 
         cmd.EndQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats");
 

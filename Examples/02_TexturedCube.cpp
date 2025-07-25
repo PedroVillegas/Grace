@@ -27,7 +27,13 @@ struct Camera
     glm::vec3 rotation = { 0.0F, 0.0F, 0.0F };
 };
 
-glm::mat4 HandleCamera(GLFWwindow* pWindow, Camera& camera, float dt, float speed, float sens);
+struct Vertex
+{
+    glm::vec3 position = { 0.0F, 0.0F, 0.0F };
+    glm::vec2 uv = { 0.0F, 0.0F };
+};
+
+static glm::mat4 HandleCamera(GLFWwindow* pWindow, Camera& camera, float dt, float speed, float sens);
 
 int main()
 {
@@ -128,10 +134,66 @@ int main()
 
     const Grace::PipelineHandle texturedCubePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
+    // Cube vertex and index buffer
+    // clang-format off
+    const std::array<Vertex, 36> vertices = {
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F, -0.5F, -0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 0.0F)),
+
+        Vertex(glm::vec3(-0.5F, -0.5F,  0.5F),  glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F, -0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F,  0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F,  0.5F),  glm::vec2(0.0F, 0.0F)),
+
+        Vertex(glm::vec3(-0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F,  0.5F),  glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+
+        Vertex(glm::vec3(0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3(0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3(0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3(0.5F, -0.5F,  0.5F),  glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3(0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F), glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F, -0.5F, -0.5F), glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F, -0.5F,  0.5F), glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F, -0.5F,  0.5F), glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F,  0.5F), glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F, -0.5F, -0.5F), glm::vec2(0.0F, 1.0F)),
+
+        Vertex(glm::vec3(-0.5F,  0.5F, -0.5F),  glm::vec2(0.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3( 0.5F,  0.5F,  0.5F),  glm::vec2(1.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F,  0.5F),  glm::vec2(0.0F, 0.0F)),
+        Vertex(glm::vec3(-0.5F,  0.5F, -0.5F),  glm::vec2(0.0F, 1.0F))
+    };
+    // clang-format on
+
+    const Grace::BufferHandle vertexBuffer = pDevice->CreateBuffer({
+        .name = "Vertex Buffer",
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+               | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .allocFlags = 0,
+        .data = vertices.data(),
+        .size = vertices.size() * sizeof(Vertex),
+    });
+
     // Load image from file using stbi
     int x, y, channels;
-    uint8_t* data = stbi_load(IMAGES_PATH "file.png", &x, &y, &channels, 4);
-    const uint32_t textureSizeBytes = x * y * channels * sizeof(uint8_t);
+    uint8_t* data = stbi_load(IMAGES_PATH "UVCheckerMap10-1024.png", &x, &y, &channels, 4);
+    const uint32_t textureSizeBytes = x * y * 4 * sizeof(uint8_t);
 
     // Create an image with image file metadata
     const Grace::ImageHandle texture = pDevice->CreateImage({
@@ -139,106 +201,11 @@ int main()
         .dimensions = { static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1 },
         .format = VK_FORMAT_R8G8B8A8_SRGB,
         .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        .mipmapped = false,
+        .data = data,
+        .size = textureSizeBytes,
+        .mipmapped = true,
     });
-
-    // Cube vertex and index buffer
-    // clang-format off
-    const std::array<float, 40> vertices = {
-        // pos[3], uv[2]
-        -1.0F, -1.0F, -1.0F, 1.0F, 0.0F,
-        -1.0F,  1.0F, -1.0F, 1.0F, 1.0F,
-         1.0F,  1.0F, -1.0F, 0.0F, 1.0F,
-         1.0F, -1.0F, -1.0F, 0.0F, 0.0F,
-
-        -1.0F, -1.0F, 1.0F, 0.0F, 0.0F,
-        -1.0F,  1.0F, 1.0F, 0.0F, 1.0F,
-         1.0F,  1.0F, 1.0F, 1.0F, 1.0F,
-         1.0F, -1.0F, 1.0F, 1.0F, 0.0F,
-    };
-
-    // CCW winding
-    const std::array<uint32_t, 36> indices = {
-        7, 5, 4, 7, 6, 5,   // +Z face (Front)
-        0, 2, 3, 0, 1, 2,   // -Z face (Rear)
-        3, 6, 7, 3, 2, 6,   // +X face (Right)
-        4, 1, 0, 4, 5, 1,   // -X face (Left)
-        6, 1 ,5, 6, 2, 1,   // +Y face (Top)
-        3, 4, 0, 3, 7, 4,   // -Y face (Bottom)
-    };
-    // clang-format on
-
-    const uint32_t indexBufferSizeBytes = indices.size() * sizeof(uint32_t);
-    const Grace::BufferHandle indexBuffer = pDevice->CreateBuffer({
-        .name = "Index Buffer",
-        .allocSize = indexBufferSizeBytes,
-        .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        .allocFlags = 0,
-    });
-
-    const uint32_t vertexBufferSizeBytes = vertices.size() * sizeof(float);
-    const Grace::BufferHandle vertexBuffer = pDevice->CreateBuffer({
-        .name = "Vertex Buffer",
-        .allocSize = vertexBufferSizeBytes,
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-               | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        .allocFlags = 0,
-    });
-
-    const Grace::BufferHandle stagingBuffer = pDevice->CreateBuffer({
-        .name = "Staging Buffer",
-        .allocSize = textureSizeBytes + indexBufferSizeBytes + vertexBufferSizeBytes,
-        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-    });
-
-    const uint32_t indexBufferStart = 0;
-    pDevice->CopyMemoryToHostVisibleBuffer(stagingBuffer, indexBufferStart, indices.data(), indexBufferSizeBytes);
-
-    const uint32_t vertexBufferStart = indexBufferStart + indexBufferSizeBytes;
-    pDevice->CopyMemoryToHostVisibleBuffer(stagingBuffer, vertexBufferStart, vertices.data(), vertexBufferSizeBytes);
-
-    const uint32_t textureStart = vertexBufferStart + vertexBufferSizeBytes;
-    pDevice->CopyMemoryToHostVisibleBuffer(stagingBuffer, textureStart, data, textureSizeBytes);
     stbi_image_free(data);
-
-    Grace::CommandBuffer& setupCmd = pDevice->BeginSingleTimeCommands();
-    setupCmd.BeginDebugLabel("Frame Setup", { 1.0F, 0.28F, 0.3F, 1.0F });
-
-    setupCmd.AddImageBarrier(texture, { Grace::AccessType::None }, { Grace::AccessType::CopyWrite });
-    setupCmd.PipelineBarrier();
-
-    // Copy image data to staging buffer, then copy staging buffer to texture image
-    VkBufferImageCopy copyRegion = {};
-    copyRegion.bufferOffset = textureStart;
-    copyRegion.bufferRowLength = 0;
-    copyRegion.bufferImageHeight = 0;
-    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.imageSubresource.mipLevel = 0;
-    copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 1;
-    copyRegion.imageExtent = { .width = static_cast<uint32_t>(x), .height = static_cast<uint32_t>(y), .depth = 1 };
-    setupCmd.CopyBufferToImage(stagingBuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copyRegion });
-
-    setupCmd.AddImageBarrier(texture, { Grace::AccessType::CopyWrite }, { Grace::AccessType::General });
-    setupCmd.PipelineBarrier();
-
-    // Copy indices data to staging buffer, then copy staging buffer to index buffer
-    VkBufferCopy indexBufferCopyRegion = {};
-    indexBufferCopyRegion.srcOffset = indexBufferStart;
-    indexBufferCopyRegion.dstOffset = 0;
-    indexBufferCopyRegion.size = indexBufferSizeBytes;
-    setupCmd.CopyBuffer(stagingBuffer, indexBuffer, { indexBufferCopyRegion });
-
-    // Copy vertices data to staging buffer, then copy staging buffer to vertex buffer
-    VkBufferCopy vertexBufferCopyRegion = {};
-    vertexBufferCopyRegion.srcOffset = vertexBufferStart;
-    vertexBufferCopyRegion.dstOffset = 0;
-    vertexBufferCopyRegion.size = vertexBufferSizeBytes;
-    setupCmd.CopyBuffer(stagingBuffer, vertexBuffer, { vertexBufferCopyRegion });
-
-    setupCmd.EndDebugLabel();
-    pDevice->EndAndSubmitSingleTimeCommands();
 
     // MVP
     Camera cam = {};
@@ -262,7 +229,7 @@ int main()
         float dt = cpuFrameTime * 0.001F;
         glfwPollEvents();
 
-        model = glm::rotate(model, 1.0F * dt, glm::vec3(1.0F, 1.0F, 1.0F));
+        model = glm::rotate(model, 0.5F * dt, glm::vec3(1.0F, 1.0F, 1.0F));
         view = HandleCamera(pWindow, cam, dt, cameraSpeed, cameraSensitivity);
         proj = glm::perspectiveFov(
             glm::radians(45.0f), static_cast<float>(windowWidth), static_cast<float>(windowHeight), 0.001F, 1000.0F);
@@ -289,10 +256,7 @@ int main()
         cmd.BeginRecording();
         cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin",
-                           VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                           frameIndex,
-                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
+        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         /* Record commands */
 
@@ -332,11 +296,8 @@ int main()
 
         // Bind helloTriangle pipeline and execute a draw call
         cmd.BindPipeline(texturedCubePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
-        cmd.BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS,
-                               pDevice->GetPipelineLayout(pDevice->GetSolePipelineLayout()).GetVkPipelineLayout(),
-                               0,
-                               { pDevice->GetSoleDescriptorSet() });
-        cmd.BindIndexBuffer(indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        cmd.BindDescriptorSets(
+            VK_PIPELINE_BIND_POINT_GRAPHICS, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
 
         struct PC
         {
@@ -350,18 +311,11 @@ int main()
         pc.mvp = mvp;
         pc.textureIndex = pDevice->GetImage(texture).GetSampledImgId();
         pc.linearWrapSamplerIndex = pDevice->GetSampler(linearWrapSampler).GetSamplerId();
-        cmd.PushConstants(
-            pDevice->GetPipelineLayout(pDevice->GetSolePipelineLayout()).GetVkPipelineLayout(), sizeof(pc), &pc);
+        cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
 
-        cmd.WriteTimestamp("TexturedCube Pass Begin",
-                           VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
-                           frameIndex,
-                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
-        cmd.DrawIndexed(indices.size(), 1, 0, 0, 0);
-        cmd.WriteTimestamp("TexturedCube Pass End",
-                           VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                           frameIndex,
-                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
+        cmd.WriteTimestamp("TexturedCube Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, frameIndex);
+        cmd.Draw(vertices.size(), 1, 0, 0);
+        cmd.WriteTimestamp("TexturedCube Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, frameIndex);
 
         cmd.EndDynamicRendering();
         cmd.EndDebugLabel();
@@ -374,10 +328,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End",
-                           VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                           frameIndex,
-                           Grace::QueryWriteFlags::WriteIfPreviousResultIsAvailable);
+        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -425,6 +376,8 @@ int main()
                 .dimensions = { windowWidth, windowHeight, 1 },
                 .format = VK_FORMAT_D32_SFLOAT,
                 .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .data = nullptr,
+                .size = 0,
                 .mipmapped = false,
             });
         }

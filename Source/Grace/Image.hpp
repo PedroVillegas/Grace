@@ -66,6 +66,10 @@ struct GRACE_EXPORT ImageDesc
     VkFormat format;
     /// Specifies how the image is allowed to be used
     VkImageUsageFlags usage;
+    /// Pointer to data used to fill the image with upon creation
+    const void* data;
+    /// Size of data in bytes
+    uint32_t size;
     /// Specifies whether mipmaps should be generated
     bool mipmapped;
 };

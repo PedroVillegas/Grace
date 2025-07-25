@@ -15,12 +15,14 @@ struct GRACE_EXPORT BufferDesc
 {
     /// Name used to identify the buffer, e.g. in validation errors
     const char* name;
-    /// Total allocation size in Bytes
-    size_t allocSize;
     /// Specifies how the buffer is allowed to be used
     VkBufferUsageFlags usage;
     /// Flags used by VMA to optimize buffer allocation
     VmaAllocationCreateFlags allocFlags;
+    /// Pointer to data used to fill the buffer with upon creation
+    const void* data;
+    /// Allocation size in bytes
+    uint32_t size;
 };
 
 class GRACE_EXPORT Buffer

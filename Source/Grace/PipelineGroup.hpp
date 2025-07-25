@@ -23,6 +23,7 @@ enum class PipelineType : uint8_t
 
 struct GRACE_EXPORT PipelineLayoutDesc
 {
+    const char* name;
     VkPipelineLayoutCreateFlags flags;
     std::vector<VkDescriptorSetLayout> setLayouts;
     std::vector<VkPushConstantRange> pushConstantRanges;
