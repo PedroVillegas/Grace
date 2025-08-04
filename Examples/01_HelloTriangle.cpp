@@ -117,8 +117,9 @@ int main()
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
         cmd.PipelineBarrier();
 
-        cmd.ClearColorImage(
-            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+        cmd.ClearColorImage(swapchainImg,
+                            { 0.35F, 0.55F, 0.85F, 1.0F },
+                            { Grace::EntireImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
 
         cmd.AddImageBarrier(
             swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
@@ -187,9 +188,6 @@ int main()
 
         const Grace::PipelineStatsQueryGroup& psqg = pDevice->GetQueryPoolResults<Grace::QueryType::PipelineStatistics>(
             0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
-
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
 
         float helloTrianglePassTime =
             tqg.Duration<Grace::TimestampUnits::Milliseconds>("Hello Triangle Pass Begin", "Hello Triangle Pass End");

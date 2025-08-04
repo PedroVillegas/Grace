@@ -6,7 +6,6 @@
 
 int main()
 {
-    uint64_t fragmentInvocations = 0;
     const bool vsync = true;
     bool framebufferHasResized = false;
     uint32_t windowWidth = 800;
@@ -195,9 +194,6 @@ int main()
         const Grace::TimestampQueryGroup& tqg =
             pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
 
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
-
         float helloTrianglePassTime = tqg.Duration<Grace::TimestampUnits::Milliseconds>(
             "Simple Compute Shader Pass Begin", "Simple Compute Shader Pass End");
 
@@ -243,11 +239,10 @@ int main()
         lastTime = now;
 
         const std::string windowTitle = std::format(
-            "CPU Frame Time: {}ms | GPU Frame Time: {}ms | Hello Triangle Pass: {}ms | Fragment Invocations: {}",
+            "CPU Frame Time: {}ms | GPU Frame Time: {}ms | Hello Triangle Pass: {}ms",
             cpuFrameTime,
             gpuFrameTime,
-            helloTrianglePassTime,
-            fragmentInvocations);
+            helloTrianglePassTime);
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
     }
 
