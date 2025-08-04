@@ -1,6 +1,5 @@
 #include <chrono>
 #include <format>
-#include <iostream>
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
@@ -19,7 +18,7 @@ int main()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_POSITION_X, (vm->width - windowWidth) / 2);
     glfwWindowHint(GLFW_POSITION_Y, (vm->height - windowHeight) / 2);
-    GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Hello Triangle", nullptr, nullptr);
+    GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Simple Compute Shader", nullptr, nullptr);
     glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
     glfwSetFramebufferSizeCallback(pWindow,
                                    [](GLFWwindow* pWindow, int width, int height)
@@ -47,37 +46,30 @@ int main()
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
     // Grab a Command Pool for the Graphics Queue and allocate a command buffer from it
-    Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example01::pCmdPool");
+    Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example03::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
     const VkFormat swapchainFormat = pDevice->GetSwapchainFormat();
 
-    Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
-        .flags = 0,
-        .setLayouts = {},
-        .pushConstantRanges = {},
+    Grace::PipelineBuilder pbuilder(pDevice);
+    pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+    pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
+    const Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+
+    Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+        .name = "Example03::inFlightFence",
+        .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
     });
 
-    // Create pipeline from hello triangle shader
-    Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("01_HelloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    pbuilder.AddShader("01_HelloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    pbuilder.SetColourAttachmentFormat(&swapchainFormat);
-    pbuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pbuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
-    pbuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pbuilder.SetMultisamplingNone();
-    pbuilder.DisableBlending();
-    pbuilder.DisableDepthTest();
-    pbuilder.BuildGraphicsPipeline("Example01::helloTrianglePH", helloTrianglePLH);
-
-    const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
-
-    pDevice->FreePipelineLayout(helloTrianglePLH);
-
-    const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
-        .name = "Example01::inFlightFence",
-        .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
+    Grace::ImageHandle renderImage = pDevice->CreateImage({
+        .name = "Example03::renderImage",
+        .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
+        .format = VK_FORMAT_R8G8B8A8_UNORM,
+        .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        .access = Grace::AccessType::General,
+        .size = 0,
+        .data = nullptr,
+        .mipmapped = false,
     });
 
     /* Render loop */
@@ -102,10 +94,11 @@ int main()
         // Reset command pool, which will reset all command buffers allocated from it too
         pCmdPool->Reset();
 
+        pDevice->UpdateBindlessDescriptorSet();
+
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
         cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(0);
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(0);
 
         cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
@@ -113,54 +106,71 @@ int main()
 
         Grace::ImageHandle swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
 
-        // Transition swapchain image to a writable layout
-        cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
+        cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::BlitWrite });
         cmd.PipelineBarrier();
 
-        cmd.ClearColorImage(
-            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+        cmd.BeginDebugLabel("Simple Compute Shader Pass");
 
-        cmd.AddImageBarrier(
-            swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
-        cmd.PipelineBarrier();
+        struct PushConsts
+        {
+            uint32_t TextureId;
+        } pc;
 
-        cmd.BeginDebugLabel("Hello Triangle Pass");
-        cmd.BeginDynamicRendering({
-            .renderArea = { .extent = { windowWidth, windowHeight } },
-            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->GetImage(swapchainImg), nullptr) },
-        });
+        pc.TextureId = pDevice->GetImage(renderImage).GetStorageImgId();
 
-        cmd.SetViewport({ {
-            .x = 0,
-            .y = 0,
-            .width = static_cast<float>(windowWidth),
-            .height = static_cast<float>(windowHeight),
-            .minDepth = 0.0F,
-            .maxDepth = 1.0F,
-        } });
+        cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
+        cmd.BindDescriptorSets(
+            VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
+        cmd.BindPipeline(simpleComputeShaderPipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-        cmd.SetScissor({ {
-            .offset = { 0, 0 },
-            .extent = { windowWidth, windowHeight },
-        } });
+        cmd.WriteTimestamp("Simple Compute Shader Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
+        cmd.Dispatch(static_cast<uint32_t>(windowWidth / 16.0F) + 1, static_cast<uint32_t>(windowHeight / 16.0F) + 1);
+        cmd.WriteTimestamp("Simple Compute Shader Pass End", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
 
-        // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindPipeline(helloTrianglePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
-
-        cmd.WriteTimestamp("Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0);
-        cmd.Draw(3, 1, 0, 0);
-        cmd.WriteTimestamp("Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0);
-
-        cmd.EndQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats");
-
-        cmd.EndDynamicRendering();
         cmd.EndDebugLabel();
 
-        // Transition swapchain image to presentable layout
+        cmd.AddMemoryBarrier({ Grace::AccessType::ComputeShaderWrite }, { Grace::AccessType::BlitRead });
+        cmd.PipelineBarrier();
+
+        const VkImageBlit2 blit = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+            .pNext = nullptr,
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .srcOffsets = {
+                VkOffset3D(0, 0, 0),
+                VkOffset3D(windowWidth, windowHeight, 1),
+            },
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .dstOffsets = {
+                VkOffset3D(0, 0, 0),
+                VkOffset3D(windowWidth, windowHeight, 1),
+            },
+        };
+
+        cmd.BlitImage({
+            .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+            .pNext = nullptr,
+            .srcImage = pDevice->GetImage(renderImage).GetImage(),
+            .srcImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+            .dstImage = pDevice->GetImage(swapchainImg).GetImage(),
+            .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .regionCount = 1,
+            .pRegions = &blit,
+            .filter = VK_FILTER_LINEAR,
+        });
+
         cmd.AddImageBarrier(pDevice->GetRecentlyAcquiredSwapchainImage(),
-                            { Grace::AccessType::ColorAttachmentReadWrite },
+                            { Grace::AccessType::BlitWrite },
                             { Grace::AccessType::Present });
         cmd.PipelineBarrier();
 
@@ -185,18 +195,13 @@ int main()
         const Grace::TimestampQueryGroup& tqg =
             pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
 
-        const Grace::PipelineStatsQueryGroup& psqg = pDevice->GetQueryPoolResults<Grace::QueryType::PipelineStatistics>(
-            0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
-
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
 
-        float helloTrianglePassTime =
-            tqg.Duration<Grace::TimestampUnits::Milliseconds>("Hello Triangle Pass Begin", "Hello Triangle Pass End");
+        float helloTrianglePassTime = tqg.Duration<Grace::TimestampUnits::Milliseconds>(
+            "Simple Compute Shader Pass Begin", "Simple Compute Shader Pass End");
 
         float gpuFrameTime = tqg.Duration<Grace::TimestampUnits::Milliseconds>("GPU Frame Begin", "GPU Frame End");
-
-        psqg.GetQueryIfAvailable(fragmentInvocations, "Hello Triangle Pipeline Stats", 1);
 
         if (ss == Grace::SwapchainStatus::ShouldResize || framebufferHasResized)
         {
@@ -215,6 +220,18 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
+            pDevice->FreeImage(renderImage);
+
+            renderImage = pDevice->CreateImage({
+                .name = "Example03::renderImage",
+                .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                .access = Grace::AccessType::General,
+                .size = 0,
+                .data = nullptr,
+                .mipmapped = false,
+            });
         }
         else if (ss == Grace::SwapchainStatus::Failure)
         {

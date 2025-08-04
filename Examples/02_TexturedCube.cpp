@@ -89,14 +89,14 @@ int main()
     std::array<FrameData, FRAMES_IN_FLIGHT> frame = {};
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; ++i)
     {
-        const std::string cmdPoolDebugName = "CommandPool::" + std::to_string(i);
+        const std::string cmdPoolDebugName = "Example02::pCmdPool::" + std::to_string(i);
         Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, cmdPoolDebugName.c_str());
         frame[i] = {
             .pCmdPool = pCmdPool,
             .cmd = pCmdPool->GetOrAllocateCommandBuffer(),
         };
 
-        const std::string fenceDebugName = "InFlightFence::" + std::to_string(i);
+        const std::string fenceDebugName = "Example02::inFlightFence::" + std::to_string(i);
         frame[i].inFlightFence = pDevice->CreateFence({
             .name = fenceDebugName.c_str(),
             .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
@@ -111,10 +111,13 @@ int main()
     });
 
     Grace::ImageHandle depthImg = pDevice->CreateImage({
-        .name = "Depth Image",
+        .name = "Example02::depthImg",
         .dimensions = { windowWidth, windowHeight, 1 },
         .format = VK_FORMAT_D32_SFLOAT,
         .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .access = Grace::AccessType::DepthStencilAttachmentReadWrite,
+        .size = 0,
+        .data = nullptr,
         .mipmapped = false,
     });
 
@@ -130,9 +133,9 @@ int main()
     pbuilder.SetColourAttachmentFormat(&pDevice->GetSwapchainFormat());
     pbuilder.EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
     pbuilder.SetDepthFormat(VK_FORMAT_D32_SFLOAT);
-    pbuilder.BuildGraphicsPipeline("TexturedCube Pipeline", pDevice->GetSolePipelineLayout());
+    pbuilder.BuildGraphicsPipeline("Example02::texturedCubePipeline", pDevice->GetSolePipelineLayout());
 
-    const Grace::PipelineHandle texturedCubePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
     // Cube vertex and index buffer
     // clang-format off
@@ -182,12 +185,12 @@ int main()
     // clang-format on
 
     const Grace::BufferHandle vertexBuffer = pDevice->CreateBuffer({
-        .name = "Vertex Buffer",
+        .name = "Example02::vertexBuffer",
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
                | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         .allocFlags = 0,
-        .data = vertices.data(),
         .size = vertices.size() * sizeof(Vertex),
+        .data = vertices.data(),
     });
 
     // Load image from file using stbi
@@ -197,12 +200,12 @@ int main()
 
     // Create an image with image file metadata
     const Grace::ImageHandle texture = pDevice->CreateImage({
-        .name = "The Texture",
+        .name = "Example02::texture",
         .dimensions = { static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1 },
         .format = VK_FORMAT_R8G8B8A8_SRGB,
         .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        .data = data,
         .size = textureSizeBytes,
+        .data = data,
         .mipmapped = true,
     });
     stbi_image_free(data);
@@ -221,7 +224,6 @@ int main()
 
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
-    pDevice->UpdateBindlessDescriptorSet();
 
     while (!glfwWindowShouldClose(pWindow))
     {
@@ -239,7 +241,7 @@ int main()
         /* Prepare the frame */
 
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFence(frame[frameIndex].inFlightFence);
+        pDevice->WaitForFence(frame[frameIndex].inFlightFence, frameIndex);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
@@ -250,6 +252,8 @@ int main()
 
         // Reset command pool, which will reset all command buffers allocated from it too
         frame[frameIndex].pCmdPool->Reset();
+
+        pDevice->UpdateBindlessDescriptorSet();
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         Grace::CommandBuffer& cmd = frame[frameIndex].cmd;
@@ -267,7 +271,7 @@ int main()
         cmd.PipelineBarrier();
 
         cmd.ClearColorImage(
-            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::EntireImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
 
         cmd.AddImageBarrier(
             swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
@@ -295,7 +299,7 @@ int main()
         } });
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindPipeline(texturedCubePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        cmd.BindPipeline(texturedCubePipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
         cmd.BindDescriptorSets(
             VK_PIPELINE_BIND_POINT_GRAPHICS, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
 
@@ -372,12 +376,13 @@ int main()
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
             pDevice->FreeImage(depthImg);
             depthImg = pDevice->CreateImage({
-                .name = "Depth Image",
+                .name = "Example02::depthImg",
                 .dimensions = { windowWidth, windowHeight, 1 },
                 .format = VK_FORMAT_D32_SFLOAT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                .data = nullptr,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                .access = Grace::AccessType::DepthStencilAttachmentReadWrite,
                 .size = 0,
+                .data = nullptr,
                 .mipmapped = false,
             });
         }

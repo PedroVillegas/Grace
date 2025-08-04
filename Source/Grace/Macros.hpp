@@ -1,6 +1,7 @@
 #pragma once
 
 #define GRACE_NODISCARD [[nodiscard]]
+#define GRACE_FALLTHROUGH [[fallthrough]]
 
 #ifdef _DEBUG
 #define GRACE_SET_VK_DEBUG_NAME vkSetDebugUtilsObjectNameEXT_Meta

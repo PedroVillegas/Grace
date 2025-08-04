@@ -54,6 +54,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 
     DebugReporter::Check(
         vmaCreateBuffer(m_Device->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &m_Buffer, &m_Allocation, nullptr));
+    assert(m_Buffer != nullptr);
     AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
 
     if ((desc.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0)

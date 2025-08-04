@@ -81,7 +81,7 @@ public:
 
     GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
-    void FreeImage(ImageHandle& handle);
+    void FreeImage(ImageHandle& handle, uint32_t frameIndex = UINT32_MAX);
 
     /// SAMPLER OPS
 
@@ -107,7 +107,7 @@ public:
 
     /// SYNC OPS
 
-    void WaitForFence(FenceHandle fence, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+    void WaitForFence(FenceHandle fence, uint32_t frameIndex, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
     void WaitForFences(const std::vector<VkFence>& fences,
                        uint64_t timeout = std::numeric_limits<uint64_t>::max(),

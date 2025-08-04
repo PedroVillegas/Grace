@@ -19,10 +19,10 @@ struct GRACE_EXPORT BufferDesc
     VkBufferUsageFlags usage;
     /// Flags used by VMA to optimize buffer allocation
     VmaAllocationCreateFlags allocFlags;
+    /// Allocation size in bytes
+    size_t size;
     /// Pointer to data used to fill the buffer with upon creation
     const void* data;
-    /// Allocation size in bytes
-    uint32_t size;
 };
 
 class GRACE_EXPORT Buffer

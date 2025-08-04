@@ -72,6 +72,7 @@ set(
     Grace/DebugReporter.cpp
     Grace/DescriptorGroup.cpp
     Grace/Device.cpp
+    Grace/DeletionQueue.cpp
     Grace/GpuResourceTable.cpp
     Grace/HelperFunctions.cpp
     Grace/Image.cpp

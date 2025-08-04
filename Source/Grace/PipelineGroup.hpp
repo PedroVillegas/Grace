@@ -103,7 +103,7 @@ public:
     PipelineBuilder(PipelineBuilder&&) noexcept = delete;
     PipelineBuilder& operator=(PipelineBuilder&&) noexcept = delete;
 
-    PipelineBuilder& BuildComputePipeline(const char* name, const PipelineLayout& layout);
+    PipelineBuilder& BuildComputePipeline(const char* name, PipelineLayoutHandle layout);
     PipelineBuilder& BuildGraphicsPipeline(const char* name, PipelineLayoutHandle layout);
 
     PipelineBuilder& ClearAll();

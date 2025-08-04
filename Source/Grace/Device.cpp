@@ -7,8 +7,6 @@
 #include <GLFW/glfw3.h>
 #endif
 
-#include <iostream>
-
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -133,7 +131,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
 
     m_QueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
     m_CmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
-    m_ResourceMgr = std::make_unique<ResourceManager>();
+    m_ResourceMgr = std::make_unique<ResourceManager>(desc.framesInFlight);
     m_ResourceTable = std::make_unique<GpuResourceTable>(
         this, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
 
@@ -161,10 +159,11 @@ void Device::WaitIdle()
     vkDeviceWaitIdle(m_Device);
 }
 
-void Device::WaitForFence(FenceHandle fence, uint64_t timeout)
+void Device::WaitForFence(FenceHandle fence, uint32_t frameIndex, uint64_t timeout)
 {
     const Fence& waitFor = GetFence(fence);
     vkWaitForFences(m_Device, 1, &waitFor.GetVkFence(), VK_TRUE, timeout);
+    m_ResourceMgr->FlushDeletionQueue(frameIndex);
 }
 
 void Device::WaitForFences(const std::vector<VkFence>& fences, uint64_t timeout, bool waitAll)
@@ -394,10 +393,10 @@ std::vector<RegistryEntry<Image>>& Device::GetAllImages()
     return m_ResourceMgr->GetAllImages();
 }
 
-void Device::FreeImage(ImageHandle& handle)
+void Device::FreeImage(ImageHandle& handle, uint32_t frameIndex)
 {
     m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
-    m_ResourceMgr->Free<Image>(handle);
+    m_ResourceMgr->Free<Image>(handle, frameIndex);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)

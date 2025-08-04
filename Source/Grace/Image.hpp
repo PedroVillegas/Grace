@@ -1,11 +1,10 @@
 #pragma once
 
-#include <string>
-
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/SyncGroup.hpp>
 
 namespace Grace
 {
@@ -66,12 +65,14 @@ struct GRACE_EXPORT ImageDesc
     VkFormat format;
     /// Specifies how the image is allowed to be used
     VkImageUsageFlags usage;
-    /// Pointer to data used to fill the image with upon creation
-    const void* data;
+    /// Specifies what access type the image should be initialised for upon creation
+    AccessType access = AccessType::None;
     /// Size of data in bytes
-    uint32_t size;
+    size_t size = 0;
+    /// Pointer to data used to fill the image with upon creation
+    const void* data = nullptr;
     /// Specifies whether mipmaps should be generated
-    bool mipmapped;
+    bool mipmapped = false;
 };
 
 class GRACE_EXPORT Image

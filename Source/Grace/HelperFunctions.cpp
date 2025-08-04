@@ -11,6 +11,40 @@
 namespace Grace
 {
 
+VkImageSubresourceRange EntireImageSubresourceRange(VkImageAspectFlags aspectMask)
+{
+    return {
+        .aspectMask = aspectMask,
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS,
+    };
+}
+
+VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format)
+{
+    // clang-format off
+    switch (format)
+    {
+    case VK_FORMAT_D16_UNORM: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D32_SFLOAT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+    case VK_FORMAT_D16_UNORM_S8_UINT: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D24_UNORM_S8_UINT: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    case VK_FORMAT_S8_UINT:
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    default:
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    // clang-format on
+}
+
 VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue* clear, VkImageLayout imageLayout)
 {
     assert(!image.IsNull());
@@ -129,38 +163,6 @@ VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
     submitInfo.pCommandBufferInfos = cmdInfo;
 
     return submitInfo;
-}
-
-void GenerateMipmaps(CommandBuffer& cmd, const Image& image)
-{
-    assert(!cmd.IsNull());
-    assert(!image.IsNull());
-
-    cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
-    cmd.PipelineBarrier();
-
-    VkExtent2D imageSize = image.GetExtent2D();
-    int mipLevels = int(std::floor(std::log2(std::max(image.GetWidth(), image.GetHeight())))) + 1;
-    for (int mip = 0; mip < mipLevels; mip++)
-    {
-        VkExtent2D halfSize = imageSize;
-        halfSize.width /= 2;
-        halfSize.height /= 2;
-
-        VkImageSubresourceRange subres = ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-        subres.baseMipLevel = mip;
-        subres.levelCount = 1;
-
-        // Make sure to transition the final mip level back to src optimal
-        if (mip < mipLevels - 1)
-        {
-            CopyImageToImage(cmd, image, image, imageSize, halfSize, mip, mip + 1);
-            imageSize = halfSize;
-        }
-
-        cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
-        cmd.PipelineBarrier();
-    }
 }
 
 VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module)

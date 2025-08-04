@@ -98,7 +98,6 @@ void Swapchain::Create(VkExtent2D imageExtent)
         createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
-    m_Device->WaitIdle();
     VkSwapchainKHR tempSwapchain = {};
     DebugReporter::Check(vkCreateSwapchainKHR(m_Device->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
     assert(tempSwapchain != nullptr);
@@ -147,6 +146,11 @@ void Swapchain::Cleanup()
 {
     // Destroys VkSwapchain and VkImages
     vkDestroySwapchainKHR(m_Device->GetVkHandle(), m_Swapchain, nullptr);
+
+    for (ImageHandle& imageHandle : m_Images)
+    {
+        m_Device->FreeImage(imageHandle);
+    }
 }
 
 Swapchain::~Swapchain()

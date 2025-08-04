@@ -13,6 +13,10 @@
 namespace Grace
 {
 
+GRACE_NODISCARD GRACE_EXPORT VkImageSubresourceRange EntireImageSubresourceRange(VkImageAspectFlags aspectMask);
+
+GRACE_NODISCARD GRACE_EXPORT VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format);
+
 template <typename VK_HANDLE>
 void AssignDebugName(VkDevice device, VK_HANDLE handle, const char* name)
 {
@@ -237,9 +241,9 @@ GRACE_NODISCARD GRACE_EXPORT VkRenderingAttachmentInfo
 DepthAttachmentInfo(const Image& image, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 GRACE_NODISCARD GRACE_EXPORT VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
-                                                      uint32_t colourAttachmentCount,
-                                                      const VkRenderingAttachmentInfo* pColourAttachments,
-                                                      const VkRenderingAttachmentInfo* pDepthAttachment);
+                                                           uint32_t colourAttachmentCount,
+                                                           const VkRenderingAttachmentInfo* pColourAttachments,
+                                                           const VkRenderingAttachmentInfo* pDepthAttachment);
 
 void CopyImageToImage(CommandBuffer cmd,
                       const Image& src,
@@ -250,17 +254,16 @@ void CopyImageToImage(CommandBuffer cmd,
                       uint32_t dstMipLevel = 0U);
 
 GRACE_NODISCARD VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
-                                    VkSemaphoreSubmitInfo* signalSemaphoreInfo,
-                                    VkSemaphoreSubmitInfo* waitSemaphoreInfo);
-
-void GenerateMipmaps(CommandBuffer& cmd, const Image& image);
+                                         VkSemaphoreSubmitInfo* signalSemaphoreInfo,
+                                         VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 
 GRACE_NODISCARD std::vector<char> ReadSpvFile(const std::filesystem::path& filename);
 
 GRACE_NODISCARD bool
 CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule);
 
-GRACE_NODISCARD VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module);
+GRACE_NODISCARD VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage,
+                                                                      VkShaderModule module);
 
 struct QueueFamilyIndices
 {

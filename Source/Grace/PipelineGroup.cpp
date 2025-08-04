@@ -139,16 +139,17 @@ PipelineBuilder::~PipelineBuilder()
     ClearAll();
 }
 
-PipelineBuilder& PipelineBuilder::BuildComputePipeline(const char* name, const PipelineLayout& layout)
+PipelineBuilder& PipelineBuilder::BuildComputePipeline(const char* name, PipelineLayoutHandle layout)
 {
-    assert(!layout.IsNull());
+    const PipelineLayout& pl = m_Device->GetPipelineLayout(layout);
+    assert(!pl.IsNull());
     assert(m_ShaderStages.size() == 1);
     assert(m_ShaderModules.size() == 1);
 
     VkComputePipelineCreateInfo computePipelineCreateInfo = {};
     computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     computePipelineCreateInfo.pNext = nullptr;
-    computePipelineCreateInfo.layout = layout.GetVkPipelineLayout();
+    computePipelineCreateInfo.layout = pl.GetVkPipelineLayout();
     computePipelineCreateInfo.stage = m_ShaderStages[0];
 
     pipelineDesc.type = PipelineType::Compute;
