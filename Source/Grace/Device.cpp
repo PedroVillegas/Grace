@@ -3,7 +3,7 @@
 #include <cassert>
 #include <set>
 
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
 #include <GLFW/glfw3.h>
 #endif
 
@@ -30,7 +30,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
 {
     LogicalDeviceDesc ldd = {};
 
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -46,7 +46,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableInstanceExtensions.data());
 
     std::vector<const char*> extensions
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
         (glfwExtensions, glfwExtensions + glfwExtensionCount)
 #endif
             ;

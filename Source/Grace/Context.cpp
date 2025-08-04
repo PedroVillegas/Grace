@@ -5,7 +5,7 @@
 
 #include <cstring>
 
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
 #include <GLFW/glfw3.h>
 #endif
 
@@ -77,7 +77,7 @@ void Context::CreateInstance()
 
 std::vector<const char*> Context::GetRequiredExtensions() const
 {
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -92,7 +92,7 @@ std::vector<const char*> Context::GetRequiredExtensions() const
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableInstanceExtensions.data());
 
     std::vector<const char*> extensions
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
         (glfwExtensions, glfwExtensions + glfwExtensionCount)
 #endif
             ;
