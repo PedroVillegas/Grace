@@ -48,14 +48,12 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example03::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    const VkFormat swapchainFormat = pDevice->GetSwapchainFormat();
-
     Grace::PipelineBuilder pbuilder(pDevice);
     pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
     pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
     const Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
-    Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+    const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
         .name = "Example03::inFlightFence",
         .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
     });

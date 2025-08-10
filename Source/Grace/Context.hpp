@@ -13,6 +13,7 @@ namespace Grace
 
 struct ContextDesc
 {
+    std::vector<const char *> extensions;
     DeviceDesc deviceConfig;
 };
 
@@ -33,13 +34,7 @@ public:
 
     GRACE_NODISCARD VkInstance& GetInstance();
 
-public:
-    const std::vector<const char*> REQUIRED_DEVICE_EXTENSIONS = { VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                                  VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME };
-
 private:
-    void CreateInstance();
-
     GRACE_NODISCARD std::vector<const char*> GetRequiredExtensions() const;
 
 private:

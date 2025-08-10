@@ -13,6 +13,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(vma)
 
+if (NOT DEFINED GRACE_TARGET_VULKAN_API_VERSION)
+    message(WARNING "[GRACE_WARN] GRACE_TARGET_VULKAN_API_VERSION was not defined - default is 1.3!")
+    set(GRACE_TARGET_VULKAN_API_VERSION 13)
+endif()
+
 if(NOT DEFINED GRACE_SHADERS_DIR)
     message(FATAL_ERROR "[GRACE_ERROR] GRACE_SHADERS_DIR must be defined!")
 endif()
@@ -23,9 +28,12 @@ if(NOT DEFINED GRACE_SPIRV_DIR)
 endif()
 
 if (NOT DEFINED GRACE_DESIRED_VULKAN_SDK_VERSION)
-    find_package(Vulkan GRACE_DESIRED_VULKAN_SDK_VERSION REQUIRED)
-else()
     find_package(Vulkan REQUIRED)
+else()
+    find_package(Vulkan ${GRACE_DESIRED_VULKAN_SDK_VERSION} REQUIRED)
+    if (NOT ${Vulkan_FOUND})
+        message(FATAL_ERROR "[GRACE_ERROR] Could not find specified Vulkan SDK version (${GRACE_DESIRED_VULKAN_SDK_VERSION})")
+    endif()
 endif()
 
 set(Vulkan_BIN_DIR ${Vulkan_INCLUDE_DIR}/../Bin)
@@ -128,10 +136,10 @@ target_link_libraries(
 
 target_compile_definitions(
     Grace
-    PUBLIC GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
     PUBLIC Grace_EXPORTS
+    PUBLIC GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
+    PUBLIC GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 )
-
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
     "${GRACE_SHADERS_DIR}/*.frag"
@@ -152,7 +160,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     set(SPIRV "${GRACE_SPIRV_DIR}/${FILE_NAME}.spv")
     add_custom_command(
         OUTPUT ${SPIRV}
-        COMMAND ${GLSL_COMPILER} ${GLSL} -g -o ${SPIRV} --target-env=vulkan1.4
+        COMMAND ${GLSL_COMPILER} ${GLSL} -g -o ${SPIRV} --target-env=vulkan1.3
         DEPENDS ${GLSL}
         COMMENT "Compiling GLSL Shader: ${GLSL}"
     )

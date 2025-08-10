@@ -3,6 +3,8 @@
 #include <string>
 #include <iostream>
 
+#include <vulkan/vulkan.h>
+
 namespace Grace
 {
 
@@ -64,9 +66,11 @@ void DebugReporter::Check(VkResult result)
     case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
         errorMessage = "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: A buffer creation or memory allocation failed because the requested address is not available. A shader group handle assignment failed because the requested shader group handle information is no longer valid";
         break;
+#if (GRACE_TARGET_VULKAN_API_VERSION >= 14)
     case VK_ERROR_NOT_PERMITTED:
         errorMessage = "VK_ERROR_NOT_PERMITTED: The driver implementation has denied a request to acquire a priority above the default priority (VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT) because the application does not have sufficient privileges";
         break;
+#endif
     case VK_ERROR_SURFACE_LOST_KHR:
         errorMessage = "VK_ERROR_SURFACE_LOST_KHR: A surface is no longer available";
         break;
@@ -114,7 +118,7 @@ void DebugReporter::Check(VkResult result)
 
     if (result < VK_SUCCESS)
     {
-        std::cout << "\033[1;31m[ERROR]\033[0m " + errorMessage + "\n";
+        std::cout << "\033[1;31m[ERROR]\033[0m " + errorMessage << std::endl;
         //abort();
     }
 }

@@ -12,8 +12,6 @@
 namespace Grace
 {
 
-#define GRACE_LOAD_PFN_EXT(instance, fn) reinterpret_cast<PFN_##fn>(vkGetInstanceProcAddr(instance, #fn))
-
 VkInstance& Context::GetInstance()
 {
     return m_Instance;
@@ -33,7 +31,44 @@ Context::Context(const ContextDesc& desc)
     vkCmdEndDebugUtilsLabelEXT_Meta = nullptr;
     vkCmdInsertDebugUtilsLabelEXT_Meta = nullptr;
 
-    CreateInstance();
+    VkApplicationInfo appInfo = {};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+
+    uint32_t apiVersion = VK_API_VERSION_1_3;
+
+#if (GRACE_TARGET_VULKAN_API_VERSION == 13)
+    apiVersion = VK_API_VERSION_1_3;
+#elif (GRACE_TARGET_VULKAN_API_VERSION == 14)
+    apiVersion = VK_API_VERSION_1_4
+#else
+    vkEnumerateInstanceVersion(&apiVersion);
+    assert(apiVersion >= VK_API_VERSION_1_3);
+#endif
+
+    appInfo.apiVersion = apiVersion;
+
+    VkInstanceCreateInfo ici = {};
+    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    ici.pNext = nullptr;
+    ici.flags = 0;
+    ici.pApplicationInfo = &appInfo;
+    ici.enabledLayerCount = 0;
+
+    std::vector<const char*> extensions = GetRequiredExtensions();
+    extensions.insert(extensions.end(), desc.extensions.begin(), desc.extensions.end());
+    ici.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    ici.ppEnabledExtensionNames = extensions.data();
+
+    DebugReporter::Check(vkCreateInstance(&ici, nullptr, &m_Instance));
+
+    vkSetDebugUtilsObjectNameEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkSetDebugUtilsObjectNameEXT);
+    vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdBeginDebugUtilsLabelEXT);
+    vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdEndDebugUtilsLabelEXT);
+    vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdInsertDebugUtilsLabelEXT);
 
     m_Device = std::make_unique<Device>(m_Instance, desc.deviceConfig);
 
@@ -44,35 +79,6 @@ Context::Context(const ContextDesc& desc)
 Device* Context::GetDevicePtr()
 {
     return m_Device.get();
-}
-
-void Context::CreateInstance()
-{
-    VkApplicationInfo appInfo = {};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Tensa";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_4;
-
-    VkInstanceCreateInfo ici = {};
-    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    ici.pNext = nullptr;
-    ici.pApplicationInfo = &appInfo;
-    ici.enabledLayerCount = 0;
-
-    // Define the global extensions and validation layers we want to use
-    std::vector<const char*> extensions = GetRequiredExtensions();
-    ici.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    ici.ppEnabledExtensionNames = extensions.data();
-
-    DebugReporter::Check(vkCreateInstance(&ici, nullptr, &m_Instance));
-
-    vkSetDebugUtilsObjectNameEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkSetDebugUtilsObjectNameEXT);
-    vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdBeginDebugUtilsLabelEXT);
-    vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdEndDebugUtilsLabelEXT);
-    vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_PFN_EXT(m_Instance, vkCmdInsertDebugUtilsLabelEXT);
 }
 
 std::vector<const char*> Context::GetRequiredExtensions() const

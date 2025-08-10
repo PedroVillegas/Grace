@@ -217,10 +217,12 @@ void AssignDebugName(VkDevice device, VK_HANDLE handle, const char* name)
     {
         objectType = VK_OBJECT_TYPE_PIPELINE_BINARY_KHR;
     }
+#if (GRACE_TARGET_VULKAN_API_VERSION >= 14)
     else if constexpr (std::is_same_v<VK_HANDLE, VkExternalComputeQueueNV>)
     {
         objectType = VK_OBJECT_TYPE_EXTERNAL_COMPUTE_QUEUE_NV;
     }
+#endif
     else if constexpr (std::is_same_v<VK_HANDLE, VkIndirectExecutionSetEXT>)
     {
         objectType = VK_OBJECT_TYPE_INDIRECT_EXECUTION_SET_EXT;
