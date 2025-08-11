@@ -26,8 +26,11 @@ Device::~Device()
     vkDestroyDevice(m_Device, nullptr);
 }
 
-Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(instance)
+Device::Device(VkInstance instance, const DeviceDesc& desc)
+    : m_ParentInstance(instance), m_FramesInFlight(desc.framesInFlight)
 {
+    assert(desc.framesInFlight > 0);
+
     LogicalDeviceDesc ldd = {};
 
 #ifdef GRACE_USE_GLFW
@@ -159,11 +162,21 @@ void Device::WaitIdle()
     vkDeviceWaitIdle(m_Device);
 }
 
-void Device::WaitForFence(FenceHandle fence, uint32_t frameIndex, uint64_t timeout)
+uint32_t Device::GetCurrentFrameInFlightIndex() const
+{
+    return m_FrameInFlightIndex;
+}
+
+void Device::AdvanceToNextFrame()
+{
+    m_FrameInFlightIndex = (m_FrameInFlightIndex + 1) % m_FramesInFlight;
+}
+
+void Device::WaitForFence(FenceHandle fence, uint64_t timeout)
 {
     const Fence& waitFor = GetFence(fence);
     vkWaitForFences(m_Device, 1, &waitFor.GetVkFence(), VK_TRUE, timeout);
-    m_ResourceMgr->FlushDeletionQueue(frameIndex);
+    m_ResourceMgr->FlushDeletionQueue(m_FrameInFlightIndex);
 }
 
 void Device::WaitForFences(const std::vector<VkFence>& fences, uint64_t timeout, bool waitAll)
@@ -393,10 +406,11 @@ std::vector<RegistryEntry<Image>>& Device::GetAllImages()
     return m_ResourceMgr->GetAllImages();
 }
 
-void Device::FreeImage(ImageHandle& handle, uint32_t frameIndex)
+void Device::FreeImage(ImageHandle& handle, bool defer)
 {
     m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
-    m_ResourceMgr->Free<Image>(handle, frameIndex);
+    const uint32_t fi = defer ? UINT32_MAX : m_FrameInFlightIndex;
+    m_ResourceMgr->Free<Image>(handle, fi);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)

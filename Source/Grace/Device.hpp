@@ -47,6 +47,10 @@ public:
 
     void WaitIdle();
 
+    GRACE_NODISCARD uint32_t GetCurrentFrameInFlightIndex() const;
+
+    void AdvanceToNextFrame();
+
     GRACE_NODISCARD VkDescriptorPool& GetSoleDescriptorPool();
 
     GRACE_NODISCARD VkDescriptorSet& GetSoleDescriptorSet();
@@ -81,7 +85,7 @@ public:
 
     GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
-    void FreeImage(ImageHandle& handle, uint32_t frameIndex = UINT32_MAX);
+    void FreeImage(ImageHandle& handle, bool defer = true);
 
     /// SAMPLER OPS
 
@@ -107,7 +111,7 @@ public:
 
     /// SYNC OPS
 
-    void WaitForFence(FenceHandle fence, uint32_t frameIndex, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+    void WaitForFence(FenceHandle fence, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
     void WaitForFences(const std::vector<VkFence>& fences,
                        uint64_t timeout = std::numeric_limits<uint64_t>::max(),
@@ -170,11 +174,11 @@ public:
     GRACE_NODISCARD QueryManager* GetQueryManagerPtr();
 
     template <typename T>
-    void ResetQueryPoolFullRange(uint32_t frameIndex, QueryWriteFlags flags)
+    void ResetQueryPoolFullRange(QueryWriteFlags flags)
     {
         QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
 
-        uint32_t first = frameIndex * qg.GetRange();
+        uint32_t first = m_FrameInFlightIndex * qg.GetRange();
         uint32_t count = qg.GetRange();
 
         vkResetQueryPool(m_Device, qg.GetVkQueryPool(), first, count);
@@ -184,8 +188,7 @@ public:
     template <typename T>
     GRACE_NODISCARD const QueryGroup<T>& GetQueryPoolResults(uint32_t firstQuery,
                                                              uint32_t queryCount,
-                                                             VkQueryResultFlags flags,
-                                                             uint32_t frameIndex = 0U) const
+                                                             VkQueryResultFlags flags) const
     {
         QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
 
@@ -200,7 +203,7 @@ public:
         uint32_t dataSize = qc * stride;
         DebugReporter::Check(vkGetQueryPoolResults(m_Device,
                                                    qg.GetVkQueryPool(),
-                                                   frameIndex * qg.GetRange(),
+                                                   m_FrameInFlightIndex * qg.GetRange(),
                                                    qc,
                                                    dataSize,
                                                    qg.GetQueries().data(),
@@ -264,6 +267,9 @@ private:
     std::unique_ptr<ResourceManager> m_ResourceMgr = {};
     std::unique_ptr<GpuResourceTable> m_ResourceTable = {};
     std::unique_ptr<CommandGroupAllocator> m_CmdGroupAllocator = {};
+
+    uint32_t m_FramesInFlight = 1U;
+    uint32_t m_FrameInFlightIndex = 0U;
 };
 
 } // namespace Grace

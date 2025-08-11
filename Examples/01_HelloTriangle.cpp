@@ -1,6 +1,5 @@
 #include <chrono>
 #include <format>
-#include <iostream>
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
@@ -89,8 +88,10 @@ int main()
 
         /* Prepare the frame */
 
+        const uint32_t frameIndex = pDevice->GetCurrentFrameInFlightIndex();
+
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFence(inFlightFence, 0);
+        pDevice->WaitForFence(inFlightFence);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
@@ -104,14 +105,14 @@ int main()
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(0);
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(0);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         /* Record commands */
 
-        Grace::ImageHandle swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
+        const Grace::ImageHandle swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
 
         // Transition swapchain image to a writable layout
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
@@ -148,11 +149,11 @@ int main()
         // Bind helloTriangle pipeline and execute a draw call
         cmd.BindPipeline(helloTrianglePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
+        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", frameIndex);
 
-        cmd.WriteTimestamp("Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0);
+        cmd.WriteTimestamp("Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, frameIndex);
         cmd.Draw(3, 1, 0, 0);
-        cmd.WriteTimestamp("Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0);
+        cmd.WriteTimestamp("Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, frameIndex);
 
         cmd.EndQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats");
 
@@ -167,7 +168,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -230,6 +231,8 @@ int main()
             helloTrianglePassTime,
             fragmentInvocations);
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
+
+        pDevice->AdvanceToNextFrame();
     }
 
     glfwTerminate();

@@ -38,7 +38,7 @@ static glm::mat4 HandleCamera(GLFWwindow* pWindow, Camera& camera, float dt, flo
 int main()
 {
     constexpr uint32_t FRAMES_IN_FLIGHT = 2;
-    uint32_t frameIndex = 0;
+    // uint32_t frameIndex = 0;
 
     // Timings
     double texturedCubePassTime = 0.0;
@@ -228,7 +228,7 @@ int main()
     while (!glfwWindowShouldClose(pWindow))
     {
         // Convert units to seconds
-        float dt = cpuFrameTime * 0.001F;
+        const float dt = cpuFrameTime * 0.001F;
         glfwPollEvents();
 
         model = glm::rotate(model, 0.5F * dt, glm::vec3(1.0F, 1.0F, 1.0F));
@@ -240,8 +240,10 @@ int main()
 
         /* Prepare the frame */
 
+        const uint32_t frameIndex = pDevice->GetCurrentFrameInFlightIndex();
+
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFence(frame[frameIndex].inFlightFence, frameIndex);
+        pDevice->WaitForFence(frame[frameIndex].inFlightFence);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
@@ -270,8 +272,9 @@ int main()
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
         cmd.PipelineBarrier();
 
-        cmd.ClearColorImage(
-            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::EntireImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+        cmd.ClearColorImage(swapchainImg,
+                            { 0.35F, 0.55F, 0.85F, 1.0F },
+                            { Grace::EntireImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
 
         cmd.AddImageBarrier(
             swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
@@ -348,8 +351,8 @@ int main()
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
         const Grace::SwapchainStatus ss = pDevice->Present(fsg);
 
-        const Grace::TimestampQueryGroup& tqg = pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(
-            0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT, frameIndex);
+        const Grace::TimestampQueryGroup& tqg =
+            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
 
         tqg.DurationIfAvailable<Grace::TimestampUnits::Milliseconds>(
             texturedCubePassTime, "TexturedCube Pass Begin", "TexturedCube Pass End", frameIndex);
@@ -401,7 +404,7 @@ int main()
                                               static_cast<float>(texturedCubePassTime));
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
 
-        frameIndex = (frameIndex + 1) % FRAMES_IN_FLIGHT;
+        pDevice->AdvanceToNextFrame();
     }
 
     glfwTerminate();
