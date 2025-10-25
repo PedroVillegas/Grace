@@ -16,8 +16,12 @@ namespace Grace
 
 Device::~Device()
 {
-    m_Swapchain.reset();
-    vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+    if (m_SurfaceKHR != VK_NULL_HANDLE)
+    {
+        m_Swapchain.reset();
+        vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+    }
+
     m_ResourceMgr.reset();
     m_ResourceTable.reset();
     m_CmdGroupAllocator.reset();
@@ -32,6 +36,11 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
     assert(desc.framesInFlight > 0);
 
     LogicalDeviceDesc ldd = {};
+    ldd.requiredExt = std::move(desc.requiredExtensions);
+
+#ifdef GRACE_USE_GLFW
+    ldd.requiredExt.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+#endif
 
 #ifdef GRACE_USE_GLFW
     uint32_t glfwExtensionCount = 0;
@@ -59,8 +68,6 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
         if (strcmp(availableExt.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
-
-    ldd.requiredExt = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME };
 
     // Look for and select a graphics card in the system that supports the features we need
     uint32_t deviceCount = 0;
@@ -98,10 +105,12 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
                      m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
                      0,
                      &m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)]);
+#ifdef GRACE_USE_GLFW
     vkGetDeviceQueue(m_Device,
                      m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
                      0,
                      &m_Queues[static_cast<uint32_t>(QueueFamily::Present)]);
+#endif
 
     if (m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
     {
@@ -631,6 +640,7 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     // Vulkan 1.3 features
     VkPhysicalDeviceVulkan13Features features13 = {};
     features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.pNext = nullptr;
     features13.synchronization2 = true;
     features13.dynamicRendering = true;
 
@@ -736,7 +746,9 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
+#ifdef GRACE_USE_GLFW
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value()
+#endif
     };
 
     // Queue priorities are floats in [0.0, 1.0] - required
@@ -760,18 +772,23 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
 
     bool bExtensionsSupported = CheckDeviceExtensionSupport(device, requiredExt);
 
+#ifdef GRACE_USE_GLFW
     bool bSwapChainAdequate = false;
     if (bExtensionsSupported)
     {
         SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, m_SurfaceKHR);
         bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
+#endif
 
     VkPhysicalDeviceFeatures2 supportedFeatures = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
 
-    return indices.IsComplete() && bExtensionsSupported && bSwapChainAdequate
-        && supportedFeatures.features.samplerAnisotropy;
+    return indices.IsComplete()
+#ifdef GRACE_USE_GLFW
+        && bSwapChainAdequate
+#endif
+        && bExtensionsSupported;
 }
 
 bool Device::CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const

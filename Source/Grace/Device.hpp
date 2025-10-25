@@ -22,6 +22,7 @@ struct GRACE_EXPORT DeviceDesc
     uint32_t maxSamplerDescriptors = 65535U;
     uint32_t maxBufferDescriptors = 65535U;
     uint32_t framesInFlight = 1U;
+    std::vector<const char*> requiredExtensions = {};
     QueryGroupDesc queryGroupDesc = {};
     GLFWwindow* pGlfwWindow = nullptr;
 };
@@ -61,9 +62,15 @@ public:
 
     void UpdateBindlessDescriptorSet();
 
-    void CopyMemoryToHostVisibleBuffer(BufferHandle dst, VkDeviceSize offsetIntoDst, const void* pHostMem, VkDeviceSize hostMemBytes);
+    void CopyMemoryToHostVisibleBuffer(BufferHandle dst,
+                                       VkDeviceSize offsetIntoDst,
+                                       const void* pHostMem,
+                                       VkDeviceSize hostMemBytes);
 
-    void CopyMemoryToHostVisibleImage(ImageHandle dst, VkDeviceSize offsetIntoDst, const void* pHostMem, VkDeviceSize hostMemBytes);
+    void CopyMemoryToHostVisibleImage(ImageHandle dst,
+                                      VkDeviceSize offsetIntoDst,
+                                      const void* pHostMem,
+                                      VkDeviceSize hostMemBytes);
 
     /// BUFFER OPS
 
@@ -153,10 +160,7 @@ public:
 
     void SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd);
 
-    void Submit(QueueFamily queue,
-                const CommandBuffer& cmd,
-                const FrameSyncGroup& fsg,
-                FenceHandle fence);
+    void Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, FenceHandle fence);
 
     void BatchSubmit(QueueFamily queue,
                      const std::vector<CommandBuffer>& cmds,
@@ -186,9 +190,8 @@ public:
     }
 
     template <typename T>
-    GRACE_NODISCARD const QueryGroup<T>& GetQueryPoolResults(uint32_t firstQuery,
-                                                             uint32_t queryCount,
-                                                             VkQueryResultFlags flags) const
+    GRACE_NODISCARD const QueryGroup<T>&
+    GetQueryPoolResults(uint32_t firstQuery, uint32_t queryCount, VkQueryResultFlags flags) const
     {
         QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
 
@@ -201,14 +204,17 @@ public:
         }
 
         uint32_t dataSize = qc * stride;
-        DebugReporter::Check(vkGetQueryPoolResults(m_Device,
-                                                   qg.GetVkQueryPool(),
-                                                   m_FrameInFlightIndex * qg.GetRange(),
-                                                   qc,
-                                                   dataSize,
-                                                   qg.GetQueries().data(),
-                                                   stride,
-                                                   VK_QUERY_RESULT_64_BIT | flags));
+        VkResult res = vkGetQueryPoolResults(m_Device,
+                                             qg.GetVkQueryPool(),
+                                             m_FrameInFlightIndex * qg.GetRange(),
+                                             qc,
+                                             dataSize,
+                                             qg.GetQueries().data(),
+                                             stride,
+                                             VK_QUERY_RESULT_64_BIT | flags);
+
+        qg.m_LastResult = res;
+        DebugReporter::Check(res);
 
         return qg;
     }

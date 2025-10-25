@@ -276,7 +276,11 @@ struct QueueFamilyIndices
 
     bool IsComplete()
     {
-        return graphicsFamily.has_value() && presentFamily.has_value();
+        return graphicsFamily.has_value()
+#ifdef GRACE_USE_GLFW
+        && presentFamily.has_value()
+#endif
+        ;
     }
 };
 
