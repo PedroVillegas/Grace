@@ -39,3 +39,7 @@ add_executable(ComputeShader)
 target_sources(ComputeShader PRIVATE 03_ComputeShader.cpp)
 target_link_libraries(ComputeShader PRIVATE Grace glfw)
 target_compile_definitions(ComputeShader PRIVATE GRACE_USE_GLFW)
+
+add_executable(StreamCompaction)
+target_sources(StreamCompaction PRIVATE 04_StreamCompaction.cpp)
+target_link_libraries(StreamCompaction PRIVATE Grace)

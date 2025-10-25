@@ -78,8 +78,10 @@ int main()
 
         /* Prepare the frame */
 
+        const uint32_t frameIndex = pDevice->GetCurrentFrameInFlightIndex();
+
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFence(inFlightFence, 0);
+        pDevice->WaitForFence(inFlightFence);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
@@ -95,9 +97,9 @@ int main()
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(0);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         /* Record commands */
 
@@ -120,9 +122,9 @@ int main()
             VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
         cmd.BindPipeline(simpleComputeShaderPipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-        cmd.WriteTimestamp("Simple Compute Shader Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
+        cmd.WriteTimestamp("Simple Compute Shader Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, frameIndex);
         cmd.Dispatch(static_cast<uint32_t>(windowWidth / 16.0F) + 1, static_cast<uint32_t>(windowHeight / 16.0F) + 1);
-        cmd.WriteTimestamp("Simple Compute Shader Pass End", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
+        cmd.WriteTimestamp("Simple Compute Shader Pass End", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, frameIndex);
 
         cmd.EndDebugLabel();
 
@@ -173,7 +175,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
