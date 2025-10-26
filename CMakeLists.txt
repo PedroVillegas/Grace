@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.25)
 
 project(Grace VERSION 1.0.0)
 
-option(GRACE_COMPILE_EXAMPLES "Compile examples" ON)
+option(GRACE_COMPILE_EXAMPLES "Compile examples" OFF)
 
 if(GRACE_COMPILE_EXAMPLES)
+
     # Define these in the CMakeLists.txt where Grace is included
     set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/SPIRV/)
     set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/Shaders/)
@@ -30,5 +31,6 @@ endif()
 add_subdirectory(Source)
 
 if(GRACE_COMPILE_EXAMPLES)
+    message(STATUS "[GRACE_INFO] Compiling examples")
     add_subdirectory(Examples)
 endif()

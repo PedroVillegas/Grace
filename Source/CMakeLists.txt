@@ -1,4 +1,4 @@
-message("Building Grace...")
+message(STATUS "[GRACE_INFO] Building Grace...")
 
 include(FetchContent)
 
