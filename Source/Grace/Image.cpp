@@ -49,7 +49,8 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : m_Device(pDev
 }
 
 ImageView::ImageView(ImageView&& other) noexcept
-    : m_Device(other.m_Device), m_ParentImage(other.m_ParentImage), m_View(other.m_View)
+    : m_Device(other.m_Device), m_ParentImage(other.m_ParentImage), m_View(other.m_View),
+      m_StorageImgId(other.m_StorageImgId)
 {
     other.m_View = nullptr;
 }
@@ -64,6 +65,7 @@ ImageView& ImageView::operator=(ImageView&& other) noexcept
     m_Device = other.m_Device;
     m_ParentImage = other.m_ParentImage;
     m_View = other.m_View;
+    m_StorageImgId = other.m_StorageImgId;
     other.m_Device = nullptr;
     other.m_ParentImage = nullptr;
     other.m_View = nullptr;
@@ -357,7 +359,8 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
 Image::Image(Image&& other) noexcept
     : m_Device(other.m_Device), m_DefaultView(std::move(other.m_DefaultView)), m_Image(other.m_Image),
       m_Allocation(other.m_Allocation), m_Extent(other.m_Extent), m_Format(other.m_Format),
-      m_UsageFlags(other.m_UsageFlags), m_IsSwapchainImage(other.m_IsSwapchainImage)
+      m_UsageFlags(other.m_UsageFlags), m_StorageImgId(other.m_StorageImgId), m_SampledImgId(other.m_SampledImgId),
+      m_IsSwapchainImage(other.m_IsSwapchainImage)
 {
     other.m_Device = VK_NULL_HANDLE;
     other.m_Image = VK_NULL_HANDLE;
@@ -379,6 +382,8 @@ Image& Image::operator=(Image&& other) noexcept
     m_UsageFlags = other.m_UsageFlags;
     m_IsSwapchainImage = other.m_IsSwapchainImage;
     m_DefaultView = std::move(other.m_DefaultView);
+    m_StorageImgId = other.m_StorageImgId;
+    m_SampledImgId = other.m_SampledImgId;
     other.m_Device = VK_NULL_HANDLE;
     other.m_Image = VK_NULL_HANDLE;
     other.m_Allocation = VK_NULL_HANDLE;

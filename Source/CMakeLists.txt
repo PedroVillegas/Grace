@@ -266,5 +266,3 @@ endforeach(SLANG)
 add_custom_target(Shaders ALL DEPENDS ${SPIRV_BINARY_FILES})
 
 add_dependencies(Grace Shaders)
-
-message(" ")
