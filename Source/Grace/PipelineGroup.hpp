@@ -18,7 +18,8 @@ class Device;
 enum class PipelineType : uint8_t
 {
     Compute,
-    Graphics
+    Graphics,
+    Undefined
 };
 
 struct GRACE_EXPORT PipelineLayoutDesc
@@ -85,9 +86,12 @@ public:
 
     GRACE_NODISCARD VkPipeline GetVkHandle() const;
 
+    GRACE_NODISCARD VkPipelineBindPoint BindPoint() const;
+
 private:
     Device* m_Device = nullptr;
     VkPipeline m_Pipeline = nullptr;
+    PipelineType m_Type = PipelineType::Undefined;
 };
 
 class GRACE_EXPORT PipelineBuilder

@@ -88,7 +88,7 @@ public:
 
     void EndRecording() const;
 
-    void BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bindPoint) const;
+    void BindPipeline(PipelineHandle pipeline) const;
 
     void BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
                             PipelineLayoutHandle layout,

@@ -161,12 +161,12 @@ void CommandBuffer::EndRecording() const
     DebugReporter::Check(vkEndCommandBuffer(m_CmdBuffer));
 }
 
-void CommandBuffer::BindPipeline(PipelineHandle pipeline, VkPipelineBindPoint bindPoint) const
+void CommandBuffer::BindPipeline(PipelineHandle pipeline) const
 {
     const Pipeline& p = m_pDevice->GetPipeline(pipeline);
     assert(!p.IsNull());
 
-    vkCmdBindPipeline(m_CmdBuffer, bindPoint, p.GetVkHandle());
+    vkCmdBindPipeline(m_CmdBuffer, p.BindPoint(), p.GetVkHandle());
 }
 
 void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,

@@ -73,9 +73,10 @@ Pipeline::~Pipeline()
     }
 }
 
-Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice)
+Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice), m_Type(desc.type)
 {
     assert(!m_Device->IsNull());
+    assert(desc.type != PipelineType::Undefined);
 
     if (desc.type == PipelineType::Compute)
     {
@@ -94,9 +95,12 @@ Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice
     }
 }
 
-Pipeline::Pipeline(Pipeline&& other) noexcept : m_Device(other.m_Device), m_Pipeline(other.m_Pipeline)
+Pipeline::Pipeline(Pipeline&& other) noexcept
+    : m_Device(other.m_Device), m_Pipeline(other.m_Pipeline), m_Type(other.m_Type)
 {
+    other.m_Device = nullptr;
     other.m_Pipeline = nullptr;
+    other.m_Type = PipelineType::Undefined;
 }
 
 Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
@@ -108,7 +112,10 @@ Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
 
     m_Device = other.m_Device;
     m_Pipeline = other.m_Pipeline;
+    m_Type = other.m_Type;
+    other.m_Device = nullptr;
     other.m_Pipeline = nullptr;
+    other.m_Type = PipelineType::Undefined;
 
     return *this;
 }
@@ -121,6 +128,20 @@ bool Pipeline::IsNull() const
 VkPipeline Pipeline::GetVkHandle() const
 {
     return m_Pipeline;
+}
+
+VkPipelineBindPoint Pipeline::BindPoint() const
+{
+    switch (m_Type)
+    {
+    case PipelineType::Compute:
+        return VK_PIPELINE_BIND_POINT_COMPUTE;
+    case PipelineType::Graphics:
+        return VK_PIPELINE_BIND_POINT_GRAPHICS;
+    default:
+        assert(false);
+        return VK_PIPELINE_BIND_POINT_MAX_ENUM;
+    }
 }
 
 // ----------------------------------------------------------------------------------
