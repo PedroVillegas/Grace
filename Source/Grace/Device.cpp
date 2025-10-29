@@ -390,6 +390,11 @@ void Device::FreeBuffer(BufferHandle& handle)
     m_ResourceMgr->Free<Buffer>(handle);
 }
 
+void Device::FreeBufferDeferred(BufferHandle& handle)
+{
+    m_ResourceMgr->Free<Buffer>(handle, m_FrameInFlightIndex);
+}
+
 ImageHandle Device::CreateImage(const ImageDesc& desc)
 {
     ImageHandle newHandle = m_ResourceMgr->Create<Image>(this, desc);
@@ -415,11 +420,16 @@ std::vector<RegistryEntry<Image>>& Device::GetAllImages()
     return m_ResourceMgr->GetAllImages();
 }
 
-void Device::FreeImage(ImageHandle& handle, bool defer)
+void Device::FreeImage(ImageHandle& handle)
 {
     m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
-    const uint32_t fi = defer ? UINT32_MAX : m_FrameInFlightIndex;
-    m_ResourceMgr->Free<Image>(handle, fi);
+    m_ResourceMgr->Free<Image>(handle);
+}
+
+void Device::FreeImageDeferred(ImageHandle& handle)
+{
+    m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
+    m_ResourceMgr->Free<Image>(handle, m_FrameInFlightIndex);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)
@@ -441,6 +451,12 @@ void Device::FreeSampler(SamplerHandle& handle)
 {
     m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
     m_ResourceMgr->Free<Sampler>(handle);
+}
+
+void Device::FreeSamplerDeferred(SamplerHandle& handle)
+{
+    m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
+    m_ResourceMgr->Free<Sampler>(handle, m_FrameInFlightIndex);
 }
 
 PipelineHandle Device::CreatePipeline(const PipelineDesc& desc)

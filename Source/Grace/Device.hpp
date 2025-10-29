@@ -80,6 +80,8 @@ public:
 
     void FreeBuffer(BufferHandle& handle);
 
+    void FreeBufferDeferred(BufferHandle& handle);
+
     /// IMAGE OPS
 
     void SubmitImageView(ImageView& view);
@@ -92,7 +94,9 @@ public:
 
     GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
-    void FreeImage(ImageHandle& handle, bool defer = true);
+    void FreeImage(ImageHandle& handle);
+
+    void FreeImageDeferred(ImageHandle& handle);
 
     /// SAMPLER OPS
 
@@ -101,6 +105,8 @@ public:
     GRACE_NODISCARD Sampler& GetSampler(const SamplerHandle& handle);
 
     void FreeSampler(SamplerHandle& handle);
+
+    void FreeSamplerDeferred(SamplerHandle& handle);
 
     /// PIPELINE OPS
 

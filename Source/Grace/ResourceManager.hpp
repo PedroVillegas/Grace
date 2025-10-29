@@ -127,9 +127,9 @@ public:
     }
 
     template <typename Res>
-    void Free(Handle<Res>& handle, uint32_t frameIndex = UINT32_MAX)
+    void Free(Handle<Res>& handle, uint32_t frameIndex = std::numeric_limits<uint32_t>::max())
     {
-        if (frameIndex != UINT32_MAX)
+        if (frameIndex != std::numeric_limits<uint32_t>::max())
         {
             m_DeletionQueue->PushDeleter(
                 [&]()
