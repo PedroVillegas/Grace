@@ -2,15 +2,12 @@ cmake_minimum_required(VERSION 3.25)
 
 project(Grace VERSION 1.0.0)
 
-option(GRACE_COMPILE_EXAMPLES "Compile examples" OFF)
+option(GRACE_COMPILE_EXAMPLES "Compile examples" ON)
 
 if(GRACE_COMPILE_EXAMPLES)
-
     # Define these in the CMakeLists.txt where Grace is included
     set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/SPIRV/)
     set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/Shaders/)
-    set(GRACE_TARGET_VULKAN_API_VERSION 13)
-    set(GRACE_DESIRED_VULKAN_SDK_VERSION "1.3.296.0")
 
     # Define these if you don't want to auto recurse and compile shaders (these take precedent)
     # set(GRACE_SLANG_SHADERS shader1.slang shader2.slang)
