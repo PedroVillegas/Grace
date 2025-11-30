@@ -3,11 +3,15 @@ message(STATUS "[GRACE_INFO] Building Grace...")
 include(FetchContent)
 
 FetchContent_Declare(
-        vma
-        DOWNLOAD_EXTRACT_TIMESTAMP true
-        URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
+    pybind
+    URL https://github.com/pybind/pybind11/archive/refs/tags/v3.0.1.zip
 )
-FetchContent_MakeAvailable(vma)
+
+FetchContent_Declare(
+    vma
+    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
+)
+FetchContent_MakeAvailable(vma pybind)
 
 if (NOT DEFINED GRACE_TARGET_VULKAN_API_VERSION)
     message(STATUS "[GRACE_WARN] GRACE_TARGET_VULKAN_API_VERSION was not defined - default is 1.3!")
@@ -27,25 +31,33 @@ include(${CMAKE_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
 
 add_library(Grace SHARED)
 
+set(GRACE_PY_SHADER_COMP_SCRIPT ${CMAKE_SOURCE_DIR}/Scripts/ShaderCompiler.py)
+
+if(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
+    target_sources(Grace PUBLIC Grace/Ext/ShaderCompiler.cpp)
+    target_link_libraries(Grace PUBLIC pybind11::embed)
+    target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
+endif()
+
 set(GRACE_LIB_SOURCE
     Grace/Buffer.cpp
     Grace/CommandGroup.cpp
     Grace/Context.cpp
     Grace/DebugReporter.cpp
+    Grace/DeletionQueue.cpp
     Grace/DescriptorGroup.cpp
     Grace/Device.cpp
-    Grace/DeletionQueue.cpp
+    Grace/Fence.cpp
     Grace/GpuResourceTable.cpp
     Grace/HelperFunctions.cpp
     Grace/Image.cpp
     Grace/PipelineGroup.cpp
+    Grace/QueryManager.cpp
     Grace/ResourceManager.cpp
     Grace/Sampler.cpp
+    Grace/Semaphore.cpp
     Grace/Swapchain.cpp
     Grace/SyncGroup.cpp
-    Grace/QueryManager.cpp
-    Grace/Fence.cpp
-    Grace/Semaphore.cpp
     Grace/VmaUsage.cpp
 )
 
@@ -88,11 +100,18 @@ target_link_libraries(
     PUBLIC ${Vulkan_LIBRARIES}
 )
 
+include(${CMAKE_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
+
 target_compile_definitions(
     Grace
     PUBLIC Grace_EXPORTS
+    PUBLIC GRACE_SHADERS_DIR="${GRACE_SHADERS_DIR}"
     PUBLIC GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
+    PUBLIC GRACE_SLANG_COMPILER="${SLANG_COMPILER}"
+    PUBLIC GRACE_SLANG_COMPILER_ARGS="${GRACE_SLANG_COMPILER_ARGS}"
+    PUBLIC GRACE_HLSL_COMPILER="${HLSL_COMPILER}"
+    PUBLIC GRACE_HLSL_COMPILER_ARGS="${GRACE_HLSL_COMPILER_ARGS}"
+    PUBLIC GRACE_GLSL_COMPILER="${GLSL_COMPILER}"
+    PUBLIC GRACE_GLSL_COMPILER_ARGS="${GRACE_GLSL_COMPILER_ARGS}"
     PUBLIC GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 )
-
-include(${CMAKE_SOURCE_DIR}/CMake/ShaderCompilation.cmake)

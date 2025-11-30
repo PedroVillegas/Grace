@@ -3,6 +3,7 @@
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
+#include <Grace/Ext/ShaderCompiler.hpp>
 
 int main()
 {
@@ -70,9 +71,7 @@ int main()
     pbuilder.DisableDepthTest();
     pbuilder.BuildGraphicsPipeline("Example01::helloTrianglePH", helloTrianglePLH);
 
-    const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
-
-    pDevice->FreePipelineLayout(helloTrianglePLH);
+    Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
     const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
         .name = "Example01::inFlightFence",
@@ -82,9 +81,39 @@ int main()
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 
+    bool compiling = false;
+
     while (!glfwWindowShouldClose(pWindow))
     {
         glfwPollEvents();
+
+        if (glfwGetKey(pWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS && !compiling)
+        {
+            compiling = true;
+            pDevice->WaitIdle();
+            pDevice->FreePipeline(helloTrianglePH);
+
+            Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
+
+            Grace::PipelineBuilder pb(pDevice);
+            pb.AddShader("01_HelloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+            pb.AddShader("01_HelloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+            pb.SetColourAttachmentFormat(&swapchainFormat);
+            pb.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+            pb.SetPolygonMode(VK_POLYGON_MODE_FILL);
+            pb.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+            pb.SetMultisamplingNone();
+            pb.DisableBlending();
+            pb.DisableDepthTest();
+            pb.BuildGraphicsPipeline("Example01::helloTrianglePH", helloTrianglePLH);
+
+            helloTrianglePH = pDevice->CreatePipeline(pb.pipelineDesc);
+        }
+
+        if (glfwGetKey(pWindow, GLFW_KEY_ESCAPE) == GLFW_RELEASE && compiling)
+        {
+            compiling = false;
+        }
 
         /* Prepare the frame */
 
@@ -147,7 +176,7 @@ int main()
         } });
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindPipeline(helloTrianglePH, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        cmd.BindPipeline(helloTrianglePH);
 
         cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", frameIndex);
 

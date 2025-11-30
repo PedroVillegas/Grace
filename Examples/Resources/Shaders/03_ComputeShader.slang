@@ -20,7 +20,7 @@ void main(uint2 id : SV_DispatchThreadID)
     uint2 renderDims;
     renderTexture.GetDimensions(renderDims.x, renderDims.y);
 
-    if (id.x >= renderDims.x || id.y >= renderDims.y) return;
+    if (any(id >= renderDims)) return;
 
     float2 uv = float2(id) / renderDims;
 

@@ -302,7 +302,7 @@ int main()
         } });
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindPipeline(texturedCubePipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        cmd.BindPipeline(texturedCubePipeline);
         cmd.BindDescriptorSets(
             VK_PIPELINE_BIND_POINT_GRAPHICS, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
 

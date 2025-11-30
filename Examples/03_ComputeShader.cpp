@@ -3,6 +3,7 @@
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
+#include <Grace/Ext/ShaderCompiler.hpp>
 
 int main()
 {
@@ -51,7 +52,7 @@ int main()
     Grace::PipelineBuilder pbuilder(pDevice);
     pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
     pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
-    const Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
 
     const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
         .name = "Example03::inFlightFence",
@@ -72,9 +73,30 @@ int main()
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
 
+    bool compiling = false;
+
     while (!glfwWindowShouldClose(pWindow))
     {
         glfwPollEvents();
+
+        if (glfwGetKey(pWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS && !compiling)
+        {
+            compiling = true;
+            pDevice->WaitIdle();
+            pDevice->FreePipeline(simpleComputeShaderPipeline);
+
+            Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
+
+            Grace::PipelineBuilder pbuilder(pDevice);
+            pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+            pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
+            simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+        }
+
+        if (glfwGetKey(pWindow, GLFW_KEY_ESCAPE) == GLFW_RELEASE && compiling)
+        {
+            compiling = false;
+        }
 
         /* Prepare the frame */
 
@@ -120,7 +142,7 @@ int main()
         cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
         cmd.BindDescriptorSets(
             VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
-        cmd.BindPipeline(simpleComputeShaderPipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+        cmd.BindPipeline(simpleComputeShaderPipeline);
 
         cmd.WriteTimestamp("Simple Compute Shader Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, frameIndex);
         cmd.Dispatch(static_cast<uint32_t>(windowWidth / 16.0F) + 1, static_cast<uint32_t>(windowHeight / 16.0F) + 1);

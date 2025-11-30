@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 project(Grace VERSION 1.0.0)
 
 option(GRACE_COMPILE_EXAMPLES "Compile examples" ON)
+option(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT "Enables runtime shader compilation functionality" ON)
 
 if(GRACE_COMPILE_EXAMPLES)
     # Define these in the CMakeLists.txt where Grace is included
@@ -22,7 +23,7 @@ if(GRACE_COMPILE_EXAMPLES)
     # Define these to specify compiler arguments
     set(GRACE_SLANG_COMPILER_ARGS "-force-glsl-scalar-layout")
     # set(GRACE_HLSL_COMPILER_ARGS "-fvk-use-scalar-layout -example-compiler-arg")
-    # set(GRACE_GLSL_COMPILER_ARGS "-example-compiler-arg1 -example-compiler-arg")
+    # set(GRACE_GLSL_COMPILER_ARGS "-example-compiler-arg1 -example-compiler-arg2")
 endif()
 
 add_subdirectory(Source)

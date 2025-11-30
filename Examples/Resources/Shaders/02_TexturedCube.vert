@@ -11,12 +11,12 @@ struct Vertex
     vec2 uv;
 };
 
-layout(scalar, buffer_reference) readonly buffer VertexBuffer
+layout (scalar, buffer_reference) readonly buffer VertexBuffer
 {
     Vertex vertices[];
 };
 
-layout(scalar, push_constant) uniform PushConstants
+layout (scalar, push_constant) uniform PushConstants
 {
     VertexBuffer vbuffer;
     mat4 mvp;

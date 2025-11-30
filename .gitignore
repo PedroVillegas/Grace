@@ -3,6 +3,7 @@
 .vscode/
 .vs/
 .cache/
+.venv/
 
 Build/
 Examples/Resources/SPIRV/

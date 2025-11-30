@@ -118,8 +118,8 @@ int main()
     cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
     cmd.BindDescriptorSets(
         VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
-    // cmd.BindPipeline(streamCompactionPipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
-    cmd.BindPipeline(streamCompactionNonOrderPreservingPipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+    // cmd.BindPipeline(streamCompactionPipeline);
+    cmd.BindPipeline(streamCompactionNonOrderPreservingPipeline);
 
     cmd.WriteTimestamp("Compaction Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
     cmd.Dispatch(dispatchSize);
