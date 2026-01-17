@@ -14,7 +14,7 @@ class Image;
 class Buffer;
 
 /// Defines a bunch of potential resource usages
-enum class AccessType : uint64_t
+enum class AccessType : uint32_t
 {
     None = 0, // No access. Useful primarily for initialization
 

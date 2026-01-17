@@ -129,14 +129,11 @@ void GpuResourceTable::SubmitImage(Image& image)
 {
     assert(!image.IsNull());
 
-    // Query image usage flags
-    VkImageUsageFlags usageFlags = image.GetUsageFlags();
-
     uint32_t sampledImgId = 0;
     uint32_t storageImgId = 0;
 
     // Add to an available slot in Registry
-    if (usageFlags & VK_IMAGE_USAGE_STORAGE_BIT)
+    if (image.HasUsage(ImageUsage::StorageImage))
     {
         storageImgId = m_StorageImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(storageImgId,
@@ -146,7 +143,7 @@ void GpuResourceTable::SubmitImage(Image& image)
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
-    if (usageFlags & VK_IMAGE_USAGE_SAMPLED_BIT)
+    if (image.HasUsage(ImageUsage::SampledImage))
     {
         sampledImgId = m_SampledImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(sampledImgId,
@@ -164,12 +161,12 @@ void GpuResourceTable::SubmitImage(Image& image)
 
 void GpuResourceTable::FreeImage(const Image& image)
 {
-    if (image.GetUsageFlags() & VK_IMAGE_USAGE_SAMPLED_BIT)
+    if (image.HasUsage(ImageUsage::SampledImage))
     {
         m_SampledImageSlots.AppendFreeSlot(image.GetSampledImgId());
     }
 
-    if (image.GetUsageFlags() & VK_IMAGE_USAGE_STORAGE_BIT)
+    if (image.HasUsage(ImageUsage::StorageImage))
     {
         m_StorageImageSlots.AppendFreeSlot(image.GetStorageImgId());
     }
@@ -179,7 +176,7 @@ void GpuResourceTable::SubmitImageView(ImageView& view)
 {
     uint32_t storageImgId = 0;
 
-    if (view.GetUsageFlags() & VK_IMAGE_USAGE_STORAGE_BIT)
+    if (view.HasUsage(ImageUsage::StorageImage))
     {
         storageImgId = m_StorageImageSlots.FindAvailableSlot();
         m_Writer.WriteImageBindless(storageImgId,

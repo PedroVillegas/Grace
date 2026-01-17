@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Enums.hpp>
 
 namespace Grace
 {
@@ -16,8 +17,8 @@ struct GRACE_EXPORT BufferDesc
     /// Name used to identify the buffer, e.g. in validation errors
     const char* name;
     /// Specifies how the buffer is allowed to be used
-    VkBufferUsageFlags usage;
-    /// Flags used by VMA to optimize buffer allocation
+    BufferUsage usage;
+    /// Flags used by VMA to optimise buffer allocation
     VmaAllocationCreateFlags allocFlags;
     /// Allocation size in bytes
     size_t size;

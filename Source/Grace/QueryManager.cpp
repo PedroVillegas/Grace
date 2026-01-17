@@ -1,5 +1,7 @@
 #include "QueryManager.hpp"
 
+#include <bit>
+
 #include <Grace/Device.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -50,16 +52,7 @@ QueryManager::QueryManager(Device* pDevice, uint32_t framesInFlight, const Query
     AssignDebugName<VkQueryPool>(pDevice->GetVkHandle(), m_OcclusionQueryGroup.m_QueryPool, "Grace::QueryPool::Occlusion");
 
     // Need to find the number of pipelineStatistics bits that have been set
-    uint32_t bitsSet = 0;
-    uint32_t numOfPossibleBitsSet = 14U; // As found in VkQueryPipelineStatisticFlagBits enum as of v1.4.313.0
-    for (uint32_t i = 0; i < numOfPossibleBitsSet; ++i)
-    {
-        uint32_t possibleBitsSetMask = 1U << i;
-        if (qgDesc.pipelineStatisticsFlags & possibleBitsSetMask)
-        {
-            bitsSet++;
-        }
-    }
+    uint32_t bitsSet = std::popcount(static_cast<uint32_t>(qgDesc.pipelineStatisticsFlags));
 
     // Initialise Pipeline Stats Query Group
     m_PipelineStatsQueryGroup.m_Queries.resize(bitsSet * qgDesc.pipelineStatisticsCount * framesInFlight);
@@ -69,7 +62,7 @@ QueryManager::QueryManager(Device* pDevice, uint32_t framesInFlight, const Query
 
     pci.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
     pci.queryCount = m_PipelineStatsQueryGroup.m_ValuesPerQuery * m_PipelineStatsQueryGroup.m_Queries.size();
-    pci.pipelineStatistics = qgDesc.pipelineStatisticsFlags;
+    pci.pipelineStatistics = static_cast<VkQueryPipelineStatisticFlags>(qgDesc.pipelineStatisticsFlags);
     DebugReporter::Check(vkCreateQueryPool(m_pDevice->GetVkHandle(), &pci, nullptr, &m_PipelineStatsQueryGroup.m_QueryPool));
 
     AssignDebugName<VkQueryPool>(

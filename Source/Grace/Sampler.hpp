@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Enums.hpp>
 
 namespace Grace
 {
@@ -13,13 +14,13 @@ class Device;
 struct GRACE_EXPORT SamplerDesc
 {
     /// Specifies the minification filter to use when sampling an image
-    VkFilter minFilter;
+    Filter minFilter;
     /// Specifies the magnification filter to use when sampling an image
-    VkFilter magFilter;
-    /// Specifies the behavior of sampling with image coordinates outside the image
-    VkSamplerAddressMode addressMode;
+    Filter magFilter;
+    /// Specifies the behaviour of sampling with image coordinates outside the image
+    SamplerAddressMode addressMode;
     /// Specifies the mipmap mode to use when sampling an image
-    VkSamplerMipmapMode mipmapMode;
+    SamplerMipmapMode mipmapMode;
 };
 
 /// @brief `VkSampler` objects are required to read image data

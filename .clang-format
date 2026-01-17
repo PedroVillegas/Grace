@@ -13,6 +13,8 @@ SortIncludes: Never
 # Align class visibility modifiers with the class keyword.
 AccessModifierOffset: -4
 
+InsertNewlineAtEOF: true
+
 # Add a 'namespace Foo' on closing brace automatically.
 FixNamespaceComments: true
 CompactNamespaces: false
@@ -23,8 +25,8 @@ KeepEmptyLinesAtTheStartOfBlocks: true
 
 AlignEscapedNewlines: Left
 AlignTrailingComments: true
-AllowShortFunctionsOnASingleLine: None
-AllowShortLambdasOnASingleLine: None
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Empty
 AllowShortLoopsOnASingleLine: false
 
 # Put template declaration on its own line.
@@ -47,8 +49,23 @@ SpaceBeforeCpp11BracedList: true
 BinPackArguments: false
 BinPackParameters: false
 
-BreakBeforeBraces: Allman
+#BreakBeforeBraces: Allman
 DerivePointerAlignment: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterClass: true
+  AfterStruct: true
+  AfterEnum: true
+  AfterNamespace: true
+  AfterUnion: true
+  AfterControlStatement: true
+  AfterExternBlock: true
+
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
 
 PointerAlignment: Left
 SpaceAfterCStyleCast: true

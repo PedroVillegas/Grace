@@ -11,7 +11,7 @@
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
 #include <Grace/Semaphore.hpp>
-#include <Grace/HandleTypes.hpp>
+#include <Grace/TypesHandle.hpp>
 #include <Grace/Macros.hpp>
 
 namespace Grace

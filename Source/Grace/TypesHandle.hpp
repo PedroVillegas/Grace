@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Grace/GraceExport.h>
+#include <Grace/Macros.hpp>
 
 namespace Grace
 {

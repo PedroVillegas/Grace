@@ -20,12 +20,10 @@ int main()
     glfwWindowHint(GLFW_POSITION_Y, (vm->height - windowHeight) / 2);
     GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Simple Compute Shader", nullptr, nullptr);
     glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
-    glfwSetFramebufferSizeCallback(pWindow,
-                                   [](GLFWwindow* pWindow, int width, int height)
-                                   {
-                                       bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
-                                       self = true;
-                                   });
+    glfwSetFramebufferSizeCallback(pWindow, [](GLFWwindow* pWindow, int width, int height) {
+        bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
+        self = true;
+    });
 
     const Grace::DeviceDesc deviceDesc = {
         .maxImageDescriptors = 65535,
@@ -33,8 +31,8 @@ int main()
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
         .queryGroupDesc = {
-            .pipelineStatisticsFlags = VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT
-                                     | VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+            .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
+                                     | Grace::QueryStats::FragmentShaderInvocations,
         },
         .pGlfwWindow = pWindow,
     };
@@ -49,21 +47,22 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example03::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-    pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
-    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline({
+        .name = "Example03::simpleComputeShaderPipeline",
+        .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "03_ComputeShader.slang.spv" } },
+        .layout = pDevice->GetSolePipelineLayout(),
+    });
 
     const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
         .name = "Example03::inFlightFence",
-        .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
+        .flags = Grace::FenceFlags::CreateSignalled,
     });
 
     Grace::ImageHandle renderImage = pDevice->CreateImage({
         .name = "Example03::renderImage",
         .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
-        .format = VK_FORMAT_R8G8B8A8_UNORM,
-        .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        .format = Grace::Format::RGBA8_UNorm,
+        .usage = Grace::ImageUsage::StorageImage | Grace::ImageUsage::TransferSrc,
         .access = Grace::AccessType::General,
         .size = 0,
         .data = nullptr,
@@ -87,10 +86,11 @@ int main()
 
             Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
 
-            Grace::PipelineBuilder pbuilder(pDevice);
-            pbuilder.AddShader("03_ComputeShader.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-            pbuilder.BuildComputePipeline("Example03::simpleComputeShaderPipeline", pDevice->GetSolePipelineLayout());
-            simpleComputeShaderPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+            simpleComputeShaderPipeline = pDevice->CreatePipeline({
+                .name = "Example03::simpleComputeShaderPipeline",
+                .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "03_ComputeShader.slang.spv" } },
+                .layout = pDevice->GetSolePipelineLayout(),
+            });
         }
 
         if (glfwGetKey(pWindow, GLFW_KEY_ESCAPE) == GLFW_RELEASE && compiling)
@@ -121,7 +121,7 @@ int main()
         cmd.BeginRecording();
         cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
+        cmd.WriteTimestamp("GPU Frame Begin", Grace::PipelineStage::AllCommands, frameIndex);
 
         /* Record commands */
 
@@ -141,12 +141,12 @@ int main()
 
         cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
         cmd.BindDescriptorSets(
-            VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
+            Grace::PipelineBindPoint::Compute, pDevice->GetSolePipelineLayout(), { pDevice->GetSoleDescriptorSet() });
         cmd.BindPipeline(simpleComputeShaderPipeline);
 
-        cmd.WriteTimestamp("Simple Compute Shader Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, frameIndex);
+        cmd.WriteTimestamp("Simple Compute Shader Pass Begin", Grace::PipelineStage::ComputeShader, frameIndex);
         cmd.Dispatch(static_cast<uint32_t>(windowWidth / 16.0F) + 1, static_cast<uint32_t>(windowHeight / 16.0F) + 1);
-        cmd.WriteTimestamp("Simple Compute Shader Pass End", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, frameIndex);
+        cmd.WriteTimestamp("Simple Compute Shader Pass End", Grace::PipelineStage::ComputeShader, frameIndex);
 
         cmd.EndDebugLabel();
 
@@ -197,7 +197,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
+        cmd.WriteTimestamp("GPU Frame End", Grace::PipelineStage::AllCommands, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -214,7 +214,7 @@ int main()
         const Grace::SwapchainStatus ss = pDevice->Present(fsg);
 
         const Grace::TimestampQueryGroup& tqg =
-            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
+            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, Grace::QueryResult::Wait);
 
         float helloTrianglePassTime = tqg.Duration<Grace::TimestampUnits::Milliseconds>(
             "Simple Compute Shader Pass Begin", "Simple Compute Shader Pass End");
@@ -243,15 +243,14 @@ int main()
             renderImage = pDevice->CreateImage({
                 .name = "Example03::renderImage",
                 .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                .format = Grace::Format::RGBA8_UNorm,
+                .usage = Grace::ImageUsage::StorageImage | Grace::ImageUsage::TransferSrc,
                 .access = Grace::AccessType::General,
                 .size = 0,
                 .data = nullptr,
                 .mipmapped = false,
             });
-        }
-        else if (ss == Grace::SwapchainStatus::Failure)
+        } else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }
@@ -260,11 +259,11 @@ int main()
         float cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(now - lastTime).count() / 1000.0F;
         lastTime = now;
 
-        const std::string windowTitle = std::format(
-            "CPU Frame Time: {}ms | GPU Frame Time: {}ms | Hello Triangle Pass: {}ms",
-            cpuFrameTime,
-            gpuFrameTime,
-            helloTrianglePassTime);
+        const std::string windowTitle =
+            std::format("CPU Frame Time: {}ms | GPU Frame Time: {}ms | Hello Triangle Pass: {}ms",
+                        cpuFrameTime,
+                        gpuFrameTime,
+                        helloTrianglePassTime);
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
     }
 

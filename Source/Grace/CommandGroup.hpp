@@ -4,76 +4,26 @@
 #include <queue>
 #include <cassert>
 
-#include <vulkan/vulkan.h>
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/QueryManager.hpp>
-#include <Grace/HandleTypes.hpp>
+#include <Grace/TypesHandle.hpp>
+#include <Grace/TypesVector.hpp>
 #include <Grace/Types.hpp>
 #include <Grace/SyncGroup.hpp>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Device.hpp>
 
 namespace Grace
 {
 
 class Device;
 
-enum class QueueFamily : uint32_t
-{
-    /// Queue supporting transfer operations
-    Transfer,
-    /// Queue supporting transfer and compute pipeline operations
-    Compute,
-    /// Queue supporting transfer and graphics pipeline operations
-    Graphics,
-    /// Queue supporting present operations
-    Present,
-    /// Queue is undefined
-    Undefined
-};
-
-class CommandBuffer;
-
-class GRACE_EXPORT CommandPool
-{
-public:
-    ~CommandPool();
-    CommandPool(Device* pDevice, VkCommandPool commandPool, QueueFamily queueFamily);
-
-    CommandPool(const CommandPool&) = delete;
-    CommandPool& operator=(const CommandPool&) = delete;
-
-    CommandPool(CommandPool&& other) noexcept;
-    CommandPool& operator=(CommandPool&& other) noexcept;
-
-    void Reset();
-
-    GRACE_NODISCARD CommandBuffer GetOrAllocateCommandBuffer();
-
-    GRACE_NODISCARD QueueFamily GetQueueFamily() const;
-
-    GRACE_NODISCARD VkCommandPool GetVkCommandPool() const;
-
-private:
-    Device* m_Device = nullptr;
-    VkCommandPool m_CommandPool = nullptr;
-    QueueFamily m_QueueFamily = QueueFamily::Undefined;
-    std::vector<VkCommandBuffer> m_CommandBuffers = {};
-    uint32_t m_CommandBuffersInUse = 0;
-};
-
 class GRACE_EXPORT CommandBuffer
 {
 public:
-    ~CommandBuffer() = default;
     CommandBuffer() = default;
     CommandBuffer(Device* pDevice, VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr);
-
-    CommandBuffer(const CommandBuffer&) = default;
-    CommandBuffer& operator=(const CommandBuffer&) = default;
-
-    CommandBuffer(CommandBuffer&&) noexcept = default;
-    CommandBuffer& operator=(CommandBuffer&&) noexcept = default;
 
     GRACE_NODISCARD bool IsNull() const;
 
@@ -90,16 +40,32 @@ public:
 
     void BindPipeline(PipelineHandle pipeline) const;
 
-    void BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
+    void BindDescriptorSets(PipelineBindPoint bindpoint,
                             PipelineLayoutHandle layout,
-                            uint32_t firstSet,
-                            const std::vector<VkDescriptorSet>& descriptorSets) const;
+                            const std::initializer_list<VkDescriptorSet>&& descriptorSets) const;
 
     void PushConstants(PipelineLayoutHandle layout, uint32_t size, const void* data) const;
 
-    void BeginDebugLabel(const char* label, const std::array<float, 4>& color = { 0.6F, 0.6F, 0.6F, 1.0F }) const;
+    template <typename DataStruct>
+    void PushConstants(PipelineLayoutHandle layout,
+                       const DataStruct* data,
+                       ShaderStage stage = ShaderStage::All,
+                       uint32_t offset = 0) const
+    {
+        static_assert(sizeof(DataStruct) <= 128, "DataStruct is too large, must not exceed 128 bytes!");
+        const PipelineLayout& pl = m_pDevice->GetPipelineLayout(layout);
+        assert(!pl.IsNull());
+        vkCmdPushConstants(m_CmdBuffer,
+                           pl.GetVkPipelineLayout(),
+                           static_cast<VkShaderStageFlags>(stage),
+                           offset,
+                           sizeof(DataStruct),
+                           data);
+    }
 
-    void InsertDebugLabel(const char* label, const std::array<float, 4>& color = { 0.6F, 0.6F, 0.6F, 1.0F }) const;
+    void BeginDebugLabel(const char* label, const Float4& colour = Float4(0.6F, 1.0F)) const;
+
+    void InsertDebugLabel(const char* label, const Float4& colour = Float4(0.6F, 1.0F)) const;
 
     void EndDebugLabel() const;
 
@@ -123,11 +89,11 @@ public:
 
     void EndDynamicRendering() const;
 
-    void SetViewport(const std::vector<VkViewport>& viewports, uint32_t firstViewport = 0) const;
+    void SetViewport(const std::initializer_list<VkViewport>&& viewports) const;
 
-    void SetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor = 0) const;
+    void SetScissor(const std::initializer_list<VkRect2D>&& scissors) const;
 
-    void BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) const;
+    void BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, IndexType indexType) const;
 
     void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
 
@@ -149,16 +115,24 @@ public:
 
     void BlitImage(const VkBlitImageInfo2& blitInfo) const;
 
-    void ClearColorImage(ImageHandle image,
-                         const VkClearColorValue& color,
-                         const std::vector<VkImageSubresourceRange>& ranges) const;
+    void ClearColorImage(ImageHandle image, const ClearColourValue& color) const;
 
-    void CopyBufferToImage(BufferHandle buffer,
-                           ImageHandle image,
-                           VkImageLayout dstLayout,
-                           const std::vector<VkBufferImageCopy>& regions) const;
+    void ClearColorImageRanges(ImageHandle image,
+                               const ClearColourValue& color,
+                               const std::initializer_list<VkImageSubresourceRange>&& ranges) const;
 
-    void CopyBuffer(BufferHandle srcBuffer, BufferHandle dstBuffer, const std::vector<VkBufferCopy>& regions) const;
+    void CopyBufferToImage(BufferHandle buffer, ImageHandle image, VkImageLayout dstLayout) const;
+
+    void CopyBufferToImageRegions(BufferHandle buffer,
+                                  ImageHandle image,
+                                  VkImageLayout dstLayout,
+                                  const std::initializer_list<VkBufferImageCopy>&& regions) const;
+
+    void CopyBuffer(BufferHandle srcBuffer, BufferHandle dstBuffer) const;
+
+    void CopyBufferRanges(BufferHandle srcBuffer,
+                          BufferHandle dstBuffer,
+                          const std::initializer_list<VkBufferCopy>&& regions) const;
 
     void
     FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
@@ -208,7 +182,7 @@ public:
             if (qg.GetQueries()[offset + query + qg.GetValuesPerQuery()] == 0)
             {
                 return;
-            };
+            }
         }
 
         vkCmdBeginQuery(m_CmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
@@ -221,7 +195,7 @@ public:
         vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
     }
 
-    void WriteTimestamp(const char* name, VkPipelineStageFlags2 stage, uint32_t frameIndex) const;
+    void WriteTimestamp(const char* name, PipelineStage stage, uint32_t frameIndex) const;
 
 private:
     Device* m_pDevice = nullptr;
@@ -231,18 +205,46 @@ private:
     QueryManager* m_pQueryMgr = nullptr;
 };
 
+class GRACE_EXPORT CommandPool
+{
+public:
+    ~CommandPool();
+    CommandPool(Device* pDevice, VkCommandPool commandPool, QueueFamily queueFamily);
+
+    CommandPool(const CommandPool&) = delete;
+    CommandPool& operator=(const CommandPool&) = delete;
+
+    CommandPool(CommandPool&& other) noexcept;
+    CommandPool& operator=(CommandPool&& other) noexcept;
+
+    void Reset();
+
+    GRACE_NODISCARD CommandBuffer GetOrAllocateCommandBuffer();
+
+    GRACE_NODISCARD QueueFamily GetQueueFamily() const;
+
+    GRACE_NODISCARD VkCommandPool GetVkCommandPool() const;
+
+private:
+    Device* m_Device = nullptr;
+    VkCommandPool m_CommandPool = nullptr;
+    QueueFamily m_QueueFamily = QueueFamily::Undefined;
+    std::vector<VkCommandBuffer> m_CommandBuffers = {};
+    uint32_t m_CommandBuffersInUse = 0;
+};
+
 class GRACE_EXPORT CommandGroupAllocator
 {
 public:
-    ~CommandGroupAllocator() = default;
-    CommandGroupAllocator() = default;
+    ~CommandGroupAllocator();
+    CommandGroupAllocator();
     explicit CommandGroupAllocator(Device* device);
 
     CommandGroupAllocator(const CommandGroupAllocator&) = delete;
     CommandGroupAllocator& operator=(const CommandGroupAllocator&) = delete;
 
-    CommandGroupAllocator(CommandGroupAllocator&&) noexcept = delete;
-    CommandGroupAllocator& operator=(CommandGroupAllocator&&) noexcept = delete;
+    CommandGroupAllocator(CommandGroupAllocator&& other) noexcept;
+    CommandGroupAllocator& operator=(CommandGroupAllocator&& other) noexcept;
 
     GRACE_NODISCARD CommandPool* GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name);
 

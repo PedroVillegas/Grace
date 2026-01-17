@@ -26,7 +26,7 @@ SwapchainStatus Swapchain::GetStatus() const
     return m_SwapchainStatus;
 }
 
-const VkFormat& Swapchain::GetFormat() const
+const Format& Swapchain::GetFormat() const
 {
     // All images have the same format
     return m_Device->GetImage(m_Images[0]).GetFormat();
@@ -124,8 +124,8 @@ void Swapchain::Create(VkExtent2D imageExtent)
             {
                 .name = name.c_str(),
                 .dimensions = { extent.width, extent.height, 1 },
-                .format = surfaceFormat.format,
-                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                .format = static_cast<Format>(surfaceFormat.format),
+                .usage = ImageUsage::ColorAttachment | ImageUsage::TransferSrc,
                 .mipmapped = false,
             });
     }

@@ -2,7 +2,7 @@
 
 #include <Grace/DescriptorGroup.hpp>
 #include <Grace/Macros.hpp>
-#include <Grace/HandleTypes.hpp>
+#include <Grace/TypesHandle.hpp>
 
 namespace Grace
 {

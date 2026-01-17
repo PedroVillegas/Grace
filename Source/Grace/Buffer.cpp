@@ -1,7 +1,6 @@
 #include "Buffer.hpp"
 
-#include "HelperFunctions.hpp"
-
+#include <Grace/CommandGroup.hpp>
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 
@@ -42,27 +41,40 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 {
     assert(!m_Device->IsNull());
 
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.pNext = nullptr;
-    bufferInfo.size = desc.size;
-    bufferInfo.usage = desc.usage;
+    VkBufferCreateInfo bufferInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .size = desc.size,
+        .usage = static_cast<VkBufferUsageFlags>(desc.usage),
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
+    };
 
-    VmaAllocationCreateInfo vmaAllocInfo = {};
-    vmaAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    vmaAllocInfo.flags = desc.allocFlags;
+    VmaAllocationCreateInfo vmaAllocInfo = {
+        .flags = desc.allocFlags,
+        .usage = VMA_MEMORY_USAGE_AUTO,
+        .requiredFlags = 0,
+        .preferredFlags = 0,
+        .memoryTypeBits = 0,
+        .pool = nullptr,
+        .pUserData = nullptr,
+        .priority = 1.0F,
+    };
 
     DebugReporter::Check(
         vmaCreateBuffer(m_Device->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &m_Buffer, &m_Allocation, nullptr));
     assert(m_Buffer != nullptr);
     AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
 
-    if ((desc.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0)
+    if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::DeviceAddress))
     {
-        VkBufferDeviceAddressInfo deviceAddressInfo = {};
-        deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-        deviceAddressInfo.pNext = nullptr;
-        deviceAddressInfo.buffer = m_Buffer;
+        VkBufferDeviceAddressInfo deviceAddressInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .pNext = nullptr,
+            .buffer = m_Buffer,
+        };
 
         m_DeviceAddress = vkGetBufferDeviceAddress(m_Device->GetVkHandle(), &deviceAddressInfo);
     }

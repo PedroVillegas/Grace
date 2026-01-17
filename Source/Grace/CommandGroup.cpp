@@ -9,8 +9,24 @@
 namespace Grace
 {
 
-CommandGroupAllocator::CommandGroupAllocator(Device* device) : m_pDevice(device)
+CommandGroupAllocator::~CommandGroupAllocator() = default;
+
+CommandGroupAllocator::CommandGroupAllocator() = default;
+
+CommandGroupAllocator::CommandGroupAllocator(Device* device) : m_pDevice(device) {}
+
+CommandGroupAllocator::CommandGroupAllocator(CommandGroupAllocator&& other) noexcept
+    : m_pDevice(other.m_pDevice), m_AllCommandPoolsAllocated(std::move(other.m_AllCommandPoolsAllocated)),
+      m_FreeCommandPools(std::move(other.m_FreeCommandPools))
+{}
+
+CommandGroupAllocator& CommandGroupAllocator::operator=(CommandGroupAllocator&& other) noexcept
 {
+    m_pDevice = other.m_pDevice;
+    m_AllCommandPoolsAllocated = std::move(other.m_AllCommandPoolsAllocated);
+    m_FreeCommandPools = std::move(other.m_FreeCommandPools);
+
+    return *this;
 }
 
 CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name)
@@ -49,13 +65,9 @@ void CommandGroupAllocator::ReturnCommandPool(CommandPool* commandPool)
     m_FreeCommandPools.push(commandPool);
 }
 
-void CommandGroupAllocator::FreeCommandPool()
-{
-}
+void CommandGroupAllocator::FreeCommandPool() {}
 
-void CommandGroupAllocator::FreeCommandBuffer()
-{
-}
+void CommandGroupAllocator::FreeCommandBuffer() {}
 
 CommandPool::~CommandPool()
 {
@@ -67,8 +79,7 @@ CommandPool::~CommandPool()
 
 CommandPool::CommandPool(Device* pDevice, VkCommandPool commandPool, QueueFamily queueFamily)
     : m_Device(pDevice), m_CommandPool(commandPool), m_QueueFamily(queueFamily)
-{
-}
+{}
 
 CommandPool::CommandPool(CommandPool&& other) noexcept
     : m_Device(other.m_Device), m_CommandPool(other.m_CommandPool), m_QueueFamily(other.m_QueueFamily),
@@ -124,10 +135,12 @@ VkCommandPool CommandPool::GetVkCommandPool() const
     return m_CommandPool;
 }
 
-CommandBuffer::CommandBuffer(Device* pDevice, VkCommandBuffer commandBuffer, QueueFamily queueFamily, QueryManager* pQueryMgr)
+CommandBuffer::CommandBuffer(Device* pDevice,
+                             VkCommandBuffer commandBuffer,
+                             QueueFamily queueFamily,
+                             QueryManager* pQueryMgr)
     : m_pDevice(pDevice), m_CmdBuffer(commandBuffer), m_QueueFamily(queueFamily), m_pQueryMgr(pQueryMgr)
-{
-}
+{}
 
 bool CommandBuffer::IsNull() const
 {
@@ -169,58 +182,20 @@ void CommandBuffer::BindPipeline(PipelineHandle pipeline) const
     vkCmdBindPipeline(m_CmdBuffer, p.BindPoint(), p.GetVkHandle());
 }
 
-void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
+void CommandBuffer::BindDescriptorSets(PipelineBindPoint bindpoint,
                                        PipelineLayoutHandle layout,
-                                       uint32_t firstSet,
-                                       const std::vector<VkDescriptorSet>& descriptorSets) const
+                                       const std::initializer_list<VkDescriptorSet>&& descriptorSets) const
 {
     const PipelineLayout& pl = m_pDevice->GetPipelineLayout(layout);
     assert(!pl.IsNull());
     vkCmdBindDescriptorSets(m_CmdBuffer,
-                            pipelineBindPoint,
+                            static_cast<VkPipelineBindPoint>(bindpoint),
                             pl.GetVkPipelineLayout(),
-                            firstSet,
+                            0,
                             static_cast<uint32_t>(descriptorSets.size()),
-                            descriptorSets.data(),
+                            descriptorSets.begin(),
                             0,
                             nullptr);
-}
-
-void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc& desc) const
-{
-    assert(!desc.colorAttachments.empty());
-    assert(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
-
-    VkRenderingInfo renderInfo = {};
-    renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    renderInfo.pNext = nullptr;
-    renderInfo.flags = desc.flags;
-    renderInfo.renderArea = VkRect2D(desc.renderArea.offset, desc.renderArea.extent);
-    renderInfo.layerCount = desc.layerCount;
-    renderInfo.viewMask = desc.viewMask;
-    renderInfo.colorAttachmentCount = static_cast<uint32_t>(desc.colorAttachments.size());
-    renderInfo.pColorAttachments = desc.colorAttachments.data();
-    renderInfo.pDepthAttachment = desc.depthAttachments.data();
-    renderInfo.pStencilAttachment = desc.stencilAttachments.data();
-
-    vkCmdBeginRendering(m_CmdBuffer, &renderInfo);
-}
-
-void CommandBuffer::EndDynamicRendering() const
-{
-    vkCmdEndRendering(m_CmdBuffer);
-}
-
-void CommandBuffer::SetViewport(const std::vector<VkViewport>& viewports, uint32_t firstViewport) const
-{
-    assert(!viewports.empty());
-    vkCmdSetViewport(m_CmdBuffer, firstViewport, static_cast<uint32_t>(viewports.size()), viewports.data());
-}
-
-void CommandBuffer::SetScissor(const std::vector<VkRect2D>& scissors, uint32_t firstScissor) const
-{
-    assert(!scissors.empty());
-    vkCmdSetScissor(m_CmdBuffer, firstScissor, static_cast<uint32_t>(scissors.size()), scissors.data());
 }
 
 void CommandBuffer::PushConstants(PipelineLayoutHandle layout, uint32_t size, const void* data) const
@@ -231,30 +206,30 @@ void CommandBuffer::PushConstants(PipelineLayoutHandle layout, uint32_t size, co
     vkCmdPushConstants(m_CmdBuffer, pl.GetVkPipelineLayout(), VK_SHADER_STAGE_ALL, 0, size, data);
 }
 
-void CommandBuffer::BeginDebugLabel(const char* label, const std::array<float, 4>& color) const
+void CommandBuffer::BeginDebugLabel(const char* label, const Float4& colour) const
 {
     VkDebugUtilsLabelEXT labelInfo = {};
     labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
     labelInfo.pNext = nullptr;
     labelInfo.pLabelName = label;
-    labelInfo.color[0] = color[0];
-    labelInfo.color[1] = color[1];
-    labelInfo.color[2] = color[2];
-    labelInfo.color[3] = color[3];
+    labelInfo.color[0] = colour.x;
+    labelInfo.color[1] = colour.y;
+    labelInfo.color[2] = colour.z;
+    labelInfo.color[3] = colour.w;
 
     vkCmdBeginDebugUtilsLabelEXT_Meta(m_CmdBuffer, &labelInfo);
 }
 
-void CommandBuffer::InsertDebugLabel(const char* label, const std::array<float, 4>& color) const
+void CommandBuffer::InsertDebugLabel(const char* label, const Float4& colour) const
 {
     VkDebugUtilsLabelEXT labelInfo = {};
     labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
     labelInfo.pNext = nullptr;
     labelInfo.pLabelName = label;
-    labelInfo.color[0] = color[0];
-    labelInfo.color[1] = color[1];
-    labelInfo.color[2] = color[2];
-    labelInfo.color[3] = color[3];
+    labelInfo.color[0] = colour.x;
+    labelInfo.color[1] = colour.y;
+    labelInfo.color[2] = colour.z;
+    labelInfo.color[3] = colour.w;
 
     vkCmdInsertDebugUtilsLabelEXT_Meta(m_CmdBuffer, &labelInfo);
 }
@@ -290,95 +265,46 @@ void CommandBuffer::PipelineBarrier()
     m_BarrierBuilder.PipelineBarrier(m_CmdBuffer);
 }
 
-void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) const
+void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc& desc) const
 {
-    vkCmdDispatch(m_CmdBuffer, x, y, z);
+    assert(!desc.colorAttachments.empty());
+    assert(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
+
+    VkRenderingInfo renderInfo = {};
+    renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    renderInfo.pNext = nullptr;
+    renderInfo.flags = desc.flags;
+    renderInfo.renderArea = VkRect2D(desc.renderArea.offset, desc.renderArea.extent);
+    renderInfo.layerCount = desc.layerCount;
+    renderInfo.viewMask = desc.viewMask;
+    renderInfo.colorAttachmentCount = static_cast<uint32_t>(desc.colorAttachments.size());
+    renderInfo.pColorAttachments = desc.colorAttachments.data();
+    renderInfo.pDepthAttachment = desc.depthAttachments.data();
+    renderInfo.pStencilAttachment = desc.stencilAttachments.data();
+
+    vkCmdBeginRendering(m_CmdBuffer, &renderInfo);
 }
 
-void CommandBuffer::DispatchIndirect(BufferHandle buffer, uint64_t offset) const
+void CommandBuffer::EndDynamicRendering() const
+{
+    vkCmdEndRendering(m_CmdBuffer);
+}
+
+void CommandBuffer::SetViewport(const std::initializer_list<VkViewport>&& viewports) const
+{
+    vkCmdSetViewport(m_CmdBuffer, 0, static_cast<uint32_t>(viewports.size()), viewports.begin());
+}
+
+void CommandBuffer::SetScissor(const std::initializer_list<VkRect2D>&& scissors) const
+{
+    vkCmdSetScissor(m_CmdBuffer, 0, static_cast<uint32_t>(scissors.size()), scissors.begin());
+}
+
+void CommandBuffer::BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, IndexType indexType) const
 {
     const Buffer& buf = m_pDevice->GetBuffer(buffer);
     assert(!buf.IsNull());
-    vkCmdDispatchIndirect(m_CmdBuffer, buf.GetVkHandle(), offset);
-}
-
-void CommandBuffer::BlitImage(const VkBlitImageInfo2& blitInfo) const
-{
-    vkCmdBlitImage2(m_CmdBuffer, &blitInfo);
-}
-
-void CommandBuffer::CopyBufferToImage(BufferHandle buffer,
-                                      ImageHandle image,
-                                      VkImageLayout dstLayout,
-                                      const std::vector<VkBufferImageCopy>& regions) const
-{
-    const Buffer& buf = m_pDevice->GetBuffer(buffer);
-    const Image& img = m_pDevice->GetImage(image);
-    assert(!buf.IsNull());
-    assert(!img.IsNull());
-    assert(!regions.empty());
-    vkCmdCopyBufferToImage(m_CmdBuffer,
-                           buf.GetVkHandle(),
-                           img.GetImage(),
-                           dstLayout,
-                           static_cast<uint32_t>(regions.size()),
-                           regions.data());
-}
-
-void CommandBuffer::CopyBuffer(BufferHandle srcBuffer,
-                               BufferHandle dstBuffer,
-                               const std::vector<VkBufferCopy>& regions) const
-{
-    const Buffer& srcbuf = m_pDevice->GetBuffer(srcBuffer);
-    const Buffer& dstbuf = m_pDevice->GetBuffer(dstBuffer);
-
-    assert(!srcbuf.IsNull());
-    assert(!dstbuf.IsNull());
-    assert(!regions.empty());
-    vkCmdCopyBuffer(m_CmdBuffer,
-                    srcbuf.GetVkHandle(),
-                    dstbuf.GetVkHandle(),
-                    static_cast<uint32_t>(regions.size()),
-                    regions.data());
-}
-
-void CommandBuffer::FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const
-{
-    const Buffer& buf = m_pDevice->GetBuffer(buffer);
-    vkCmdFillBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, size, data);
-}
-
-void CommandBuffer::WriteTimestamp(const char* name,
-                                   VkPipelineStageFlags2 stage,
-                                   uint32_t frameIndex) const
-{
-    const TimestampQueryGroup& qg = m_pQueryMgr->GetQueryGroup<QueryType::Timestamp>();
-    const uint32_t query = m_pQueryMgr->AddQuery<QueryType::Timestamp>(name);
-
-    const uint32_t offset = frameIndex * (qg.GetRange() - 1);
-
-    vkCmdWriteTimestamp2(m_CmdBuffer, stage, qg.GetVkQueryPool(), offset + query);
-}
-
-void CommandBuffer::ClearColorImage(ImageHandle image,
-                                    const VkClearColorValue& color,
-                                    const std::vector<VkImageSubresourceRange>& ranges) const
-{
-    const Image& img = m_pDevice->GetImage(image);
-    assert(!img.IsNull());
-    vkCmdClearColorImage(m_CmdBuffer,
-                         img.GetImage(),
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                         &color,
-                         static_cast<uint32_t>(ranges.size()),
-                         ranges.data());
-}
-
-void CommandBuffer::BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) const
-{
-    const Buffer& buf = m_pDevice->GetBuffer(buffer);
-    assert(!buf.IsNull());
-    vkCmdBindIndexBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, indexType);
+    vkCmdBindIndexBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, static_cast<VkIndexType>(indexType));
 }
 
 void CommandBuffer::Draw(uint32_t vertexCount,
@@ -406,6 +332,145 @@ void CommandBuffer::DrawIndexedIndirect(BufferHandle buffer,
     const Buffer& buf = m_pDevice->GetBuffer(buffer);
     assert(!buf.IsNull());
     vkCmdDrawIndexedIndirect(m_CmdBuffer, buf.GetVkHandle(), offset, drawCount, stride);
+}
+
+void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) const
+{
+    vkCmdDispatch(m_CmdBuffer, x, y, z);
+}
+
+void CommandBuffer::DispatchIndirect(BufferHandle buffer, uint64_t offset) const
+{
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    assert(!buf.IsNull());
+    vkCmdDispatchIndirect(m_CmdBuffer, buf.GetVkHandle(), offset);
+}
+
+void CommandBuffer::BlitImage(const VkBlitImageInfo2& blitInfo) const
+{
+    vkCmdBlitImage2(m_CmdBuffer, &blitInfo);
+}
+
+void CommandBuffer::ClearColorImage(ImageHandle image, const ClearColourValue& color) const
+{
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!img.IsNull());
+
+    const VkImageSubresourceRange subresourceRange = {
+        .aspectMask = static_cast<VkImageAspectFlags>(img.InferAspect()),
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS,
+    };
+
+    vkCmdClearColorImage(
+        m_CmdBuffer, img.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color.clear, 1, &subresourceRange);
+}
+
+void CommandBuffer::ClearColorImageRanges(ImageHandle image,
+                                          const ClearColourValue& color,
+                                          const std::initializer_list<VkImageSubresourceRange>&& ranges) const
+{
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!img.IsNull());
+    vkCmdClearColorImage(m_CmdBuffer,
+                         img.GetImage(),
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                         &color.clear,
+                         static_cast<uint32_t>(ranges.size()),
+                         ranges.begin());
+}
+
+void CommandBuffer::CopyBufferToImage(BufferHandle buffer, ImageHandle image, VkImageLayout dstLayout) const
+{
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!buf.IsNull());
+    assert(!img.IsNull());
+
+    const UInt3& imgext = img.GetExtent3D();
+    const VkBufferImageCopy region = {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = {
+            .aspectMask = static_cast<VkImageAspectFlags>(img.InferAspect()),
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = VK_REMAINING_ARRAY_LAYERS,
+        },
+        .imageOffset = VkOffset3D(0, 0, 0),
+        .imageExtent = VkExtent3D(imgext.x, imgext.y, imgext.z),
+    };
+
+    vkCmdCopyBufferToImage(m_CmdBuffer, buf.GetVkHandle(), img.GetImage(), dstLayout, 1, &region);
+}
+
+void CommandBuffer::CopyBufferToImageRegions(BufferHandle buffer,
+                                             ImageHandle image,
+                                             VkImageLayout dstLayout,
+                                             const std::initializer_list<VkBufferImageCopy>&& regions) const
+{
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    const Image& img = m_pDevice->GetImage(image);
+    assert(!buf.IsNull());
+    assert(!img.IsNull());
+    vkCmdCopyBufferToImage(m_CmdBuffer,
+                           buf.GetVkHandle(),
+                           img.GetImage(),
+                           dstLayout,
+                           static_cast<uint32_t>(regions.size()),
+                           regions.begin());
+}
+
+void CommandBuffer::CopyBuffer(BufferHandle srcBuffer, BufferHandle dstBuffer) const
+{
+    const Buffer& srcbuf = m_pDevice->GetBuffer(srcBuffer);
+    const Buffer& dstbuf = m_pDevice->GetBuffer(dstBuffer);
+
+    assert(!srcbuf.IsNull());
+    assert(!dstbuf.IsNull());
+    assert(srcbuf.GetAllocationInfo().allocationInfo.size == dstbuf.GetAllocationInfo().allocationInfo.size);
+
+    const VkBufferCopy region = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = srcbuf.GetAllocationInfo().allocationInfo.size,
+    };
+
+    vkCmdCopyBuffer(m_CmdBuffer, srcbuf.GetVkHandle(), dstbuf.GetVkHandle(), 1, &region);
+}
+
+void CommandBuffer::CopyBufferRanges(BufferHandle srcBuffer,
+                                     BufferHandle dstBuffer,
+                                     const std::initializer_list<VkBufferCopy>&& regions) const
+{
+    const Buffer& srcbuf = m_pDevice->GetBuffer(srcBuffer);
+    const Buffer& dstbuf = m_pDevice->GetBuffer(dstBuffer);
+    assert(!srcbuf.IsNull());
+    assert(!dstbuf.IsNull());
+    vkCmdCopyBuffer(m_CmdBuffer,
+                    srcbuf.GetVkHandle(),
+                    dstbuf.GetVkHandle(),
+                    static_cast<uint32_t>(regions.size()),
+                    regions.begin());
+}
+
+void CommandBuffer::FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const
+{
+    const Buffer& buf = m_pDevice->GetBuffer(buffer);
+    vkCmdFillBuffer(m_CmdBuffer, buf.GetVkHandle(), offset, size, data);
+}
+
+void CommandBuffer::WriteTimestamp(const char* name, PipelineStage stage, uint32_t frameIndex) const
+{
+    const TimestampQueryGroup& qg = m_pQueryMgr->GetQueryGroup<QueryType::Timestamp>();
+    const uint32_t query = m_pQueryMgr->AddQuery<QueryType::Timestamp>(name);
+
+    const uint32_t offset = frameIndex * (qg.GetRange() - 1);
+
+    vkCmdWriteTimestamp2(m_CmdBuffer, static_cast<VkPipelineStageFlags2>(stage), qg.GetVkQueryPool(), offset + query);
 }
 
 } // namespace Grace

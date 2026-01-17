@@ -53,7 +53,7 @@ public:
 
     GRACE_NODISCARD SwapchainStatus GetStatus() const;
 
-    GRACE_NODISCARD const VkFormat& GetFormat() const;
+    GRACE_NODISCARD const Format& GetFormat() const;
 
     GRACE_NODISCARD ImageHandle GetRecentAcquiredImage() const;
 

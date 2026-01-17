@@ -3,8 +3,7 @@
 #include <vector>
 #include <filesystem>
 
-#include <vulkan/vulkan.h>
-#include <Grace/CommandGroup.hpp>
+#include <Grace/TypesHandle.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/OptionalPFN.hpp>
 #include <Grace/GraceExport.h>
@@ -13,7 +12,7 @@
 namespace Grace
 {
 
-GRACE_NODISCARD GRACE_EXPORT VkImageSubresourceRange EntireImageSubresourceRange(VkImageAspectFlags aspectMask);
+GRACE_NODISCARD GRACE_EXPORT VkImageSubresourceRange EntireImageSubresourceRange(ImageAspect aspect);
 
 GRACE_NODISCARD GRACE_EXPORT VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format);
 
@@ -247,22 +246,13 @@ GRACE_NODISCARD GRACE_EXPORT VkRenderingInfo RenderingInfo(VkExtent2D renderArea
                                                            const VkRenderingAttachmentInfo* pColourAttachments,
                                                            const VkRenderingAttachmentInfo* pDepthAttachment);
 
-void CopyImageToImage(CommandBuffer cmd,
-                      const Image& src,
-                      const Image& dst,
-                      VkExtent2D srcExtent,
-                      VkExtent2D dstExtent,
-                      uint32_t srcMipLevel = 0U,
-                      uint32_t dstMipLevel = 0U);
-
 GRACE_NODISCARD VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                                          VkSemaphoreSubmitInfo* signalSemaphoreInfo,
                                          VkSemaphoreSubmitInfo* waitSemaphoreInfo);
 
 GRACE_NODISCARD std::vector<char> ReadSpvFile(const std::filesystem::path& filename);
 
-GRACE_NODISCARD bool
-CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule);
+void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule);
 
 GRACE_NODISCARD VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage,
                                                                       VkShaderModule module);

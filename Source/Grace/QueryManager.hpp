@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Enums.hpp>
 
 namespace Grace
 {
@@ -27,7 +28,7 @@ struct GRACE_EXPORT QueryGroupDesc
     uint32_t timestampQueriesCount = 256U;
     uint32_t occlusionQueriesCount = 256U;
     uint32_t pipelineStatisticsCount = 32U;
-    VkQueryPipelineStatisticFlags pipelineStatisticsFlags;
+    QueryStats pipelineStatisticsFlags;
 };
 
 namespace TimestampUnits

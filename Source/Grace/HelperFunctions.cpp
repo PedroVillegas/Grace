@@ -11,10 +11,10 @@
 namespace Grace
 {
 
-VkImageSubresourceRange EntireImageSubresourceRange(VkImageAspectFlags aspectMask)
+VkImageSubresourceRange EntireImageSubresourceRange(ImageAspect aspect)
 {
     return {
-        .aspectMask = aspectMask,
+        .aspectMask = static_cast<VkImageAspectFlags>(aspect),
         .baseMipLevel = 0,
         .levelCount = VK_REMAINING_MIP_LEVELS,
         .baseArrayLayer = 0,
@@ -99,50 +99,6 @@ VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
           .pDepthAttachment = pDepthAttachment });
 }
 
-void CopyImageToImage(CommandBuffer cmd,
-                      const Image& src,
-                      const Image& dst,
-                      VkExtent2D srcExtent,
-                      VkExtent2D dstExtent,
-                      uint32_t srcMipLevel,
-                      uint32_t dstMipLevel)
-{
-    assert(!cmd.IsNull());
-    assert(!src.IsNull());
-    assert(!dst.IsNull());
-
-    VkImageBlit2 blitRegion = {};
-    blitRegion.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
-    blitRegion.pNext = nullptr;
-    blitRegion.srcOffsets[1].x = srcExtent.width;
-    blitRegion.srcOffsets[1].y = srcExtent.height;
-    blitRegion.srcOffsets[1].z = 1;
-    blitRegion.dstOffsets[1].x = dstExtent.width;
-    blitRegion.dstOffsets[1].y = dstExtent.height;
-    blitRegion.dstOffsets[1].z = 1;
-    blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blitRegion.srcSubresource.baseArrayLayer = 0;
-    blitRegion.srcSubresource.layerCount = 1;
-    blitRegion.srcSubresource.mipLevel = srcMipLevel;
-    blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blitRegion.dstSubresource.baseArrayLayer = 0;
-    blitRegion.dstSubresource.layerCount = 1;
-    blitRegion.dstSubresource.mipLevel = dstMipLevel;
-
-    VkBlitImageInfo2 blitInfo = {};
-    blitInfo.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
-    blitInfo.pNext = nullptr;
-    blitInfo.dstImage = dst.GetImage();
-    blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    blitInfo.srcImage = src.GetImage();
-    blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    blitInfo.filter = VK_FILTER_LINEAR;
-    blitInfo.regionCount = 1;
-    blitInfo.pRegions = &blitRegion;
-
-    cmd.BlitImage(blitInfo);
-}
-
 VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                          VkSemaphoreSubmitInfo* signalSemaphoreInfo,
                          VkSemaphoreSubmitInfo* waitSemaphoreInfo)
@@ -176,23 +132,24 @@ VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stag
                                              .pName = "main" });
 }
 
-bool CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule)
+void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule)
 {
     assert(device != nullptr);
     assert(std::filesystem::exists(filename));
 
     auto shaderCode = ReadSpvFile(filename);
 
-    VkShaderModuleCreateInfo smci = {};
-    smci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    smci.codeSize = shaderCode.size();
-    smci.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
+    VkShaderModuleCreateInfo smci = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .codeSize = shaderCode.size(),
+        .pCode = reinterpret_cast<const uint32_t*>(shaderCode.data()),
+    };
 
     DebugReporter::Check(vkCreateShaderModule(device, &smci, nullptr, &shaderModule));
     const std::string shaderModuleDebugName = filename.filename().string();
     AssignDebugName<VkShaderModule>(device, shaderModule, shaderModuleDebugName.c_str());
-
-    return true;
 }
 
 std::vector<char> ReadSpvFile(const std::filesystem::path& filename)

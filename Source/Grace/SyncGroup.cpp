@@ -5,7 +5,6 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
-#include <Grace/CommandGroup.hpp>
 #include <Grace/HelperFunctions.hpp>
 
 namespace Grace
@@ -85,7 +84,7 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
     assert(!image.IsNull());
 
     m_ImageBarriers.emplace_back(image.GetImage(),
-                                 EntireImageSubresourceRange(DetermineImageAspectFlagsFromFormat(image.GetFormat())),
+                                 EntireImageSubresourceRange(image.InferAspect()),
                                  std::move(accessesBefore),
                                  std::move(accessesAfter),
                                  ImageLayout::Optimal,

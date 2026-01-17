@@ -61,12 +61,10 @@ int main()
     glfwWindowHint(GLFW_POSITION_Y, (vm->height - windowHeight) / 2);
     GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Textured Cube", nullptr, nullptr);
     glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
-    glfwSetFramebufferSizeCallback(pWindow,
-                                   [](GLFWwindow* pWindow, int width, int height)
-                                   {
-                                       bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
-                                       self = true;
-                                   });
+    glfwSetFramebufferSizeCallback(pWindow, [](GLFWwindow* pWindow, int width, int height) {
+        bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
+        self = true;
+    });
 
     const Grace::DeviceDesc deviceDesc = {
         .maxImageDescriptors = 65535,
@@ -75,7 +73,7 @@ int main()
         .framesInFlight = FRAMES_IN_FLIGHT,
         .queryGroupDesc = {
             .timestampQueriesCount = 8,
-            .pipelineStatisticsFlags = VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+            .pipelineStatisticsFlags = Grace::QueryStats::FragmentShaderInvocations,
         },
         .pGlfwWindow = pWindow,
     };
@@ -99,47 +97,50 @@ int main()
         const std::string fenceDebugName = "Example02::inFlightFence::" + std::to_string(i);
         frame[i].inFlightFence = pDevice->CreateFence({
             .name = fenceDebugName.c_str(),
-            .createFlags = VK_FENCE_CREATE_SIGNALED_BIT,
+            .flags = Grace::FenceFlags::CreateSignalled,
         });
     }
 
     const Grace::SamplerHandle linearWrapSampler = pDevice->CreateSampler({
-        .minFilter = VK_FILTER_LINEAR,
-        .magFilter = VK_FILTER_LINEAR,
-        .addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .minFilter = Grace::Filter::Linear,
+        .magFilter = Grace::Filter::Linear,
+        .addressMode = Grace::SamplerAddressMode::ClampToEdge,
+        .mipmapMode = Grace::SamplerMipmapMode::Linear,
     });
 
     Grace::ImageHandle depthImg = pDevice->CreateImage({
         .name = "Example02::depthImg",
-        .dimensions = { windowWidth, windowHeight, 1 },
-        .format = VK_FORMAT_D32_SFLOAT,
-        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .dimensions = Grace::UInt3(windowWidth, windowHeight, 1),
+        .format = Grace::Format::D32_SFloat,
+        .usage = Grace::ImageUsage::DepthStencilAttachment,
         .access = Grace::AccessType::DepthStencilAttachmentReadWrite,
         .size = 0,
         .data = nullptr,
         .mipmapped = false,
     });
 
-    // Create pipeline from hello triangle shader
-    Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("02_TexturedCube.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    pbuilder.AddShader("02_TexturedCube.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    pbuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pbuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
-    pbuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    pbuilder.SetMultisamplingNone();
-    pbuilder.DisableBlending();
-    pbuilder.SetColourAttachmentFormat(&pDevice->GetSwapchainFormat());
-    pbuilder.EnableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    pbuilder.SetDepthFormat(VK_FORMAT_D32_SFLOAT);
-    pbuilder.BuildGraphicsPipeline("Example02::texturedCubePipeline", pDevice->GetSolePipelineLayout());
-
-    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreatePipeline({
+        .name = "Example02::texturedCubePipeline",
+        .shaders = {
+            { .stage = Grace::ShaderStage::Vertex, .name = "02_TexturedCube.vert.spv" },
+            { .stage = Grace::ShaderStage::Fragment, .name = "02_TexturedCube.frag.spv" },
+        },
+        .graphicsState = {
+            .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
+            .depthAttachmentFormat = Grace::Format::D32_SFloat,
+            .topology = Grace::Topology::TriangleList,
+            .polygonMode = Grace::PolygonMode::Fill,
+            .cullMode = Grace::CullMode::None,
+            .frontFace = Grace::FrontFace::Clockwise,
+            .depthStencilUsage = Grace::DepthStencilUsage::DepthOnly,
+            .depthCompareOp = Grace::CompareOp::GreaterOrEqual,
+        },
+        .layout = pDevice->GetSolePipelineLayout()
+    });
 
     // Cube vertex and index buffer
     // clang-format off
-    const std::array<Vertex, 36> vertices = {
+     constexpr std::array<Vertex, 36> vertices = {
         Vertex(glm::vec3(-0.5F, -0.5F, -0.5F),  glm::vec2(0.0F, 0.0F)),
         Vertex(glm::vec3( 0.5F, -0.5F, -0.5F),  glm::vec2(1.0F, 0.0F)),
         Vertex(glm::vec3( 0.5F,  0.5F, -0.5F),  glm::vec2(1.0F, 1.0F)),
@@ -186,8 +187,8 @@ int main()
 
     const Grace::BufferHandle vertexBuffer = pDevice->CreateBuffer({
         .name = "Example02::vertexBuffer",
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-               | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .usage =
+            Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst,
         .allocFlags = 0,
         .size = vertices.size() * sizeof(Vertex),
         .data = vertices.data(),
@@ -201,9 +202,9 @@ int main()
     // Create an image with image file metadata
     const Grace::ImageHandle texture = pDevice->CreateImage({
         .name = "Example02::texture",
-        .dimensions = { static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1 },
-        .format = VK_FORMAT_R8G8B8A8_SRGB,
-        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .dimensions = Grace::UInt3(static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1),
+        .format = Grace::Format::RGBA8_SRGB,
+        .usage = Grace::ImageUsage::SampledImage | Grace::ImageUsage::TransferDst,
         .size = textureSizeBytes,
         .data = data,
         .mipmapped = true,
@@ -262,7 +263,7 @@ int main()
         cmd.BeginRecording();
         cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
+        cmd.WriteTimestamp("GPU Frame Begin", Grace::PipelineStage::AllCommands, frameIndex);
 
         /* Record commands */
 
@@ -272,9 +273,7 @@ int main()
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
         cmd.PipelineBarrier();
 
-        cmd.ClearColorImage(swapchainImg,
-                            { 0.35F, 0.55F, 0.85F, 1.0F },
-                            { Grace::EntireImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+        cmd.ClearColorImage(swapchainImg, Grace::Float4(0.35F, 0.55F, 0.85F, 1.0F));
 
         cmd.AddImageBarrier(
             swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
@@ -304,7 +303,7 @@ int main()
         // Bind helloTriangle pipeline and execute a draw call
         cmd.BindPipeline(texturedCubePipeline);
         cmd.BindDescriptorSets(
-            VK_PIPELINE_BIND_POINT_GRAPHICS, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
+            Grace::PipelineBindPoint::Graphics, pDevice->GetSolePipelineLayout(), { pDevice->GetSoleDescriptorSet() });
 
         struct PC
         {
@@ -318,11 +317,11 @@ int main()
         pc.mvp = mvp;
         pc.textureIndex = pDevice->GetImage(texture).GetSampledImgId();
         pc.linearWrapSamplerIndex = pDevice->GetSampler(linearWrapSampler).GetSamplerId();
-        cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
+        cmd.PushConstants(pDevice->GetSolePipelineLayout(), &pc);
 
-        cmd.WriteTimestamp("TexturedCube Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, frameIndex);
+        cmd.WriteTimestamp("TexturedCube Pass Begin", Grace::PipelineStage::VertexShader, frameIndex);
         cmd.Draw(vertices.size(), 1, 0, 0);
-        cmd.WriteTimestamp("TexturedCube Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, frameIndex);
+        cmd.WriteTimestamp("TexturedCube Pass End", Grace::PipelineStage::FragmentShader, frameIndex);
 
         cmd.EndDynamicRendering();
         cmd.EndDebugLabel();
@@ -335,7 +334,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frameIndex);
+        cmd.WriteTimestamp("GPU Frame End", Grace::PipelineStage::AllCommands, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -352,7 +351,7 @@ int main()
         const Grace::SwapchainStatus ss = pDevice->Present(fsg);
 
         const Grace::TimestampQueryGroup& tqg =
-            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, Grace::QueryResult::WithAvailability);
 
         tqg.DurationIfAvailable<Grace::TimestampUnits::Milliseconds>(
             texturedCubePassTime, "TexturedCube Pass Begin", "TexturedCube Pass End", frameIndex);
@@ -380,16 +379,15 @@ int main()
             pDevice->FreeImage(depthImg);
             depthImg = pDevice->CreateImage({
                 .name = "Example02::depthImg",
-                .dimensions = { windowWidth, windowHeight, 1 },
-                .format = VK_FORMAT_D32_SFLOAT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                .dimensions = Grace::UInt3(windowWidth, windowHeight, 1),
+                .format = Grace::Format::D32_SFloat,
+                .usage = Grace::ImageUsage::DepthStencilAttachment,
                 .access = Grace::AccessType::DepthStencilAttachmentReadWrite,
                 .size = 0,
                 .data = nullptr,
                 .mipmapped = false,
             });
-        }
-        else if (ss == Grace::SwapchainStatus::Failure)
+        } else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }

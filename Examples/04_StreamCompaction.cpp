@@ -14,7 +14,7 @@ int main()
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
         .queryGroupDesc = {
-            .pipelineStatisticsFlags = VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT,
+            .pipelineStatisticsFlags = Grace::QueryStats::ComputeShaderInvocations,
         },
         .pGlfwWindow = nullptr,
     };
@@ -26,20 +26,21 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example04::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("04_StreamCompaction.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-    pbuilder.BuildComputePipeline("Example04::streamCompactionPipeline", pDevice->GetSolePipelineLayout());
-    const Grace::PipelineHandle streamCompactionPipeline = pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    const Grace::PipelineHandle streamCompactionPipeline = pDevice->CreatePipeline({
+        .name = "Example04::streamCompactionPipeline",
+        .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "04_StreamCompaction.slang.spv" } },
+        .layout = pDevice->GetSolePipelineLayout(),
+    });
 
-    pbuilder.ClearAll();
-    pbuilder.AddShader("04_StreamCompactionNonOrderPreserving.slang.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-    pbuilder.BuildComputePipeline("Example04::streamCompactionNonOrderPreservingPipeline",
-                                  pDevice->GetSolePipelineLayout());
-    const Grace::PipelineHandle streamCompactionNonOrderPreservingPipeline =
-        pDevice->CreatePipeline(pbuilder.pipelineDesc);
+    const Grace::PipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->CreatePipeline({
+        .name = "Example04::streamCompactionNonOrderPreservingPipeline",
+        .shaders = { { .stage = Grace::ShaderStage::Compute,
+                       .name = "04_StreamCompactionNonOrderPreserving.slang.spv" } },
+        .layout = pDevice->GetSolePipelineLayout(),
+    });
 
-    std::random_device rd; // a seed source for the random number engine
-    std::mt19937 gen(rd());   // mersenne_twister_engine seeded with rd()
+    std::random_device rd;  // a seed source for the random number engine
+    std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
     std::uniform_int_distribution distrib(0, 4);
 
     const uint32_t WorkgroupSize = 256;
@@ -56,8 +57,8 @@ int main()
     uint32_t compactedArraySize = 0;
     const Grace::BufferHandle metadataBuffer = pDevice->CreateBuffer({
         .name = "Example04::metadataBuffer",
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-               | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .usage =
+            Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst,
         .allocFlags = 0,
         .size = sizeof(uint32_t),
         .data = &compactedArraySize,
@@ -65,8 +66,8 @@ int main()
 
     const Grace::BufferHandle sparseArrayBuffer = pDevice->CreateBuffer({
         .name = "Example04::sparseArrayBuffer",
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-               | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst
+               | Grace::BufferUsage::TransferSrc,
         .allocFlags = 0,
         .size = sparseArray.size() * sizeof(uint32_t),
         .data = sparseArray.data(),
@@ -74,8 +75,8 @@ int main()
 
     const Grace::BufferHandle compactedArrayBuffer = pDevice->CreateBuffer({
         .name = "Example04::compactedArrayBuffer",
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-               | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst
+               | Grace::BufferUsage::TransferSrc,
         .allocFlags = 0,
         .size = sparseArray.size() * sizeof(uint32_t),
         .data = nullptr,
@@ -83,7 +84,7 @@ int main()
 
     const Grace::BufferHandle intermediateBuffer = pDevice->CreateBuffer({
         .name = "Example04::intermediateBuffer",
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::TransferDst,
         .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
         .size = sparseArray.size() * sizeof(uint32_t),
         .data = nullptr,
@@ -117,22 +118,20 @@ int main()
 
     cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
     cmd.BindDescriptorSets(
-        VK_PIPELINE_BIND_POINT_COMPUTE, pDevice->GetSolePipelineLayout(), 0, { pDevice->GetSoleDescriptorSet() });
+        Grace::PipelineBindPoint::Compute, pDevice->GetSolePipelineLayout(), { pDevice->GetSoleDescriptorSet() });
     // cmd.BindPipeline(streamCompactionPipeline);
     cmd.BindPipeline(streamCompactionNonOrderPreservingPipeline);
 
-    cmd.WriteTimestamp("Compaction Pass Begin", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
+    cmd.WriteTimestamp("Compaction Pass Begin", Grace::PipelineStage::ComputeShader, 0);
     cmd.Dispatch(dispatchSize);
-    cmd.WriteTimestamp("Compaction Pass End", VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0);
+    cmd.WriteTimestamp("Compaction Pass End", Grace::PipelineStage::ComputeShader, 0);
 
     cmd.EndDebugLabel();
 
     cmd.AddMemoryBarrier({ Grace::AccessType::ComputeShaderWrite }, { Grace::AccessType::CopyRead });
     cmd.PipelineBarrier();
 
-    cmd.CopyBuffer(compactedArrayBuffer,
-                   intermediateBuffer,
-                   { VkBufferCopy { .srcOffset = 0, .dstOffset = 0, .size = sparseArray.size() * sizeof(uint32_t) } });
+    cmd.CopyBuffer(compactedArrayBuffer, intermediateBuffer);
 
     // Finish recording for the command buffer for this frame
     cmd.EndRecording();
@@ -173,7 +172,7 @@ int main()
 #endif
 
     const Grace::TimestampQueryGroup& tqg =
-        pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
+        pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, Grace::QueryResult::Wait);
 
     const double timeToCompact =
         tqg.Duration<Grace::TimestampUnits::Milliseconds>("Compaction Pass Begin", "Compaction Pass End");

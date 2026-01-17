@@ -1,9 +1,8 @@
 #include "Sampler.hpp"
 
-#include "Device.hpp"
-
 #include <cassert>
 
+#include <Grace/Device.hpp>
 #include <Grace/DebugReporter.hpp>
 
 namespace Grace
@@ -21,17 +20,26 @@ Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : m_Device(pDevice)
 {
     assert(!m_Device->IsNull());
 
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.pNext = nullptr;
-    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
-    samplerInfo.minLod = 0;
-    samplerInfo.minFilter = desc.minFilter;
-    samplerInfo.magFilter = desc.magFilter;
-    samplerInfo.mipmapMode = desc.mipmapMode;
-    samplerInfo.addressModeU = desc.addressMode;
-    samplerInfo.addressModeV = desc.addressMode;
-    samplerInfo.addressModeW = desc.addressMode;
+    VkSamplerCreateInfo samplerInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .magFilter = static_cast<VkFilter>(desc.magFilter),
+        .minFilter = static_cast<VkFilter>(desc.minFilter),
+        .mipmapMode = static_cast<VkSamplerMipmapMode>(desc.mipmapMode),
+        .addressModeU = static_cast<VkSamplerAddressMode>(desc.addressMode),
+        .addressModeV = static_cast<VkSamplerAddressMode>(desc.addressMode),
+        .addressModeW = static_cast<VkSamplerAddressMode>(desc.addressMode),
+        .mipLodBias = 0,
+        .anisotropyEnable = false,
+        .maxAnisotropy = 1.0F,
+        .compareEnable = false,
+        .compareOp = static_cast<VkCompareOp>(CompareOp::Always),
+        .minLod = 0,
+        .maxLod = VK_LOD_CLAMP_NONE,
+        .borderColor = static_cast<VkBorderColor>(BorderColor::FloatOpaqueBlack),
+        .unnormalizedCoordinates = false,
+    };
 
     DebugReporter::Check(vkCreateSampler(m_Device->GetVkHandle(), &samplerInfo, nullptr, &m_Sampler));
 }
