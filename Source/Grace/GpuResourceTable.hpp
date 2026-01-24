@@ -40,9 +40,9 @@ public:
     GRACE_NODISCARD uint32_t FindAvailableSlot();
 
 private:
-    uint32_t m_MaxSlots = std::numeric_limits<uint16_t>::max();
-    uint32_t m_CurrentSlot = 0U;
-    std::deque<uint32_t> m_FreeSlots = {};
+    uint32_t mMaxSlots = std::numeric_limits<uint16_t>::max();
+    uint32_t mCurrentSlot = 0U;
+    std::deque<uint32_t> mFreeSlots = {};
 };
 
 /// Handles resource array ids.
@@ -88,15 +88,15 @@ public:
     PipelineLayoutHandle bindlessPipelineLayout = {};
 
 private:
-    Device* m_Device = nullptr;
+    Device* mDevice = nullptr;
 
     /// The one and only `DescriptorWriter` to batch update the Sole Descriptor Set.
-    DescriptorWriter m_Writer = {};
+    DescriptorWriter mWriter = {};
 
-    SlotPool m_StorageImageSlots = {};
-    SlotPool m_SampledImageSlots = {};
-    SlotPool m_SamplerSlots = {};
-    SlotPool m_UniformBufferSlots = {};
+    SlotPool mStorageImageSlots = {};
+    SlotPool mSampledImageSlots = {};
+    SlotPool mSamplerSlots = {};
+    SlotPool mUniformBufferSlots = {};
 };
 
 } // namespace Grace

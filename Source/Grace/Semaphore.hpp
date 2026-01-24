@@ -61,8 +61,8 @@ public:
     GRACE_NODISCARD const VkSemaphore& GetVkSemaphore() const;
 
 private:
-    Device* m_pDevice = nullptr;
-    VkSemaphore m_Semaphore = VK_NULL_HANDLE;
+    Device* mDevicePtr = nullptr;
+    VkSemaphore mSemaphore = VK_NULL_HANDLE;
 };
 
 using BinarySemaphore = Semaphore<SemaphoreType::Binary>;

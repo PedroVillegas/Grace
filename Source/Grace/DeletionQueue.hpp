@@ -24,7 +24,7 @@ public:
 
     void Flush(uint32_t frameIndex);
 private:
-    std::vector<std::deque<std::function<void()>>> m_Deleters = {};
+    std::vector<std::deque<std::function<void()>>> mDeleters = {};
 
 };
 

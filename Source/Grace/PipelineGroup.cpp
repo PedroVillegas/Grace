@@ -12,15 +12,15 @@ namespace Grace
 
 PipelineLayout::~PipelineLayout()
 {
-    if (m_PipelineLayout != nullptr)
+    if (mPipelineLayout != nullptr)
     {
-        vkDestroyPipelineLayout(m_Device->GetVkHandle(), m_PipelineLayout, nullptr);
+        vkDestroyPipelineLayout(mDevice->GetVkHandle(), mPipelineLayout, nullptr);
     }
 }
 
-PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) : m_Device(pDevice)
+PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) : mDevice(pDevice)
 {
-    assert(!m_Device->IsNull());
+    assert(!mDevice->IsNull());
 
     VkPipelineLayoutCreateInfo plcInfo = {};
     plcInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -31,55 +31,55 @@ PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) 
     plcInfo.pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstantRanges.size());
     plcInfo.pPushConstantRanges = desc.pushConstantRanges.data();
 
-    DebugReporter::Check(vkCreatePipelineLayout(m_Device->GetVkHandle(), &plcInfo, nullptr, &m_PipelineLayout));
-    AssignDebugName(m_Device->GetVkHandle(), m_PipelineLayout, desc.name);
+    DebugReporter::Check(vkCreatePipelineLayout(mDevice->GetVkHandle(), &plcInfo, nullptr, &mPipelineLayout));
+    AssignDebugName(mDevice->GetVkHandle(), mPipelineLayout, desc.name);
 }
 
 PipelineLayout::PipelineLayout(PipelineLayout&& other) noexcept
-    : m_Device(other.m_Device), m_PipelineLayout(other.m_PipelineLayout)
+    : mDevice(other.mDevice), mPipelineLayout(other.mPipelineLayout)
 {
-    other.m_PipelineLayout = nullptr;
+    other.mPipelineLayout = nullptr;
 }
 
 PipelineLayout& PipelineLayout::operator=(PipelineLayout&& other) noexcept
 {
-    if (m_PipelineLayout != nullptr)
+    if (mPipelineLayout != nullptr)
     {
-        vkDestroyPipelineLayout(m_Device->GetVkHandle(), m_PipelineLayout, nullptr);
+        vkDestroyPipelineLayout(mDevice->GetVkHandle(), mPipelineLayout, nullptr);
     }
 
-    m_Device = other.m_Device;
-    m_PipelineLayout = other.m_PipelineLayout;
-    other.m_PipelineLayout = nullptr;
+    mDevice = other.mDevice;
+    mPipelineLayout = other.mPipelineLayout;
+    other.mPipelineLayout = nullptr;
 
     return *this;
 }
 
 bool PipelineLayout::IsNull() const
 {
-    return m_PipelineLayout == nullptr;
+    return mPipelineLayout == nullptr;
 }
 
 VkPipelineLayout PipelineLayout::GetVkPipelineLayout() const
 {
-    return m_PipelineLayout;
+    return mPipelineLayout;
 }
 
 Pipeline::~Pipeline()
 {
-    if (m_Pipeline != nullptr)
+    if (mPipeline != nullptr)
     {
-        vkDestroyPipeline(m_Device->GetVkHandle(), m_Pipeline, nullptr);
+        vkDestroyPipeline(mDevice->GetVkHandle(), mPipeline, nullptr);
     }
 }
 
-Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice)
+Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : mDevice(pDevice)
 {
     assert(!pDevice->IsNull());
 
     if (!desc.shaders.empty())
     {
-        m_Type = PipelineType::Graphics;
+        mType = PipelineType::Graphics;
 
         const PipelineLayout& pl = pDevice->GetPipelineLayout(desc.layout);
         assert(!pl.IsNull());
@@ -88,7 +88,7 @@ Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice
             && desc.graphicsState.depthAttachmentFormat == Format::Undefined
             && desc.graphicsState.stencilAttachmentFormat == Format::Undefined)
         {
-            m_Type = PipelineType::Compute;
+            mType = PipelineType::Compute;
             assert(desc.shaders.size() == 1);
 
             const ShaderDesc& shader = desc.shaders.at(0);
@@ -114,13 +114,13 @@ Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice
             };
 
             DebugReporter::Check(
-                vkCreateComputePipelines(pDevice->GetVkHandle(), nullptr, 1, &cpci, nullptr, &m_Pipeline));
+                vkCreateComputePipelines(pDevice->GetVkHandle(), nullptr, 1, &cpci, nullptr, &mPipeline));
 
             vkDestroyShaderModule(pDevice->GetVkHandle(), shaderModule, nullptr);
 
-            if (m_Pipeline != nullptr)
+            if (mPipeline != nullptr)
             {
-                AssignDebugName<VkPipeline>(pDevice->GetVkHandle(), m_Pipeline, desc.name);
+                AssignDebugName<VkPipeline>(pDevice->GetVkHandle(), mPipeline, desc.name);
             }
 
             return;
@@ -344,58 +344,58 @@ Pipeline::Pipeline(Device* pDevice, const PipelineDesc& desc) : m_Device(pDevice
         };
 
         DebugReporter::Check(
-            vkCreateGraphicsPipelines(pDevice->GetVkHandle(), nullptr, 1, &gpci, nullptr, &m_Pipeline));
+            vkCreateGraphicsPipelines(pDevice->GetVkHandle(), nullptr, 1, &gpci, nullptr, &mPipeline));
 
         for (VkShaderModule module : shaderModules)
         {
             vkDestroyShaderModule(pDevice->GetVkHandle(), module, nullptr);
         }
 
-        if (m_Pipeline != nullptr)
+        if (mPipeline != nullptr)
         {
-            AssignDebugName<VkPipeline>(pDevice->GetVkHandle(), m_Pipeline, desc.name);
+            AssignDebugName<VkPipeline>(pDevice->GetVkHandle(), mPipeline, desc.name);
         }
     }
 }
 
 Pipeline::Pipeline(Pipeline&& other) noexcept
-    : m_Device(other.m_Device), m_Pipeline(other.m_Pipeline), m_Type(other.m_Type)
+    : mDevice(other.mDevice), mPipeline(other.mPipeline), mType(other.mType)
 {
-    other.m_Device = nullptr;
-    other.m_Pipeline = nullptr;
-    other.m_Type = PipelineType::Undefined;
+    other.mDevice = nullptr;
+    other.mPipeline = nullptr;
+    other.mType = PipelineType::Undefined;
 }
 
 Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
 {
-    if (m_Pipeline != nullptr)
+    if (mPipeline != nullptr)
     {
-        vkDestroyPipeline(m_Device->GetVkHandle(), m_Pipeline, nullptr);
+        vkDestroyPipeline(mDevice->GetVkHandle(), mPipeline, nullptr);
     }
 
-    m_Device = other.m_Device;
-    m_Pipeline = other.m_Pipeline;
-    m_Type = other.m_Type;
-    other.m_Device = nullptr;
-    other.m_Pipeline = nullptr;
-    other.m_Type = PipelineType::Undefined;
+    mDevice = other.mDevice;
+    mPipeline = other.mPipeline;
+    mType = other.mType;
+    other.mDevice = nullptr;
+    other.mPipeline = nullptr;
+    other.mType = PipelineType::Undefined;
 
     return *this;
 }
 
 bool Pipeline::IsNull() const
 {
-    return m_Pipeline == nullptr;
+    return mPipeline == nullptr;
 }
 
 VkPipeline Pipeline::GetVkHandle() const
 {
-    return m_Pipeline;
+    return mPipeline;
 }
 
 VkPipelineBindPoint Pipeline::BindPoint() const
 {
-    switch (m_Type)
+    switch (mType)
     {
     case PipelineType::Compute:
         return VK_PIPELINE_BIND_POINT_COMPUTE;

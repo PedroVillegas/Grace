@@ -10,12 +10,12 @@ Semaphore<SemTy>::~Semaphore()
 {
     if (!IsNull())
     {
-        vkDestroySemaphore(m_pDevice->GetVkHandle(), m_Semaphore, nullptr);
+        vkDestroySemaphore(mDevicePtr->GetVkHandle(), mSemaphore, nullptr);
     }
 }
 
 template <typename SemTy>
-Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : m_pDevice(pDevice)
+Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : mDevicePtr(pDevice)
 {
     VkSemaphoreCreateInfo cinfo = {};
     cinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -32,35 +32,35 @@ Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : m_pDev
         cinfo.pNext = &tcinfo;
     }
 
-    DebugReporter::Check(vkCreateSemaphore(m_pDevice->GetVkHandle(), &cinfo, nullptr, &m_Semaphore));
-    AssignDebugName<VkSemaphore>(m_pDevice->GetVkHandle(), m_Semaphore, desc.name);
+    DebugReporter::Check(vkCreateSemaphore(mDevicePtr->GetVkHandle(), &cinfo, nullptr, &mSemaphore));
+    AssignDebugName<VkSemaphore>(mDevicePtr->GetVkHandle(), mSemaphore, desc.name);
 }
 
 template <typename SemTy>
-Semaphore<SemTy>::Semaphore(Semaphore&& other) noexcept : m_pDevice(other.m_pDevice), m_Semaphore(other.m_Semaphore)
+Semaphore<SemTy>::Semaphore(Semaphore&& other) noexcept : mDevicePtr(other.mDevicePtr), mSemaphore(other.mSemaphore)
 {
-    other.m_Semaphore = VK_NULL_HANDLE;
+    other.mSemaphore = VK_NULL_HANDLE;
 }
 
 template <typename SemTy>
 Semaphore<SemTy>& Semaphore<SemTy>::operator=(Semaphore&& other) noexcept
 {
-    m_pDevice = other.m_pDevice;
-    m_Semaphore = other.m_Semaphore;
-    other.m_Semaphore = VK_NULL_HANDLE;
+    mDevicePtr = other.mDevicePtr;
+    mSemaphore = other.mSemaphore;
+    other.mSemaphore = VK_NULL_HANDLE;
     return *this;
 }
 
 template <typename SemTy>
 bool Semaphore<SemTy>::IsNull() const
 {
-    return m_Semaphore == VK_NULL_HANDLE;
+    return mSemaphore == VK_NULL_HANDLE;
 }
 
 template <typename SemTy>
 const VkSemaphore& Semaphore<SemTy>::GetVkSemaphore() const
 {
-    return m_Semaphore;
+    return mSemaphore;
 }
 
 template class Semaphore<SemaphoreType::Binary>;

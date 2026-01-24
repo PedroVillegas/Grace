@@ -53,9 +53,9 @@ public:
                        uint32_t offset = 0) const
     {
         static_assert(sizeof(DataStruct) <= 128, "DataStruct is too large, must not exceed 128 bytes!");
-        const PipelineLayout& pl = m_pDevice->GetPipelineLayout(layout);
+        const PipelineLayout& pl = mDevicePtr->GetPipelineLayout(layout);
         assert(!pl.IsNull());
-        vkCmdPushConstants(m_CmdBuffer,
+        vkCmdPushConstants(mCmdBuffer,
                            pl.GetVkPipelineLayout(),
                            static_cast<VkShaderStageFlags>(stage),
                            offset,
@@ -142,29 +142,29 @@ public:
     template <typename T>
     void ResetQueryPoolFullRange(uint32_t frameIndex)
     {
-        assert(m_pQueryMgr);
+        assert(mQueryMgrPtr);
 
-        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
-        m_pQueryMgr->ResetQueryGroup<T>();
+        const QueryGroup<T>& qg = mQueryMgrPtr->GetQueryGroup<T>();
+        mQueryMgrPtr->ResetQueryGroup<T>();
 
         uint32_t start = frameIndex * qg.GetRange();
         uint32_t end = qg.GetRange();
 
-        vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+        vkCmdResetQueryPool(mCmdBuffer, qg.GetVkQueryPool(), start, end);
     }
 
     template <typename T>
     void ResetQueryPool(uint32_t firstQuery, uint32_t queryCount, uint32_t frameIndex)
     {
-        assert(m_pQueryMgr);
+        assert(mQueryMgrPtr);
 
-        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
+        const QueryGroup<T>& qg = mQueryMgrPtr->GetQueryGroup<T>();
         assert(queryCount < qg.GetRange());
 
         uint32_t start = (frameIndex * qg.GetRange()) + firstQuery;
         uint32_t end = start + queryCount;
 
-        vkCmdResetQueryPool(m_CmdBuffer, qg.GetVkQueryPool(), start, end);
+        vkCmdResetQueryPool(mCmdBuffer, qg.GetVkQueryPool(), start, end);
     }
 
     template <typename T>
@@ -173,8 +173,8 @@ public:
                     QueryWriteFlags writeFlags = QueryWriteFlags::None,
                     VkQueryControlFlags controlFlags = 0)
     {
-        QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
-        const uint32_t query = m_pQueryMgr->AddQuery<T>(name);
+        QueryGroup<T>& qg = mQueryMgrPtr->GetQueryGroup<T>();
+        const uint32_t query = mQueryMgrPtr->AddQuery<T>(name);
 
         const uint32_t offset = frameIndex * qg.GetRange();
         if (writeFlags == QueryWriteFlags::WriteIfPreviousResultIsAvailable)
@@ -185,24 +185,24 @@ public:
             }
         }
 
-        vkCmdBeginQuery(m_CmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
+        vkCmdBeginQuery(mCmdBuffer, qg.GetVkQueryPool(), query, controlFlags);
     }
 
     template <typename T>
     void EndQuery(const char* name)
     {
-        const QueryGroup<T>& qg = m_pQueryMgr->GetQueryGroup<T>();
-        vkCmdEndQuery(m_CmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
+        const QueryGroup<T>& qg = mQueryMgrPtr->GetQueryGroup<T>();
+        vkCmdEndQuery(mCmdBuffer, qg.GetVkQueryPool(), qg.GetQueryOffset(name));
     }
 
     void WriteTimestamp(const char* name, PipelineStage stage, uint32_t frameIndex) const;
 
 private:
-    Device* m_pDevice = nullptr;
-    VkCommandBuffer m_CmdBuffer = {};
-    BarrierBuilder m_BarrierBuilder = {};
-    QueueFamily m_QueueFamily = QueueFamily::Undefined;
-    QueryManager* m_pQueryMgr = nullptr;
+    Device* mDevicePtr = nullptr;
+    VkCommandBuffer mCmdBuffer = {};
+    BarrierBuilder mBarrierBuilder = {};
+    QueueFamily mQueueFamily = QueueFamily::Undefined;
+    QueryManager* mQueryMgrPtr = nullptr;
 };
 
 class GRACE_EXPORT CommandPool
@@ -226,11 +226,11 @@ public:
     GRACE_NODISCARD VkCommandPool GetVkCommandPool() const;
 
 private:
-    Device* m_Device = nullptr;
-    VkCommandPool m_CommandPool = nullptr;
-    QueueFamily m_QueueFamily = QueueFamily::Undefined;
-    std::vector<VkCommandBuffer> m_CommandBuffers = {};
-    uint32_t m_CommandBuffersInUse = 0;
+    Device* mDevice = nullptr;
+    VkCommandPool mCommandPool = nullptr;
+    QueueFamily mQueueFamily = QueueFamily::Undefined;
+    std::vector<VkCommandBuffer> mCommandBuffers = {};
+    uint32_t mCommandBuffersInUse = 0;
 };
 
 class GRACE_EXPORT CommandGroupAllocator
@@ -255,11 +255,11 @@ public:
     void FreeCommandBuffer();
 
 private:
-    Device* m_pDevice = nullptr;
+    Device* mDevicePtr = nullptr;
     // Use std::deque here to prevent any pointer invalidations. No performance hit since
     // new CommandPools are strictly inserted/removed from either end
-    std::array<std::deque<CommandPool>, static_cast<uint32_t>(QueueFamily::Undefined)> m_AllCommandPoolsAllocated = {};
-    std::queue<CommandPool*> m_FreeCommandPools = {};
+    std::array<std::deque<CommandPool>, static_cast<uint32_t>(QueueFamily::Undefined)> mAllCommandPoolsAllocated = {};
+    std::queue<CommandPool*> mFreeCommandPools = {};
 };
 
 } // namespace Grace

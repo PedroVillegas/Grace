@@ -86,52 +86,52 @@ public:
 
     GRACE_NODISCARD VkQueryPool GetVkQueryPool() const
     {
-        return m_QueryPool;
+        return mQueryPool;
     }
 
     GRACE_NODISCARD std::vector<uint64_t>& GetQueries()
     {
-        return m_Queries;
+        return mQueries;
     }
 
     GRACE_NODISCARD uint64_t GetQuery(const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
     {
         const uint32_t offset = GetQueryOffset(name);
-        return m_Queries[(m_Range * frameIndex) + offset + relativeBit];
+        return mQueries[(mRange * frameIndex) + offset + relativeBit];
     }
 
     void
     GetQueryIfAvailable(uint64_t& inout, const char* name, uint32_t relativeBit = 0U, uint32_t frameIndex = 0U) const
     {
         const uint32_t offset = GetQueryOffset(name);
-        const uint32_t queryOffsetMultiFrame = ((m_Range - 1) * frameIndex) + (offset * (m_ValuesPerQuery + 1));
+        const uint32_t queryOffsetMultiFrame = ((mRange - 1) * frameIndex) + (offset * (mValuesPerQuery + 1));
         // The query's availability bit immediately proceeds the n values of the query
-        if (m_Queries[queryOffsetMultiFrame + 1] != 0)
+        if (mQueries[queryOffsetMultiFrame + 1] != 0)
         {
-            inout = m_Queries[queryOffsetMultiFrame + relativeBit];
+            inout = mQueries[queryOffsetMultiFrame + relativeBit];
         }
     }
 
     GRACE_NODISCARD uint32_t GetQueryOffset(const char* name) const
     {
         assert(name != nullptr);
-        assert(m_NamedQueryMap.contains(name));
-        return m_NamedQueryMap.at(name);
+        assert(mNamedQueryMap.contains(name));
+        return mNamedQueryMap.at(name);
     }
 
     GRACE_NODISCARD uint32_t GetRange() const
     {
-        return m_Range;
+        return mRange;
     }
 
     GRACE_NODISCARD uint32_t GetQueryCount() const
     {
-        return m_QueriesWrittenSinceLastReset;
+        return mQueriesWrittenSinceLastReset;
     }
 
     GRACE_NODISCARD uint32_t GetValuesPerQuery() const
     {
-        return m_ValuesPerQuery;
+        return mValuesPerQuery;
     }
 
     /// Returns duration if vkGetQueryPoolResults was successful, 0.0 otherwise.
@@ -144,7 +144,7 @@ public:
                       || std::is_same_v<UnitsType, TimestampUnits::Milliseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Seconds>);
 
-        if (m_LastResult != VK_SUCCESS)
+        if (mLastResult != VK_SUCCESS)
         {
             return 0.0;
         }
@@ -158,7 +158,7 @@ public:
         }
 
         double duration =
-            static_cast<double>(endStamp - startStamp) * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
+            static_cast<double>(endStamp - startStamp) * static_cast<double>(mTimestampPeriod) * UnitsType::value;
 
         return duration;
     }
@@ -181,30 +181,30 @@ public:
         if (startTicks > 0 && endTicks > 0)
         {
             inout =
-                static_cast<double>(endTicks - startTicks) * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
+                static_cast<double>(endTicks - startTicks) * static_cast<double>(mTimestampPeriod) * UnitsType::value;
         }
     }
 
 private:
     GRACE_NODISCARD uint32_t AddQuery(const char* name)
     {
-        const uint32_t offset = m_QueriesWrittenSinceLastReset++;
-        m_NamedQueryMap[name] = offset;
+        const uint32_t offset = mQueriesWrittenSinceLastReset++;
+        mNamedQueryMap[name] = offset;
         return offset;
     }
 
 public:
-    VkResult m_LastResult = VK_SUCCESS;
+    VkResult mLastResult = VK_SUCCESS;
 
 private:
-    VkQueryPool m_QueryPool = nullptr;
-    std::vector<uint64_t> m_Queries = {};
+    VkQueryPool mQueryPool = nullptr;
+    std::vector<uint64_t> mQueries = {};
     // Only need one named query map per query group since query indices are constant
-    std::unordered_map<std::string, uint32_t> m_NamedQueryMap = {};
-    uint32_t m_QueriesWrittenSinceLastReset = 0U;
-    uint32_t m_ValuesPerQuery = 1U;
-    uint32_t m_Range = 0U;
-    float m_TimestampPeriod = 0.0F;
+    std::unordered_map<std::string, uint32_t> mNamedQueryMap = {};
+    uint32_t mQueriesWrittenSinceLastReset = 0U;
+    uint32_t mValuesPerQuery = 1U;
+    uint32_t mRange = 0U;
+    float mTimestampPeriod = 0.0F;
 
     friend class QueryManager;
 };
@@ -234,15 +234,15 @@ public:
 
         if constexpr (std::is_same_v<T, QueryType::Timestamp>)
         {
-            return m_TimestampQueryGroup;
+            return mTimestampQueryGroup;
         }
         else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
         {
-            return m_OcclusionQueryGroup;
+            return mOcclusionQueryGroup;
         }
         else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
         {
-            return m_PipelineStatsQueryGroup;
+            return mPipelineStatsQueryGroup;
         }
     }
 
@@ -257,14 +257,14 @@ public:
     void ResetQueryGroup()
     {
         QueryGroup<T>& qg = GetQueryGroup<T>();
-        qg.m_QueriesWrittenSinceLastReset = 0;
+        qg.mQueriesWrittenSinceLastReset = 0;
     }
 
 private:
-    Device* m_pDevice = nullptr;
-    TimestampQueryGroup m_TimestampQueryGroup = {};
-    OcclusionQueryGroup m_OcclusionQueryGroup = {};
-    PipelineStatsQueryGroup m_PipelineStatsQueryGroup = {};
+    Device* mDevicePtr = nullptr;
+    TimestampQueryGroup mTimestampQueryGroup = {};
+    OcclusionQueryGroup mOcclusionQueryGroup = {};
+    PipelineStatsQueryGroup mPipelineStatsQueryGroup = {};
 };
 
 } // namespace Grace

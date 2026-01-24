@@ -11,35 +11,35 @@ namespace Grace
 
 bool Buffer::IsNull() const
 {
-    return (m_Buffer == nullptr || m_Allocation == nullptr);
+    return (mBuffer == nullptr || mAllocation == nullptr);
 }
 
 VkBuffer Buffer::GetVkHandle() const
 {
-    return m_Buffer;
+    return mBuffer;
 }
 
 VkDeviceAddress Buffer::GetBDA() const
 {
-    assert(m_DeviceAddress != 0);
-    return m_DeviceAddress;
+    assert(mDeviceAddress != 0);
+    return mDeviceAddress;
 }
 
 VmaAllocation Buffer::GetAllocation() const
 {
-    return m_Allocation;
+    return mAllocation;
 }
 
 VmaAllocationInfo2 Buffer::GetAllocationInfo() const
 {
     VmaAllocationInfo2 info = {};
-    vmaGetAllocationInfo2(m_Device->GetVmaHandle(), m_Allocation, &info);
+    vmaGetAllocationInfo2(mDevice->GetVmaHandle(), mAllocation, &info);
     return info;
 }
 
-Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
+Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 {
-    assert(!m_Device->IsNull());
+    assert(!mDevice->IsNull());
 
     VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -64,19 +64,19 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
     };
 
     DebugReporter::Check(
-        vmaCreateBuffer(m_Device->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &m_Buffer, &m_Allocation, nullptr));
-    assert(m_Buffer != nullptr);
-    AssignDebugName<VkBuffer>(m_Device->GetVkHandle(), m_Buffer, desc.name);
+        vmaCreateBuffer(mDevice->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &mBuffer, &mAllocation, nullptr));
+    assert(mBuffer != nullptr);
+    AssignDebugName<VkBuffer>(mDevice->GetVkHandle(), mBuffer, desc.name);
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::DeviceAddress))
     {
         VkBufferDeviceAddressInfo deviceAddressInfo = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
             .pNext = nullptr,
-            .buffer = m_Buffer,
+            .buffer = mBuffer,
         };
 
-        m_DeviceAddress = vkGetBufferDeviceAddress(m_Device->GetVkHandle(), &deviceAddressInfo);
+        mDeviceAddress = vkGetBufferDeviceAddress(mDevice->GetVkHandle(), &deviceAddressInfo);
     }
 
     if (desc.data != nullptr)
@@ -93,15 +93,15 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 
         VmaAllocation stagingBufferAllocation = nullptr;
         VkBuffer stagingBuffer = VK_NULL_HANDLE;
-        DebugReporter::Check(vmaCreateBuffer(m_Device->GetVmaHandle(),
+        DebugReporter::Check(vmaCreateBuffer(mDevice->GetVmaHandle(),
                                              &stagingBufferInfo,
                                              &stagingBufferAllocationInfo,
                                              &stagingBuffer,
                                              &stagingBufferAllocation,
                                              nullptr));
-        vmaCopyMemoryToAllocation(m_Device->GetVmaHandle(), desc.data, stagingBufferAllocation, 0, desc.size);
+        vmaCopyMemoryToAllocation(mDevice->GetVmaHandle(), desc.data, stagingBufferAllocation, 0, desc.size);
 
-        const CommandBuffer& cmd = m_Device->BeginSingleTimeCommands();
+        const CommandBuffer& cmd = mDevice->BeginSingleTimeCommands();
         const std::string debugLabel = desc.name + std::string(" | Data upload/Mip Gen");
         cmd.BeginDebugLabel(debugLabel.c_str(), { 1.0F, 1.0F, 1.0F, 1.0F });
 
@@ -117,7 +117,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
         copyBufferInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
         copyBufferInfo.pNext = nullptr;
         copyBufferInfo.srcBuffer = stagingBuffer;
-        copyBufferInfo.dstBuffer = m_Buffer;
+        copyBufferInfo.dstBuffer = mBuffer;
         copyBufferInfo.regionCount = 1;
         copyBufferInfo.pRegions = &copyRegion;
 
@@ -125,41 +125,41 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : m_Device(pDevice)
 
         cmd.EndDebugLabel();
         pDevice->EndAndSubmitSingleTimeCommands();
-        vmaDestroyBuffer(m_Device->GetVmaHandle(), stagingBuffer, stagingBufferAllocation);
+        vmaDestroyBuffer(mDevice->GetVmaHandle(), stagingBuffer, stagingBufferAllocation);
     }
 }
 
 Buffer::~Buffer()
 {
-    if (m_Device != nullptr)
+    if (mDevice != nullptr)
     {
-        vmaDestroyBuffer(m_Device->GetVmaHandle(), m_Buffer, m_Allocation);
+        vmaDestroyBuffer(mDevice->GetVmaHandle(), mBuffer, mAllocation);
     }
 }
 
 Buffer::Buffer(Buffer&& other) noexcept
-    : m_Device(other.m_Device), m_Buffer(other.m_Buffer), m_Allocation(other.m_Allocation),
-      m_DeviceAddress(other.m_DeviceAddress)
+    : mDevice(other.mDevice), mBuffer(other.mBuffer), mAllocation(other.mAllocation),
+      mDeviceAddress(other.mDeviceAddress)
 {
-    other.m_Device = VK_NULL_HANDLE;
-    other.m_Buffer = VK_NULL_HANDLE;
-    other.m_Allocation = VK_NULL_HANDLE;
+    other.mDevice = VK_NULL_HANDLE;
+    other.mBuffer = VK_NULL_HANDLE;
+    other.mAllocation = VK_NULL_HANDLE;
 }
 
 Buffer& Buffer::operator=(Buffer&& other) noexcept
 {
-    if (m_Device != nullptr)
+    if (mDevice != nullptr)
     {
-        vmaDestroyBuffer(m_Device->GetVmaHandle(), m_Buffer, m_Allocation);
+        vmaDestroyBuffer(mDevice->GetVmaHandle(), mBuffer, mAllocation);
     }
 
-    m_Device = other.m_Device;
-    m_Buffer = other.m_Buffer;
-    m_Allocation = other.m_Allocation;
-    m_DeviceAddress = other.m_DeviceAddress;
-    other.m_Device = VK_NULL_HANDLE;
-    other.m_Buffer = VK_NULL_HANDLE;
-    other.m_Allocation = VK_NULL_HANDLE;
+    mDevice = other.mDevice;
+    mBuffer = other.mBuffer;
+    mAllocation = other.mAllocation;
+    mDeviceAddress = other.mDeviceAddress;
+    other.mDevice = VK_NULL_HANDLE;
+    other.mBuffer = VK_NULL_HANDLE;
+    other.mAllocation = VK_NULL_HANDLE;
 
     return *this;
 }

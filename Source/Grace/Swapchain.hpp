@@ -69,13 +69,13 @@ private:
     GRACE_NODISCARD VkExtent2D SelectSwapExtent(VkExtent2D imageExtent, const VkSurfaceCapabilitiesKHR& capabilities);
 
 private:
-    Device* m_Device = nullptr;
-    VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
-    std::vector<ImageHandle> m_Images = {};
-    std::vector<FrameSyncGroup> m_ImageAcquiredSyncStructs = {};
-    uint32_t m_ImageAcquiredCycleIndex = 0U;
-    SwapchainStatus m_SwapchainStatus = SwapchainStatus::Unknown;
-    bool m_VSyncOn = true;
+    Device* mDevice = nullptr;
+    VkSwapchainKHR mSwapchain = VK_NULL_HANDLE;
+    std::vector<ImageHandle> mImages = {};
+    std::vector<FrameSyncGroup> mImageAcquiredSyncStructs = {};
+    uint32_t mImageAcquiredCycleIndex = 0U;
+    SwapchainStatus mSwapchainStatus = SwapchainStatus::Unknown;
+    bool mVSyncOn = true;
 };
 
 } // namespace Grace

@@ -38,8 +38,8 @@ private:
     GRACE_NODISCARD std::vector<const char*> GetRequiredExtensions() const;
 
 private:
-    VkInstance m_Instance = {};
-    std::unique_ptr<Device> m_Device = {};
+    VkInstance mInstance = {};
+    std::unique_ptr<Device> mDevice = {};
 };
 
 } // namespace Grace

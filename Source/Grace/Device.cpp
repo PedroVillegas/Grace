@@ -17,24 +17,24 @@ namespace Grace
 
 Device::~Device()
 {
-    if (m_SurfaceKHR != VK_NULL_HANDLE)
+    if (mSurfaceKHR != VK_NULL_HANDLE)
     {
-        m_Swapchain.reset();
-        vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+        mSwapchain.reset();
+        vkDestroySurfaceKHR(mParentInstance, mSurfaceKHR, nullptr);
     }
 
-    m_ResourceMgr.reset();
-    m_ResourceTable.reset();
-    m_CmdGroupAllocator.reset();
-    m_QueryMgr.reset();
-    vmaDestroyAllocator(m_Allocator);
-    vkDestroyDevice(m_Device, nullptr);
+    mResourceMgr.reset();
+    mResourceTable.reset();
+    mCmdGroupAllocator.reset();
+    mQueryMgr.reset();
+    vmaDestroyAllocator(mAllocator);
+    vkDestroyDevice(mDevice, nullptr);
 }
 
 Device::Device() = default;
 
 Device::Device(VkInstance instance, const DeviceDesc& desc)
-    : m_ParentInstance(instance), m_FramesInFlight(desc.framesInFlight)
+    : mParentInstance(instance), mFramesInFlight(desc.framesInFlight)
 {
     assert(desc.framesInFlight > 0);
 
@@ -49,7 +49,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    DebugReporter::Check(glfwCreateWindowSurface(instance, desc.pGlfwWindow, nullptr, &m_SurfaceKHR));
+    DebugReporter::Check(glfwCreateWindowSurface(instance, desc.pGlfwWindow, nullptr, &mSurfaceKHR));
 #endif
 
     // Checking for supported extensions
@@ -85,127 +85,127 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
     {
         if (IsDeviceSuitable(device, ldd.requiredExt))
         {
-            m_PhysicalDevice = device;
+            mPhysicalDevice = device;
             break;
         }
     }
 
-    assert(m_PhysicalDevice && "Failed to find a suitable GPU!");
+    assert(mPhysicalDevice && "Failed to find a suitable GPU!");
 
     ConfigureQueues(ldd.queueCreateInfos);
 
     ConfigureLogicalDevice(ldd);
 
-    vkGetDeviceQueue(m_Device,
-                     m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
+    vkGetDeviceQueue(mDevice,
+                     mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
                      0,
-                     &m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)]);
-    vkGetDeviceQueue(m_Device,
-                     m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
+                     &mQueues[static_cast<uint32_t>(QueueFamily::Transfer)]);
+    vkGetDeviceQueue(mDevice,
+                     mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
                      0,
-                     &m_Queues[static_cast<uint32_t>(QueueFamily::Compute)]);
-    vkGetDeviceQueue(m_Device,
-                     m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
+                     &mQueues[static_cast<uint32_t>(QueueFamily::Compute)]);
+    vkGetDeviceQueue(mDevice,
+                     mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
                      0,
-                     &m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)]);
+                     &mQueues[static_cast<uint32_t>(QueueFamily::Graphics)]);
 #ifdef GRACE_USE_GLFW
-    vkGetDeviceQueue(m_Device,
-                     m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
+    vkGetDeviceQueue(mDevice,
+                     mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
                      0,
-                     &m_Queues[static_cast<uint32_t>(QueueFamily::Present)]);
+                     &mQueues[static_cast<uint32_t>(QueueFamily::Present)]);
 #endif
 
-    if (m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
+    if (mQueues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
     {
         const char* queueDebugName = "Grace::Queue::Transfer";
-        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)], queueDebugName);
+        AssignDebugName<VkQueue>(mDevice, mQueues[static_cast<uint32_t>(QueueFamily::Transfer)], queueDebugName);
     }
-    if (m_Queues[static_cast<uint32_t>(QueueFamily::Compute)] != nullptr)
+    if (mQueues[static_cast<uint32_t>(QueueFamily::Compute)] != nullptr)
     {
         const char* queueDebugName = "Grace::Queue::Compute";
-        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Compute)], queueDebugName);
+        AssignDebugName<VkQueue>(mDevice, mQueues[static_cast<uint32_t>(QueueFamily::Compute)], queueDebugName);
     }
-    if (m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)] != nullptr)
+    if (mQueues[static_cast<uint32_t>(QueueFamily::Graphics)] != nullptr)
     {
         const char* queueDebugName = "Grace::Queue::Graphics";
-        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)], queueDebugName);
+        AssignDebugName<VkQueue>(mDevice, mQueues[static_cast<uint32_t>(QueueFamily::Graphics)], queueDebugName);
     }
-    if (m_Queues[static_cast<uint32_t>(QueueFamily::Present)] != nullptr)
+    if (mQueues[static_cast<uint32_t>(QueueFamily::Present)] != nullptr)
     {
         const char* queueDebugName = "Grace::Queue::Present";
-        AssignDebugName<VkQueue>(m_Device, m_Queues[static_cast<uint32_t>(QueueFamily::Present)], queueDebugName);
+        AssignDebugName<VkQueue>(mDevice, mQueues[static_cast<uint32_t>(QueueFamily::Present)], queueDebugName);
     }
 
     // Initialize the memory allocator
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.instance = instance;
-    allocatorInfo.physicalDevice = m_PhysicalDevice;
-    allocatorInfo.device = m_Device;
+    allocatorInfo.physicalDevice = mPhysicalDevice;
+    allocatorInfo.device = mDevice;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+    vmaCreateAllocator(&allocatorInfo, &mAllocator);
 
-    m_QueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
-    m_CmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
-    m_ResourceMgr = std::make_unique<ResourceManager>(desc.framesInFlight);
-    m_ResourceTable = std::make_unique<GpuResourceTable>(
+    mQueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
+    mCmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
+    mResourceMgr = std::make_unique<ResourceManager>(desc.framesInFlight);
+    mResourceTable = std::make_unique<GpuResourceTable>(
         this, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
 
-    m_SingleTimeCmdsPool = GetCommandPool(QueueFamily::Graphics, "Grace::CommandPool::SingleTimeCommands");
-    m_SingleTimeCmdsBuffer = std::make_unique<CommandBuffer>(m_SingleTimeCmdsPool->GetOrAllocateCommandBuffer());
+    mSingleTimeCmdsPool = GetCommandPool(QueueFamily::Graphics, "Grace::CommandPool::SingleTimeCommands");
+    mSingleTimeCmdsBuffer = std::make_unique<CommandBuffer>(mSingleTimeCmdsPool->GetOrAllocateCommandBuffer());
 }
 
 bool Device::IsNull() const
 {
-    return m_Device == nullptr || m_Allocator == nullptr;
+    return mDevice == nullptr || mAllocator == nullptr;
 }
 
 VkDevice Device::GetVkHandle() const
 {
-    return m_Device;
+    return mDevice;
 }
 
 VmaAllocator Device::GetVmaHandle() const
 {
-    return m_Allocator;
+    return mAllocator;
 }
 
 void Device::WaitIdle()
 {
-    vkDeviceWaitIdle(m_Device);
+    vkDeviceWaitIdle(mDevice);
 }
 
 uint32_t Device::GetCurrentFrameInFlightIndex() const
 {
-    return m_FrameInFlightIndex;
+    return mFrameInFlightIndex;
 }
 
 void Device::AdvanceToNextFrame()
 {
-    m_FrameInFlightIndex = (m_FrameInFlightIndex + 1) % m_FramesInFlight;
+    mFrameInFlightIndex = (mFrameInFlightIndex + 1) % mFramesInFlight;
 }
 
 void Device::WaitForFence(FenceHandle fence, uint64_t timeout)
 {
     const Fence& waitFor = GetFence(fence);
-    vkWaitForFences(m_Device, 1, &waitFor.GetVkFence(), VK_TRUE, timeout);
-    m_ResourceMgr->FlushDeletionQueue(m_FrameInFlightIndex);
+    vkWaitForFences(mDevice, 1, &waitFor.GetVkFence(), VK_TRUE, timeout);
+    mResourceMgr->FlushDeletionQueue(mFrameInFlightIndex);
 }
 
 void Device::WaitForFences(const std::initializer_list<VkFence>&& fences, uint64_t timeout, bool waitAll)
 {
-    vkWaitForFences(m_Device, static_cast<uint32_t>(fences.size()), fences.begin(), waitAll, timeout);
-    m_ResourceMgr->FlushDeletionQueue(m_FrameInFlightIndex);
+    vkWaitForFences(mDevice, static_cast<uint32_t>(fences.size()), fences.begin(), waitAll, timeout);
+    mResourceMgr->FlushDeletionQueue(mFrameInFlightIndex);
 }
 
 void Device::ResetFence(FenceHandle fence)
 {
     const Fence& toReset = GetFence(fence);
-    vkResetFences(m_Device, 1, &toReset.GetVkFence());
+    vkResetFences(mDevice, 1, &toReset.GetVkFence());
 }
 
 void Device::ResetFences(const std::initializer_list<VkFence>&& fences)
 {
-    vkResetFences(m_Device, static_cast<uint32_t>(fences.size()), fences.begin());
+    vkResetFences(mDevice, static_cast<uint32_t>(fences.size()), fences.begin());
 }
 
 void Device::SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd)
@@ -305,7 +305,7 @@ SwapchainStatus Device::Present(const FrameSyncGroup& fsg)
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore();
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &m_Swapchain->GetVkHandle();
+    presentInfo.pSwapchains = &mSwapchain->GetVkHandle();
     presentInfo.pImageIndices = &fsg.imageIndex;
     presentInfo.pResults = nullptr;
 
@@ -324,27 +324,27 @@ SwapchainStatus Device::Present(const FrameSyncGroup& fsg)
 
 VkDescriptorPool& Device::GetSoleDescriptorPool()
 {
-    return m_ResourceTable->bindlessDescriptorPool;
+    return mResourceTable->bindlessDescriptorPool;
 }
 
 VkDescriptorSet& Device::GetSoleDescriptorSet()
 {
-    return m_ResourceTable->bindlessDescriptorSet;
+    return mResourceTable->bindlessDescriptorSet;
 }
 
 VkDescriptorSetLayout& Device::GetSoleDescriptorSetLayout()
 {
-    return m_ResourceTable->bindlessDescriptorSetLayout;
+    return mResourceTable->bindlessDescriptorSetLayout;
 }
 
 PipelineLayoutHandle Device::GetSolePipelineLayout()
 {
-    return m_ResourceTable->bindlessPipelineLayout;
+    return mResourceTable->bindlessPipelineLayout;
 }
 
 void Device::UpdateBindlessDescriptorSet()
 {
-    m_ResourceTable->UpdateTable();
+    mResourceTable->UpdateTable();
 }
 
 void Device::CopyMemoryToHostVisibleBuffer(BufferHandle dst,
@@ -352,7 +352,7 @@ void Device::CopyMemoryToHostVisibleBuffer(BufferHandle dst,
                                            const void* pHostMem,
                                            VkDeviceSize hostMemBytes)
 {
-    vmaCopyMemoryToAllocation(m_Allocator, pHostMem, GetBuffer(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
+    vmaCopyMemoryToAllocation(mAllocator, pHostMem, GetBuffer(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
 }
 
 void Device::CopyMemoryToHostVisibleImage(ImageHandle dst,
@@ -360,22 +360,22 @@ void Device::CopyMemoryToHostVisibleImage(ImageHandle dst,
                                           const void* pHostMem,
                                           VkDeviceSize hostMemBytes)
 {
-    vmaCopyMemoryToAllocation(m_Allocator, pHostMem, GetImage(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
+    vmaCopyMemoryToAllocation(mAllocator, pHostMem, GetImage(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
 }
 
 void Device::SubmitImageView(ImageView& view)
 {
-    m_ResourceTable->SubmitImageView(view);
+    mResourceTable->SubmitImageView(view);
 }
 
 BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 {
-    BufferHandle newHandle = m_ResourceMgr->Create<Buffer>(this, desc);
+    BufferHandle newHandle = mResourceMgr->Create<Buffer>(this, desc);
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::UniformBuffer))
     {
-        Buffer& b = m_ResourceMgr->Get<Buffer>(newHandle);
-        m_ResourceTable->SubmitBuffer(b);
+        Buffer& b = mResourceMgr->Get<Buffer>(newHandle);
+        mResourceTable->SubmitBuffer(b);
     }
 
     return newHandle;
@@ -383,185 +383,185 @@ BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 
 Buffer& Device::GetBuffer(const BufferHandle& handle)
 {
-    return m_ResourceMgr->Get<Buffer>(handle);
+    return mResourceMgr->Get<Buffer>(handle);
 }
 
 void Device::FreeBuffer(BufferHandle& handle)
 {
-    m_ResourceMgr->Free<Buffer>(handle);
+    mResourceMgr->Free<Buffer>(handle);
 }
 
 void Device::FreeBufferDeferred(BufferHandle& handle)
 {
-    m_ResourceMgr->Free<Buffer>(handle, m_FrameInFlightIndex);
+    mResourceMgr->Free<Buffer>(handle, mFrameInFlightIndex);
 }
 
 ImageHandle Device::CreateImage(const ImageDesc& desc)
 {
-    ImageHandle newHandle = m_ResourceMgr->Create<Image>(this, desc);
+    ImageHandle newHandle = mResourceMgr->Create<Image>(this, desc);
 
-    Image& t = m_ResourceMgr->Get<Image>(newHandle);
-    m_ResourceTable->SubmitImage(t);
+    Image& t = mResourceMgr->Get<Image>(newHandle);
+    mResourceTable->SubmitImage(t);
 
     return newHandle;
 }
 
 ImageHandle Device::CreateSwapchainImage(VkImage image, const ImageDesc& desc)
 {
-    return m_ResourceMgr->Create<Image>(this, image, desc);
+    return mResourceMgr->Create<Image>(this, image, desc);
 }
 
 Image& Device::GetImage(const ImageHandle& handle)
 {
-    return m_ResourceMgr->Get<Image>(handle);
+    return mResourceMgr->Get<Image>(handle);
 }
 
 std::vector<RegistryEntry<Image>>& Device::GetAllImages()
 {
-    return m_ResourceMgr->GetAllImages();
+    return mResourceMgr->GetAllImages();
 }
 
 void Device::FreeImage(ImageHandle& handle)
 {
-    m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
-    m_ResourceMgr->Free<Image>(handle);
+    mResourceTable->FreeImage(mResourceMgr->Get<Image>(handle));
+    mResourceMgr->Free<Image>(handle);
 }
 
 void Device::FreeImageDeferred(ImageHandle& handle)
 {
-    m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
-    m_ResourceMgr->Free<Image>(handle, m_FrameInFlightIndex);
+    mResourceTable->FreeImage(mResourceMgr->Get<Image>(handle));
+    mResourceMgr->Free<Image>(handle, mFrameInFlightIndex);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)
 {
-    SamplerHandle newHandle = m_ResourceMgr->Create<Sampler>(this, desc);
+    SamplerHandle newHandle = mResourceMgr->Create<Sampler>(this, desc);
 
-    Sampler& s = m_ResourceMgr->Get<Sampler>(newHandle);
-    m_ResourceTable->SubmitSampler(s);
+    Sampler& s = mResourceMgr->Get<Sampler>(newHandle);
+    mResourceTable->SubmitSampler(s);
 
     return newHandle;
 }
 
 Sampler& Device::GetSampler(const SamplerHandle& handle)
 {
-    return m_ResourceMgr->Get<Sampler>(handle);
+    return mResourceMgr->Get<Sampler>(handle);
 }
 
 void Device::FreeSampler(SamplerHandle& handle)
 {
-    m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
-    m_ResourceMgr->Free<Sampler>(handle);
+    mResourceTable->FreeSampler(mResourceMgr->Get<Sampler>(handle));
+    mResourceMgr->Free<Sampler>(handle);
 }
 
 void Device::FreeSamplerDeferred(SamplerHandle& handle)
 {
-    m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
-    m_ResourceMgr->Free<Sampler>(handle, m_FrameInFlightIndex);
+    mResourceTable->FreeSampler(mResourceMgr->Get<Sampler>(handle));
+    mResourceMgr->Free<Sampler>(handle, mFrameInFlightIndex);
 }
 
 PipelineHandle Device::CreatePipeline(const PipelineDesc& desc)
 {
-    return m_ResourceMgr->Create<Pipeline>(this, desc);
+    return mResourceMgr->Create<Pipeline>(this, desc);
 }
 
 Pipeline& Device::GetPipeline(const PipelineHandle& handle)
 {
-    return m_ResourceMgr->Get<Pipeline>(handle);
+    return mResourceMgr->Get<Pipeline>(handle);
 }
 
 void Device::FreePipeline(PipelineHandle& handle)
 {
-    m_ResourceMgr->Free<Pipeline>(handle);
+    mResourceMgr->Free<Pipeline>(handle);
 }
 
 PipelineLayoutHandle Device::CreatePipelineLayout(const PipelineLayoutDesc& desc)
 {
-    return m_ResourceMgr->Create<PipelineLayout>(this, desc);
+    return mResourceMgr->Create<PipelineLayout>(this, desc);
 }
 
 PipelineLayout& Device::GetPipelineLayout(const PipelineLayoutHandle& handle)
 {
-    return m_ResourceMgr->Get<PipelineLayout>(handle);
+    return mResourceMgr->Get<PipelineLayout>(handle);
 }
 
 void Device::FreePipelineLayout(PipelineLayoutHandle& handle)
 {
-    m_ResourceMgr->Free<PipelineLayout>(handle);
+    mResourceMgr->Free<PipelineLayout>(handle);
 }
 
 FenceHandle Device::CreateFence(const FenceDesc& desc)
 {
-    return m_ResourceMgr->Create<Fence>(this, desc);
+    return mResourceMgr->Create<Fence>(this, desc);
 }
 
 Fence& Device::GetFence(const FenceHandle& handle)
 {
-    return m_ResourceMgr->Get<Fence>(handle);
+    return mResourceMgr->Get<Fence>(handle);
 }
 
 void Device::FreeFence(FenceHandle& handle)
 {
-    m_ResourceMgr->Free<Fence>(handle);
+    mResourceMgr->Free<Fence>(handle);
 }
 
 BinarySemaphoreHandle Device::CreateBinarySemaphore(const SemaphoreDesc& desc)
 {
-    return m_ResourceMgr->Create<BinarySemaphore>(this, desc);
+    return mResourceMgr->Create<BinarySemaphore>(this, desc);
 }
 
 BinarySemaphore& Device::GetBinarySemaphore(const BinarySemaphoreHandle& handle)
 {
-    return m_ResourceMgr->Get<BinarySemaphore>(handle);
+    return mResourceMgr->Get<BinarySemaphore>(handle);
 }
 
 void Device::FreeBinarySemaphore(BinarySemaphoreHandle& handle)
 {
-    m_ResourceMgr->Free<BinarySemaphore>(handle);
+    mResourceMgr->Free<BinarySemaphore>(handle);
 }
 
 TimelineSemaphoreHandle Device::CreateTimelineSemaphore(const SemaphoreDesc& desc)
 {
-    return m_ResourceMgr->Create<TimelineSemaphore>(this, desc);
+    return mResourceMgr->Create<TimelineSemaphore>(this, desc);
 }
 
 TimelineSemaphore& Device::GetTimelineSemaphore(const TimelineSemaphoreHandle& handle)
 {
-    return m_ResourceMgr->Get<TimelineSemaphore>(handle);
+    return mResourceMgr->Get<TimelineSemaphore>(handle);
 }
 
 void Device::FreeTimelineSemaphore(TimelineSemaphoreHandle& handle)
 {
-    m_ResourceMgr->Free<TimelineSemaphore>(handle);
+    mResourceMgr->Free<TimelineSemaphore>(handle);
 }
 
 CommandPool* Device::GetCommandPool(QueueFamily queueFamily, const char* name)
 {
-    return m_CmdGroupAllocator->GetOrAllocateCommandPool(queueFamily, name);
+    return mCmdGroupAllocator->GetOrAllocateCommandPool(queueFamily, name);
 }
 
 void Device::FreeCommandBuffer(CommandBuffer commandBuffer)
 {
-    m_CmdGroupAllocator->FreeCommandBuffer();
+    mCmdGroupAllocator->FreeCommandBuffer();
 }
 
 CommandBuffer& Device::BeginSingleTimeCommands()
 {
-    m_SingleTimeCmdsBuffer->BeginRecording();
-    return *m_SingleTimeCmdsBuffer;
+    mSingleTimeCmdsBuffer->BeginRecording();
+    return *mSingleTimeCmdsBuffer;
 }
 
 void Device::EndAndSubmitSingleTimeCommands()
 {
-    m_SingleTimeCmdsBuffer->EndRecording();
-    SubmitAndWait(QueueFamily::Graphics, *m_SingleTimeCmdsBuffer);
-    m_SingleTimeCmdsPool->Reset();
+    mSingleTimeCmdsBuffer->EndRecording();
+    SubmitAndWait(QueueFamily::Graphics, *mSingleTimeCmdsBuffer);
+    mSingleTimeCmdsPool->Reset();
 }
 
 uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 {
     assert(queueFamily != QueueFamily::Undefined);
-    std::optional<uint32_t> queueFamilyIndex = m_QueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
+    std::optional<uint32_t> queueFamilyIndex = mQueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
     assert(queueFamilyIndex.has_value());
     return queueFamilyIndex.value();
 }
@@ -569,60 +569,60 @@ uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 VkQueue Device::GetQueue(QueueFamily queueFamily)
 {
     assert(queueFamily != QueueFamily::Undefined);
-    std::optional<uint32_t> queueFamilyIndex = m_QueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
+    std::optional<uint32_t> queueFamilyIndex = mQueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
     assert(queueFamilyIndex.has_value());
-    return m_Queues[static_cast<uint32_t>(queueFamily)];
+    return mQueues[static_cast<uint32_t>(queueFamily)];
 }
 
 QueryManager* Device::GetQueryManagerPtr()
 {
-    return m_QueryMgr.get();
+    return mQueryMgr.get();
 }
 
 FrameSyncGroup& Device::AcquireNextSwapchainImage(VkExtent2D imageExtent)
 {
-    return m_Swapchain->AcquireNextImage(imageExtent);
+    return mSwapchain->AcquireNextImage(imageExtent);
 }
 
 ImageHandle Device::GetRecentlyAcquiredSwapchainImage() const
 {
-    return m_Swapchain->GetRecentAcquiredImage();
+    return mSwapchain->GetRecentAcquiredImage();
 }
 
 const FrameSyncGroup& Device::GetRecentImageAcquiredDesc()
 {
-    return m_Swapchain->GetRecentFrameSyncGroup();
+    return mSwapchain->GetRecentFrameSyncGroup();
 }
 
 const Format& Device::GetSwapchainFormat() const
 {
-    return m_Swapchain->GetFormat();
+    return mSwapchain->GetFormat();
 }
 
 void Device::CreateSwapchain(VkExtent2D imageExtent, bool vsync)
 {
-    if (m_Swapchain != nullptr)
+    if (mSwapchain != nullptr)
     {
         WaitIdle();
-        m_Swapchain.reset();
+        mSwapchain.reset();
     }
 
-    m_Swapchain = std::make_unique<Swapchain>(this, imageExtent, vsync);
+    mSwapchain = std::make_unique<Swapchain>(this, imageExtent, vsync);
 }
 
 SwapchainStatus Device::GetSwapchainStatus() const
 {
-    return m_Swapchain->GetStatus();
+    return mSwapchain->GetStatus();
 }
 
 VkPhysicalDevice Device::GetPhysicalDevice() const
 {
-    return m_PhysicalDevice;
+    return mPhysicalDevice;
 }
 
 VkSurfaceKHR Device::GetSurface() const
 {
-    return m_SurfaceKHR;
+    return mSurfaceKHR;
 }
 
 void Device::ConfigurePhysicalDevice(VkInstance instance, const std::vector<const char*>& requiredExt)
@@ -640,12 +640,12 @@ void Device::ConfigurePhysicalDevice(VkInstance instance, const std::vector<cons
     {
         if (IsDeviceSuitable(device, requiredExt))
         {
-            m_PhysicalDevice = device;
+            mPhysicalDevice = device;
             break;
         }
     }
 
-    assert(m_PhysicalDevice && "Failed to find a suitable GPU!");
+    assert(mPhysicalDevice && "Failed to find a suitable GPU!");
 }
 
 void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
@@ -693,7 +693,7 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     features2.pNext = &compShaderDerivativesFeatures;
     features2.features = deviceFeatures;
 
-    vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &features2);
+    vkGetPhysicalDeviceFeatures2(mPhysicalDevice, &features2);
 
     // Set up a logical device to interface with the physical device
     // Can create multiple logical devices from the same physical device if there are varying requirements
@@ -708,7 +708,7 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     createInfo.enabledLayerCount = 0;
     createInfo.ppEnabledLayerNames = nullptr;
 
-    DebugReporter::Check(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device));
+    DebugReporter::Check(vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice));
 }
 
 void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateInfos)
@@ -716,10 +716,10 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
     // Fetch physical device's queue family indices
 
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyCount, queueFamilies.data());
 
     bool minQueueFamilyFound = false;
     uint32_t i = 0;
@@ -727,28 +727,28 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
     {
         if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
         {
-            m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)] = i;
+            mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)] = i;
         }
 
         if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
         {
-            m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)] = i;
+            mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)] = i;
         }
 
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             minQueueFamilyFound = true;
-            m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)] = i;
+            mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)] = i;
         }
 
-        if (m_SurfaceKHR != nullptr)
+        if (mSurfaceKHR != nullptr)
         {
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice, i, m_SurfaceKHR, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, i, mSurfaceKHR, &presentSupport);
 
             if (presentSupport)
             {
-                m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)] = i;
+                mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)] = i;
             }
         }
 
@@ -760,11 +760,11 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
     // Create a queue for each family
     queueCreateInfos.reserve(static_cast<uint32_t>(QueueFamily::Undefined));
     std::set<uint32_t> uniqueQueueFamilies = {
-        m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
-        m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
-        m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
+        mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
+        mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
+        mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
 #ifdef GRACE_USE_GLFW
-        m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value()
+        mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value()
 #endif
     };
 
@@ -785,7 +785,7 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
 {
     assert(device != nullptr);
 
-    QueueFamilyIndices indices = FindQueueFamilies(device, m_SurfaceKHR);
+    QueueFamilyIndices indices = FindQueueFamilies(device, mSurfaceKHR);
 
     bool bExtensionsSupported = CheckDeviceExtensionSupport(device, requiredExt);
 
@@ -793,7 +793,7 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
     bool bSwapChainAdequate = false;
     if (bExtensionsSupported)
     {
-        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, m_SurfaceKHR);
+        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, mSurfaceKHR);
         bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 #endif

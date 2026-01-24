@@ -5,13 +5,13 @@
 
 Grace::Fence::~Fence()
 {
-    if (m_Fence != VK_NULL_HANDLE)
+    if (mFence != VK_NULL_HANDLE)
     {
-        vkDestroyFence(m_pDevice->GetVkHandle(), m_Fence, nullptr);
+        vkDestroyFence(mDevicePtr->GetVkHandle(), mFence, nullptr);
     }
 }
 
-Grace::Fence::Fence(Device* pDevice, const FenceDesc& desc) : m_pDevice(pDevice)
+Grace::Fence::Fence(Device* pDevice, const FenceDesc& desc) : mDevicePtr(pDevice)
 {
     VkFenceCreateInfo cinfo = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -19,36 +19,36 @@ Grace::Fence::Fence(Device* pDevice, const FenceDesc& desc) : m_pDevice(pDevice)
         .flags = static_cast<VkFenceCreateFlags>(desc.flags),
     };
 
-    DebugReporter::Check(vkCreateFence(m_pDevice->GetVkHandle(), &cinfo, nullptr, &m_Fence));
-    AssignDebugName<VkFence>(m_pDevice->GetVkHandle(), m_Fence, desc.name);
+    DebugReporter::Check(vkCreateFence(mDevicePtr->GetVkHandle(), &cinfo, nullptr, &mFence));
+    AssignDebugName<VkFence>(mDevicePtr->GetVkHandle(), mFence, desc.name);
 }
 
-Grace::Fence::Fence(Fence&& other) noexcept : m_pDevice(other.m_pDevice), m_Fence(other.m_Fence)
+Grace::Fence::Fence(Fence&& other) noexcept : mDevicePtr(other.mDevicePtr), mFence(other.mFence)
 {
-    other.m_pDevice = nullptr;
-    other.m_Fence = VK_NULL_HANDLE;
+    other.mDevicePtr = nullptr;
+    other.mFence = VK_NULL_HANDLE;
 }
 
 Grace::Fence& Grace::Fence::operator=(Fence&& other) noexcept
 {
-    if (m_Fence != VK_NULL_HANDLE)
+    if (mFence != VK_NULL_HANDLE)
     {
-        vkDestroyFence(m_pDevice->GetVkHandle(), m_Fence, nullptr);
+        vkDestroyFence(mDevicePtr->GetVkHandle(), mFence, nullptr);
     }
 
-    m_pDevice = other.m_pDevice;
-    m_Fence = other.m_Fence;
-    other.m_Fence = VK_NULL_HANDLE;
+    mDevicePtr = other.mDevicePtr;
+    mFence = other.mFence;
+    other.mFence = VK_NULL_HANDLE;
 
     return *this;
 }
 
 bool Grace::Fence::IsNull() const
 {
-    return m_Fence == VK_NULL_HANDLE;
+    return mFence == VK_NULL_HANDLE;
 }
 
 const VkFence& Grace::Fence::GetVkFence() const
 {
-    return m_Fence;
+    return mFence;
 }

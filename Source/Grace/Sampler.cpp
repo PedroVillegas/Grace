@@ -10,15 +10,15 @@ namespace Grace
 
 Sampler::~Sampler()
 {
-    if (m_Sampler != nullptr)
+    if (mSampler != nullptr)
     {
-        vkDestroySampler(m_Device->GetVkHandle(), m_Sampler, nullptr);
+        vkDestroySampler(mDevice->GetVkHandle(), mSampler, nullptr);
     }
 }
 
-Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : m_Device(pDevice)
+Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : mDevice(pDevice)
 {
-    assert(!m_Device->IsNull());
+    assert(!mDevice->IsNull());
 
     VkSamplerCreateInfo samplerInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -41,46 +41,46 @@ Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : m_Device(pDevice)
         .unnormalizedCoordinates = false,
     };
 
-    DebugReporter::Check(vkCreateSampler(m_Device->GetVkHandle(), &samplerInfo, nullptr, &m_Sampler));
+    DebugReporter::Check(vkCreateSampler(mDevice->GetVkHandle(), &samplerInfo, nullptr, &mSampler));
 }
 
-Sampler::Sampler(Sampler&& other) noexcept : m_Device(other.m_Device), m_Sampler(other.m_Sampler)
+Sampler::Sampler(Sampler&& other) noexcept : mDevice(other.mDevice), mSampler(other.mSampler)
 {
-    other.m_Sampler = nullptr;
+    other.mSampler = nullptr;
 }
 
 Sampler& Sampler::operator=(Sampler&& other) noexcept
 {
-    if (m_Sampler != nullptr)
+    if (mSampler != nullptr)
     {
-        vkDestroySampler(m_Device->GetVkHandle(), m_Sampler, nullptr);
+        vkDestroySampler(mDevice->GetVkHandle(), mSampler, nullptr);
     }
 
-    m_Device = other.m_Device;
-    m_Sampler = other.m_Sampler;
-    other.m_Sampler = nullptr;
+    mDevice = other.mDevice;
+    mSampler = other.mSampler;
+    other.mSampler = nullptr;
 
     return *this;
 }
 
 bool Sampler::IsNull() const
 {
-    return m_Sampler == nullptr;
+    return mSampler == nullptr;
 }
 
 VkSampler Sampler::GetVkHandle() const
 {
-    return m_Sampler;
+    return mSampler;
 }
 
 void Sampler::SetSamplerId(const uint32_t id)
 {
-    m_SamplerId = id;
+    mSamplerId = id;
 }
 
 uint32_t Sampler::GetSamplerId() const
 {
-    return m_SamplerId;
+    return mSamplerId;
 }
 
 } // namespace Grace

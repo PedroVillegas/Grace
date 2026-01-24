@@ -14,14 +14,14 @@ namespace Grace
 
 VkInstance& Context::GetInstance()
 {
-    return m_Instance;
+    return mInstance;
 }
 
 Context::~Context()
 {
-    m_Device->WaitIdle();
-    m_Device.reset();
-    vkDestroyInstance(m_Instance, nullptr);
+    mDevice->WaitIdle();
+    mDevice.reset();
+    vkDestroyInstance(mInstance, nullptr);
 }
 
 Context::Context(const ContextDesc& desc)
@@ -63,22 +63,22 @@ Context::Context(const ContextDesc& desc)
     ici.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     ici.ppEnabledExtensionNames = extensions.data();
 
-    DebugReporter::Check(vkCreateInstance(&ici, nullptr, &m_Instance));
+    DebugReporter::Check(vkCreateInstance(&ici, nullptr, &mInstance));
 
-    vkSetDebugUtilsObjectNameEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkSetDebugUtilsObjectNameEXT);
-    vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdBeginDebugUtilsLabelEXT);
-    vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdEndDebugUtilsLabelEXT);
-    vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(m_Instance, vkCmdInsertDebugUtilsLabelEXT);
+    vkSetDebugUtilsObjectNameEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkSetDebugUtilsObjectNameEXT);
+    vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdBeginDebugUtilsLabelEXT);
+    vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdEndDebugUtilsLabelEXT);
+    vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdInsertDebugUtilsLabelEXT);
 
-    m_Device = std::make_unique<Device>(m_Instance, desc.deviceConfig);
+    mDevice = std::make_unique<Device>(mInstance, desc.deviceConfig);
 
-    AssignDebugName<VkInstance>(m_Device->GetVkHandle(), m_Instance, "Grace::Instance");
-    AssignDebugName<VkDevice>(m_Device->GetVkHandle(), m_Device->GetVkHandle(), "Grace::Device");
+    AssignDebugName<VkInstance>(mDevice->GetVkHandle(), mInstance, "Grace::Instance");
+    AssignDebugName<VkDevice>(mDevice->GetVkHandle(), mDevice->GetVkHandle(), "Grace::Device");
 }
 
 Device* Context::GetDevicePtr()
 {
-    return m_Device.get();
+    return mDevice.get();
 }
 
 std::vector<const char*> Context::GetRequiredExtensions() const

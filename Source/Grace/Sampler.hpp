@@ -51,9 +51,9 @@ public:
     GRACE_NODISCARD uint32_t GetSamplerId() const;
 
 private:
-    Device* m_Device = nullptr;
-    VkSampler m_Sampler = nullptr;
-    uint32_t m_SamplerId = 0;
+    Device* mDevice = nullptr;
+    VkSampler mSampler = nullptr;
+    uint32_t mSamplerId = 0;
 };
 
 } // namespace Grace

@@ -57,10 +57,10 @@ public:
     GRACE_NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
 
 private:
-    Device* m_Device = nullptr;
-    VkBuffer m_Buffer = nullptr;
-    VmaAllocation m_Allocation = nullptr;
-    uint64_t m_DeviceAddress = 0;
+    Device* mDevice = nullptr;
+    VkBuffer mBuffer = nullptr;
+    VmaAllocation mAllocation = nullptr;
+    uint64_t mDeviceAddress = 0;
 };
 
 } // namespace Grace

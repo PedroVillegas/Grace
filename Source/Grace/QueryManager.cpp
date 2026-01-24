@@ -11,62 +11,62 @@ namespace Grace
 
 QueryManager::~QueryManager()
 {
-    vkDestroyQueryPool(m_pDevice->GetVkHandle(), m_TimestampQueryGroup.m_QueryPool, nullptr);
-    vkDestroyQueryPool(m_pDevice->GetVkHandle(), m_OcclusionQueryGroup.m_QueryPool, nullptr);
-    vkDestroyQueryPool(m_pDevice->GetVkHandle(), m_PipelineStatsQueryGroup.m_QueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mTimestampQueryGroup.mQueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, nullptr);
 }
 
-QueryManager::QueryManager(Device* pDevice, uint32_t framesInFlight, const QueryGroupDesc& qgDesc) : m_pDevice(pDevice)
+QueryManager::QueryManager(Device* pDevice, uint32_t framesInFlight, const QueryGroupDesc& qgDesc) : mDevicePtr(pDevice)
 {
-    assert(m_pDevice != nullptr);
+    assert(mDevicePtr != nullptr);
 
     VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(m_pDevice->GetPhysicalDevice(), &props);
+    vkGetPhysicalDeviceProperties(mDevicePtr->GetPhysicalDevice(), &props);
     const float timestampPeriod = props.limits.timestampPeriod;
 
     // Initialise Timestamp Query Group
-    m_TimestampQueryGroup.m_Queries.resize(qgDesc.timestampQueriesCount * framesInFlight);
-    m_TimestampQueryGroup.m_TimestampPeriod = timestampPeriod;
-    m_TimestampQueryGroup.m_Range = qgDesc.timestampQueriesCount;
+    mTimestampQueryGroup.mQueries.resize(qgDesc.timestampQueriesCount * framesInFlight);
+    mTimestampQueryGroup.mTimestampPeriod = timestampPeriod;
+    mTimestampQueryGroup.mRange = qgDesc.timestampQueriesCount;
 
     VkQueryPoolCreateInfo pci = {};
     pci.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
     pci.pNext = nullptr;
     pci.queryType = VK_QUERY_TYPE_TIMESTAMP;
-    pci.queryCount = m_TimestampQueryGroup.m_ValuesPerQuery * m_TimestampQueryGroup.m_Queries.size();
+    pci.queryCount = mTimestampQueryGroup.mValuesPerQuery * mTimestampQueryGroup.mQueries.size();
     pci.flags = 0;
     pci.pipelineStatistics = 0;
-    DebugReporter::Check(vkCreateQueryPool(m_pDevice->GetVkHandle(), &pci, nullptr, &m_TimestampQueryGroup.m_QueryPool));
+    DebugReporter::Check(vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mTimestampQueryGroup.mQueryPool));
 
-    AssignDebugName<VkQueryPool>(pDevice->GetVkHandle(), m_TimestampQueryGroup.m_QueryPool, "Grace::QueryPool::Timestamp");
+    AssignDebugName<VkQueryPool>(pDevice->GetVkHandle(), mTimestampQueryGroup.mQueryPool, "Grace::QueryPool::Timestamp");
 
     // Initialise Occlusion Query Group
-    m_OcclusionQueryGroup.m_Queries.resize(qgDesc.occlusionQueriesCount * framesInFlight);
-    m_OcclusionQueryGroup.m_TimestampPeriod = timestampPeriod;
-    m_OcclusionQueryGroup.m_Range = qgDesc.occlusionQueriesCount;
+    mOcclusionQueryGroup.mQueries.resize(qgDesc.occlusionQueriesCount * framesInFlight);
+    mOcclusionQueryGroup.mTimestampPeriod = timestampPeriod;
+    mOcclusionQueryGroup.mRange = qgDesc.occlusionQueriesCount;
 
     pci.queryType = VK_QUERY_TYPE_OCCLUSION;
-    pci.queryCount = m_OcclusionQueryGroup.m_ValuesPerQuery * m_OcclusionQueryGroup.m_Queries.size();
-    DebugReporter::Check(vkCreateQueryPool(m_pDevice->GetVkHandle(), &pci, nullptr, &m_OcclusionQueryGroup.m_QueryPool));
+    pci.queryCount = mOcclusionQueryGroup.mValuesPerQuery * mOcclusionQueryGroup.mQueries.size();
+    DebugReporter::Check(vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mOcclusionQueryGroup.mQueryPool));
 
-    AssignDebugName<VkQueryPool>(pDevice->GetVkHandle(), m_OcclusionQueryGroup.m_QueryPool, "Grace::QueryPool::Occlusion");
+    AssignDebugName<VkQueryPool>(pDevice->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, "Grace::QueryPool::Occlusion");
 
     // Need to find the number of pipelineStatistics bits that have been set
     uint32_t bitsSet = std::popcount(static_cast<uint32_t>(qgDesc.pipelineStatisticsFlags));
 
     // Initialise Pipeline Stats Query Group
-    m_PipelineStatsQueryGroup.m_Queries.resize(bitsSet * qgDesc.pipelineStatisticsCount * framesInFlight);
-    m_PipelineStatsQueryGroup.m_ValuesPerQuery = bitsSet;
-    m_PipelineStatsQueryGroup.m_TimestampPeriod = timestampPeriod;
-    m_PipelineStatsQueryGroup.m_Range = qgDesc.pipelineStatisticsCount;
+    mPipelineStatsQueryGroup.mQueries.resize(bitsSet * qgDesc.pipelineStatisticsCount * framesInFlight);
+    mPipelineStatsQueryGroup.mValuesPerQuery = bitsSet;
+    mPipelineStatsQueryGroup.mTimestampPeriod = timestampPeriod;
+    mPipelineStatsQueryGroup.mRange = qgDesc.pipelineStatisticsCount;
 
     pci.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
-    pci.queryCount = m_PipelineStatsQueryGroup.m_ValuesPerQuery * m_PipelineStatsQueryGroup.m_Queries.size();
+    pci.queryCount = mPipelineStatsQueryGroup.mValuesPerQuery * mPipelineStatsQueryGroup.mQueries.size();
     pci.pipelineStatistics = static_cast<VkQueryPipelineStatisticFlags>(qgDesc.pipelineStatisticsFlags);
-    DebugReporter::Check(vkCreateQueryPool(m_pDevice->GetVkHandle(), &pci, nullptr, &m_PipelineStatsQueryGroup.m_QueryPool));
+    DebugReporter::Check(vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mPipelineStatsQueryGroup.mQueryPool));
 
     AssignDebugName<VkQueryPool>(
-        pDevice->GetVkHandle(), m_PipelineStatsQueryGroup.m_QueryPool, "Grace::QueryPool::PipelineStatistics");
+        pDevice->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, "Grace::QueryPool::PipelineStatistics");
 }
 
 } // namespace Grace

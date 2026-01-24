@@ -525,9 +525,9 @@ private:
     static void GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, VkImageMemoryBarrier2& vkBarrierOut) ;
 
 private:
-    MemoryBarrier m_MemoryBarrier = {};
-    std::vector<ImageBarrier> m_ImageBarriers = {};
-    std::vector<BufferBarrier> m_BufferBarriers = {};
+    MemoryBarrier mMemoryBarrier = {};
+    std::vector<ImageBarrier> mImageBarriers = {};
+    std::vector<BufferBarrier> mBufferBarriers = {};
 };
 
 } // namespace Grace

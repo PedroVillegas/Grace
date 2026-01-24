@@ -38,53 +38,53 @@ class Registry
 public:
     std::vector<RegistryEntry<Res>>& GetAll()
     {
-        return m_Registry;
+        return mRegistry;
     }
 
     template <typename... Args>
     Handle<Res> Register(Args&&... args)
     {
         // Use free slots if any available
-        if (!m_FreeSlots.empty())
+        if (!mFreeSlots.empty())
         {
-            Handle<Res> newHandle = m_FreeSlots.front();
-            m_FreeSlots.pop();
-            m_Registry[newHandle.handle].validator = newHandle.validator;
-            m_Registry[newHandle.handle].resource = Res(std::forward<Args>(args)...);
+            Handle<Res> newHandle = mFreeSlots.front();
+            mFreeSlots.pop();
+            mRegistry[newHandle.handle].validator = newHandle.validator;
+            mRegistry[newHandle.handle].resource = Res(std::forward<Args>(args)...);
             return newHandle;
         }
 
-        uint32_t newValidator = m_Validator++;
-        m_Registry.emplace_back(newValidator, std::forward<Args>(args)...);
+        uint32_t newValidator = mValidator++;
+        mRegistry.emplace_back(newValidator, std::forward<Args>(args)...);
 
-        const uint32_t index = static_cast<uint32_t>(m_Registry.size() - 1);
+        const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
         return Handle<Res>(index, newValidator);
     }
 
     Res& Get(const Handle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
-        const bool handleInRange = resourceHandle.handle < m_Registry.size();
+        const bool handleInRange = resourceHandle.handle < mRegistry.size();
         assert(handleInRange && "Handle is not in range.");
-        const bool isValidSlot = m_Registry[resourceHandle.handle].validator == resourceHandle.validator;
+        const bool isValidSlot = mRegistry[resourceHandle.handle].validator == resourceHandle.validator;
         assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
 
-        return m_Registry[resourceHandle.handle].resource;
+        return mRegistry[resourceHandle.handle].resource;
     }
 
     void Free(Handle<Res>& resourceHandle, bool deferred)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
-        const bool handleInRange = resourceHandle.handle < m_Registry.size();
+        const bool handleInRange = resourceHandle.handle < mRegistry.size();
         assert(handleInRange && "Handle is not in range.");
-        const bool isValidSlot = m_Registry[resourceHandle.handle].validator == resourceHandle.validator;
+        const bool isValidSlot = mRegistry[resourceHandle.handle].validator == resourceHandle.validator;
         assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
 
-        m_Registry[resourceHandle.handle].resource = Res();
-        m_Registry[resourceHandle.handle].validator = INVALID_VALIDATOR;
+        mRegistry[resourceHandle.handle].resource = Res();
+        mRegistry[resourceHandle.handle].validator = INVALID_VALIDATOR;
 
         // Slot is freed up and can be reused for the next resource created
-        m_FreeSlots.emplace(resourceHandle.handle, ++m_Validator);
+        mFreeSlots.emplace(resourceHandle.handle, ++mValidator);
 
         // Invalidate resourceHandle
         if (!deferred)
@@ -95,9 +95,9 @@ public:
     }
 
 private:
-    std::vector<RegistryEntry<Res>> m_Registry = {};
-    std::queue<Handle<Res>> m_FreeSlots = {};
-    uint32_t m_Validator = 0;
+    std::vector<RegistryEntry<Res>> mRegistry = {};
+    std::queue<Handle<Res>> mFreeSlots = {};
+    uint32_t mValidator = 0;
 };
 
 /// Handles all graphics resources through registry containers.
@@ -131,7 +131,7 @@ public:
     {
         if (frameIndex != std::numeric_limits<uint32_t>::max())
         {
-            m_DeletionQueue->PushDeleter(
+            mDeletionQueue->PushDeleter(
                 [&]()
                 {
                     ResourceRegistry<Res>().Free(handle, true);
@@ -146,19 +146,19 @@ public:
     GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
-    std::unique_ptr<DeletionQueue> m_DeletionQueue = nullptr;
+    std::unique_ptr<DeletionQueue> mDeletionQueue = nullptr;
 
     template <typename Res>
     auto& ResourceRegistry();
 
-    GRACE_DEFINE_RESOURCE_REGISTRY(Image, m_ImagesRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(Buffer, m_BuffersRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(Sampler, m_SamplersRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(Pipeline, m_PipelinesRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(PipelineLayout, m_PipelineLayoutsRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(Fence, m_FencesRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(BinarySemaphore, m_BinarySemaphoresRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(TimelineSemaphore, m_TimelineSemaphoresRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Image, mImagesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Buffer, mBuffersRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Sampler, mSamplersRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Pipeline, mPipelinesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(PipelineLayout, mPipelineLayoutsRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Fence, mFencesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(BinarySemaphore, mBinarySemaphoresRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(TimelineSemaphore, mTimelineSemaphoresRegistry);
 };
 
 } // namespace Grace

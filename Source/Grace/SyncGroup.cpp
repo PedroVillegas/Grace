@@ -15,18 +15,18 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
     VkMemoryBarrier2 vkMemoryBarrier = {};
 
     uint32_t memoryBarrierCount =
-        (m_MemoryBarrier.accessesBefore.empty() || m_MemoryBarrier.accessesAfter.empty()) ? 0 : 1;
+        (mMemoryBarrier.accessesBefore.empty() || mMemoryBarrier.accessesAfter.empty()) ? 0 : 1;
 
-    uint32_t bufferMemoryBarrierCount = static_cast<uint32_t>(m_BufferBarriers.size());
+    uint32_t bufferMemoryBarrierCount = static_cast<uint32_t>(mBufferBarriers.size());
     std::vector<VkBufferMemoryBarrier2> vkBufferMemoryBarriers(bufferMemoryBarrierCount);
 
-    uint32_t imageMemoryBarrierCount = static_cast<uint32_t>(m_ImageBarriers.size());
+    uint32_t imageMemoryBarrierCount = static_cast<uint32_t>(mImageBarriers.size());
     std::vector<VkImageMemoryBarrier2> vkImageMemoryBarriers(imageMemoryBarrierCount);
 
     // Global memory barrier
     if (memoryBarrierCount > 0)
     {
-        GetVulkanMemoryBarrier(m_MemoryBarrier, vkMemoryBarrier);
+        GetVulkanMemoryBarrier(mMemoryBarrier, vkMemoryBarrier);
     }
 
     // Buffer memory barriers
@@ -34,7 +34,7 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
     {
         for (uint32_t i = 0; i < bufferMemoryBarrierCount; ++i)
         {
-            GetVulkanBufferMemoryBarrier(m_BufferBarriers[i], vkBufferMemoryBarriers[i]);
+            GetVulkanBufferMemoryBarrier(mBufferBarriers[i], vkBufferMemoryBarriers[i]);
         }
     }
 
@@ -43,7 +43,7 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
     {
         for (uint32_t i = 0; i < imageMemoryBarrierCount; ++i)
         {
-            GetVulkanImageMemoryBarrier(m_ImageBarriers[i], vkImageMemoryBarriers[i]);
+            GetVulkanImageMemoryBarrier(mImageBarriers[i], vkImageMemoryBarriers[i]);
         }
     }
 
@@ -60,10 +60,10 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
 
     vkCmdPipelineBarrier2(cmd, &depInfo);
 
-    m_MemoryBarrier.accessesBefore.clear();
-    m_MemoryBarrier.accessesAfter.clear();
-    m_ImageBarriers.clear();
-    m_BufferBarriers.clear();
+    mMemoryBarrier.accessesBefore.clear();
+    mMemoryBarrier.accessesAfter.clear();
+    mImageBarriers.clear();
+    mBufferBarriers.clear();
 
     return *this;
 }
@@ -71,8 +71,8 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
 BarrierBuilder& BarrierBuilder::AddMemoryBarrier(std::vector<AccessType>&& accessesBefore,
                                                  std::vector<AccessType>&& accessesAfter)
 {
-    m_MemoryBarrier.accessesBefore = std::move(accessesBefore);
-    m_MemoryBarrier.accessesAfter = std::move(accessesAfter);
+    mMemoryBarrier.accessesBefore = std::move(accessesBefore);
+    mMemoryBarrier.accessesAfter = std::move(accessesAfter);
 
     return *this;
 }
@@ -83,7 +83,7 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
 {
     assert(!image.IsNull());
 
-    m_ImageBarriers.emplace_back(image.GetImage(),
+    mImageBarriers.emplace_back(image.GetImage(),
                                  EntireImageSubresourceRange(image.InferAspect()),
                                  std::move(accessesBefore),
                                  std::move(accessesAfter),
@@ -102,7 +102,7 @@ BarrierBuilder& BarrierBuilder::AddBufferBarrier(const Buffer& buffer,
 {
     assert(!buffer.IsNull());
 
-    m_BufferBarriers.emplace_back(buffer.GetVkHandle(),
+    mBufferBarriers.emplace_back(buffer.GetVkHandle(),
                                   0,
                                   VK_WHOLE_SIZE,
                                   std::move(accessesBefore),

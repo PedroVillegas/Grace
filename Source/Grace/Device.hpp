@@ -249,20 +249,20 @@ public:
     template <typename T>
     void ResetQueryPoolFullRange(QueryWriteFlags flags)
     {
-        QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
+        QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
 
-        uint32_t first = m_FrameInFlightIndex * qg.GetRange();
+        uint32_t first = mFrameInFlightIndex * qg.GetRange();
         uint32_t count = qg.GetRange();
 
-        vkResetQueryPool(m_Device, qg.GetVkQueryPool(), first, count);
-        m_QueryMgr->ResetQueryGroup<T>();
+        vkResetQueryPool(mDevice, qg.GetVkQueryPool(), first, count);
+        mQueryMgr->ResetQueryGroup<T>();
     }
 
     template <typename T>
     GRACE_NODISCARD const QueryGroup<T>&
     GetQueryPoolResults(uint32_t firstQuery, uint32_t queryCount, QueryResult flags) const
     {
-        QueryGroup<T>& qg = m_QueryMgr->GetQueryGroup<T>();
+        QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
 
         uint32_t qc = qg.GetQueryCount();
         uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
@@ -273,16 +273,16 @@ public:
         }
 
         uint32_t dataSize = qc * stride;
-        VkResult res = vkGetQueryPoolResults(m_Device,
+        VkResult res = vkGetQueryPoolResults(mDevice,
                                              qg.GetVkQueryPool(),
-                                             m_FrameInFlightIndex * qg.GetRange(),
+                                             mFrameInFlightIndex * qg.GetRange(),
                                              qc,
                                              dataSize,
                                              qg.GetQueries().data(),
                                              stride,
                                              VK_QUERY_RESULT_64_BIT | static_cast<VkQueryResultFlagBits>(flags));
 
-        qg.m_LastResult = res;
+        qg.mLastResult = res;
         DebugReporter::Check(res);
 
         return qg;
@@ -327,24 +327,24 @@ private:
                                                      const std::vector<const char*>& requiredExt) const;
 
 private:
-    VkInstance m_ParentInstance = {};
-    VkDevice m_Device = {};
-    VmaAllocator m_Allocator = {};
-    VkPhysicalDevice m_PhysicalDevice = {};
-    VkSurfaceKHR m_SurfaceKHR = {};
-    std::array<std::optional<uint32_t>, static_cast<uint32_t>(QueueFamily::Undefined)> m_QueueFamilyIndices = {};
-    std::array<VkQueue, static_cast<uint32_t>(QueueFamily::Undefined)> m_Queues = {};
+    VkInstance mParentInstance = {};
+    VkDevice mDevice = {};
+    VmaAllocator mAllocator = {};
+    VkPhysicalDevice mPhysicalDevice = {};
+    VkSurfaceKHR mSurfaceKHR = {};
+    std::array<std::optional<uint32_t>, static_cast<uint32_t>(QueueFamily::Undefined)> mQueueFamilyIndices = {};
+    std::array<VkQueue, static_cast<uint32_t>(QueueFamily::Undefined)> mQueues = {};
 
-    CommandPool* m_SingleTimeCmdsPool = nullptr;
-    std::unique_ptr<CommandBuffer> m_SingleTimeCmdsBuffer = {};
-    std::unique_ptr<CommandGroupAllocator> m_CmdGroupAllocator = {};
-    std::unique_ptr<Swapchain> m_Swapchain = {};
-    std::unique_ptr<QueryManager> m_QueryMgr = {};
-    std::unique_ptr<ResourceManager> m_ResourceMgr = {};
-    std::unique_ptr<GpuResourceTable> m_ResourceTable = {};
+    CommandPool* mSingleTimeCmdsPool = nullptr;
+    std::unique_ptr<CommandBuffer> mSingleTimeCmdsBuffer = {};
+    std::unique_ptr<CommandGroupAllocator> mCmdGroupAllocator = {};
+    std::unique_ptr<Swapchain> mSwapchain = {};
+    std::unique_ptr<QueryManager> mQueryMgr = {};
+    std::unique_ptr<ResourceManager> mResourceMgr = {};
+    std::unique_ptr<GpuResourceTable> mResourceTable = {};
 
-    uint32_t m_FramesInFlight = 1U;
-    uint32_t m_FrameInFlightIndex = 0U;
+    uint32_t mFramesInFlight = 1U;
+    uint32_t mFrameInFlightIndex = 0U;
 };
 
 } // namespace Grace

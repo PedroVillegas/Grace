@@ -18,38 +18,38 @@ namespace Grace
 
 const VkSwapchainKHR& Swapchain::GetVkHandle() const
 {
-    return m_Swapchain;
+    return mSwapchain;
 }
 
 SwapchainStatus Swapchain::GetStatus() const
 {
-    return m_SwapchainStatus;
+    return mSwapchainStatus;
 }
 
 const Format& Swapchain::GetFormat() const
 {
     // All images have the same format
-    return m_Device->GetImage(m_Images[0]).GetFormat();
+    return mDevice->GetImage(mImages[0]).GetFormat();
 }
 
 ImageHandle Swapchain::GetRecentAcquiredImage() const
 {
     const FrameSyncGroup& sync = GetRecentFrameSyncGroup();
     assert(sync.imageIndex != ~0U);
-    return m_Images[sync.imageIndex];
+    return mImages[sync.imageIndex];
 }
 
 void Swapchain::Create(VkExtent2D imageExtent)
 {
-    VkPhysicalDevice physicalDevice = m_Device->GetPhysicalDevice();
-    VkSurfaceKHR surfaceKHR = m_Device->GetSurface();
+    VkPhysicalDevice physicalDevice = mDevice->GetPhysicalDevice();
+    VkSurfaceKHR surfaceKHR = mDevice->GetSurface();
 
     const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surfaceKHR);
 
     const VkSurfaceFormatKHR surfaceFormat = SelectSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = SelectSwapPresentMode(swapChainSupport.presentModes);
 
-    if (!m_VSyncOn)
+    if (!mVSyncOn)
     {
         presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
@@ -59,7 +59,7 @@ void Swapchain::Create(VkExtent2D imageExtent)
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
     // One more than image count to be safe
-    m_ImageAcquiredSyncStructs.resize(imageCount + 1);
+    mImageAcquiredSyncStructs.resize(imageCount + 1);
 
     // Make sure not to exceed max image count, 0 means no limit
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
@@ -80,12 +80,12 @@ void Swapchain::Create(VkExtent2D imageExtent)
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
     createInfo.clipped = true;
-    createInfo.oldSwapchain = m_Swapchain;
+    createInfo.oldSwapchain = mSwapchain;
 
-    std::array<uint32_t, 2> queueFamilyIndices = { m_Device->GetQueueFamilyIndex(QueueFamily::Graphics),
-                                                   m_Device->GetQueueFamilyIndex(QueueFamily::Present) };
+    std::array<uint32_t, 2> queueFamilyIndices = { mDevice->GetQueueFamilyIndex(QueueFamily::Graphics),
+                                                   mDevice->GetQueueFamilyIndex(QueueFamily::Present) };
 
-    if (m_Device->GetQueueFamilyIndex(QueueFamily::Graphics) != m_Device->GetQueueFamilyIndex(QueueFamily::Present))
+    if (mDevice->GetQueueFamilyIndex(QueueFamily::Graphics) != mDevice->GetQueueFamilyIndex(QueueFamily::Present))
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
@@ -99,27 +99,27 @@ void Swapchain::Create(VkExtent2D imageExtent)
     }
 
     VkSwapchainKHR tempSwapchain = {};
-    DebugReporter::Check(vkCreateSwapchainKHR(m_Device->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
+    DebugReporter::Check(vkCreateSwapchainKHR(mDevice->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
     assert(tempSwapchain != nullptr);
 
-    if (m_Swapchain != nullptr)
+    if (mSwapchain != nullptr)
     {
         Cleanup();
     }
 
-    m_Swapchain = tempSwapchain;
-    AssignDebugName<VkSwapchainKHR>(m_Device->GetVkHandle(), m_Swapchain, "Grace::SwapchainKHR");
+    mSwapchain = tempSwapchain;
+    AssignDebugName<VkSwapchainKHR>(mDevice->GetVkHandle(), mSwapchain, "Grace::SwapchainKHR");
 
     std::vector<VkImage> tempImages = {};
-    vkGetSwapchainImagesKHR(m_Device->GetVkHandle(), m_Swapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(mDevice->GetVkHandle(), mSwapchain, &imageCount, nullptr);
     tempImages.resize(imageCount);
-    m_Images.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_Device->GetVkHandle(), m_Swapchain, &imageCount, tempImages.data());
+    mImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(mDevice->GetVkHandle(), mSwapchain, &imageCount, tempImages.data());
 
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
         const std::string name = "Grace::SwapchainImage::" + std::to_string(i);
-        m_Images[i] = m_Device->CreateSwapchainImage(
+        mImages[i] = mDevice->CreateSwapchainImage(
             tempImages[i],
             {
                 .name = name.c_str(),
@@ -130,26 +130,26 @@ void Swapchain::Create(VkExtent2D imageExtent)
             });
     }
 
-    for (uint32_t i = 0; i < m_ImageAcquiredSyncStructs.size(); ++i)
+    for (uint32_t i = 0; i < mImageAcquiredSyncStructs.size(); ++i)
     {
-        FrameSyncGroup& sync = m_ImageAcquiredSyncStructs[i];
+        FrameSyncGroup& sync = mImageAcquiredSyncStructs[i];
 
         const std::string acquireSemaphoreDebugName = "Grace::Semaphore::Acquire::" + std::to_string(i);
-        sync.acquireSemaphore = m_Device->CreateBinarySemaphore({ .name = acquireSemaphoreDebugName.c_str() });
+        sync.acquireSemaphore = mDevice->CreateBinarySemaphore({ .name = acquireSemaphoreDebugName.c_str() });
 
         const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
-        sync.presentSemaphore = m_Device->CreateBinarySemaphore({ .name = presentSemaphoreDebugName.c_str() });
+        sync.presentSemaphore = mDevice->CreateBinarySemaphore({ .name = presentSemaphoreDebugName.c_str() });
     }
 }
 
 void Swapchain::Cleanup()
 {
     // Destroys VkSwapchain and VkImages
-    vkDestroySwapchainKHR(m_Device->GetVkHandle(), m_Swapchain, nullptr);
+    vkDestroySwapchainKHR(mDevice->GetVkHandle(), mSwapchain, nullptr);
 
-    for (ImageHandle& imageHandle : m_Images)
+    for (ImageHandle& imageHandle : mImages)
     {
-        m_Device->FreeImage(imageHandle);
+        mDevice->FreeImage(imageHandle);
     }
 }
 
@@ -158,9 +158,9 @@ Swapchain::~Swapchain()
     Cleanup();
 }
 
-Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : m_Device(pDevice), m_VSyncOn(vsync)
+Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : mDevice(pDevice), mVSyncOn(vsync)
 {
-    assert(!m_Device->IsNull());
+    assert(!mDevice->IsNull());
 
     Create(imageExtent);
 }
@@ -168,14 +168,14 @@ Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : m_De
 FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
 {
     // Advance the cycle index
-    m_ImageAcquiredCycleIndex = (m_ImageAcquiredCycleIndex + 1) % (m_ImageAcquiredSyncStructs.size() - 1);
+    mImageAcquiredCycleIndex = (mImageAcquiredCycleIndex + 1) % (mImageAcquiredSyncStructs.size() - 1);
     // Get FrameSyncGroup instance, that is not currently in use, from the cycle
-    FrameSyncGroup& frameSync = m_ImageAcquiredSyncStructs[m_ImageAcquiredCycleIndex];
-    const BinarySemaphore& acqSem = m_Device->GetBinarySemaphore(frameSync.acquireSemaphore);
+    FrameSyncGroup& frameSync = mImageAcquiredSyncStructs[mImageAcquiredCycleIndex];
+    const BinarySemaphore& acqSem = mDevice->GetBinarySemaphore(frameSync.acquireSemaphore);
 
     // Acquire an image from the swap chain
-    VkResult result = vkAcquireNextImageKHR(m_Device->GetVkHandle(),
-                                            m_Swapchain,
+    VkResult result = vkAcquireNextImageKHR(mDevice->GetVkHandle(),
+                                            mSwapchain,
                                             UINT64_MAX,
                                             acqSem.GetVkSemaphore(),
                                             nullptr,
@@ -185,21 +185,21 @@ FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         Create(imageExtent);
-        m_SwapchainStatus = SwapchainStatus::ShouldResize;
+        mSwapchainStatus = SwapchainStatus::ShouldResize;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
-        m_SwapchainStatus = SwapchainStatus::Failure;
+        mSwapchainStatus = SwapchainStatus::Failure;
         assert("Failed to acquire swap chain image!");
     }
 
-    m_SwapchainStatus = SwapchainStatus::Success;
+    mSwapchainStatus = SwapchainStatus::Success;
     return frameSync;
 }
 
 const FrameSyncGroup& Swapchain::GetRecentFrameSyncGroup() const
 {
-    return m_ImageAcquiredSyncStructs[m_ImageAcquiredCycleIndex];
+    return mImageAcquiredSyncStructs[mImageAcquiredCycleIndex];
 }
 
 VkSurfaceFormatKHR Swapchain::SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)

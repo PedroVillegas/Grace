@@ -49,8 +49,8 @@ public:
     GRACE_NODISCARD VkPipelineLayout GetVkPipelineLayout() const;
 
 private:
-    Device* m_Device = nullptr;
-    VkPipelineLayout m_PipelineLayout = nullptr;
+    Device* mDevice = nullptr;
+    VkPipelineLayout mPipelineLayout = nullptr;
 };
 
 struct ShaderDesc
@@ -105,9 +105,9 @@ public:
     GRACE_NODISCARD VkPipelineBindPoint BindPoint() const;
 
 private:
-    Device* m_Device = nullptr;
-    VkPipeline m_Pipeline = nullptr;
-    PipelineType m_Type = PipelineType::Undefined;
+    Device* mDevice = nullptr;
+    VkPipeline mPipeline = nullptr;
+    PipelineType mType = PipelineType::Undefined;
 };
 
 } // namespace Grace

@@ -36,8 +36,8 @@ public:
     GRACE_NODISCARD const VkFence& GetVkFence() const;
 
 private:
-    Device* m_pDevice = nullptr;
-    VkFence m_Fence = VK_NULL_HANDLE;
+    Device* mDevicePtr = nullptr;
+    VkFence mFence = VK_NULL_HANDLE;
 };
 
 } // namespace Grace

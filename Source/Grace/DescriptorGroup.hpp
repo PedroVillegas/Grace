@@ -38,7 +38,7 @@ struct PoolSizeRatio
 class DescriptorAllocator
 {
 public:
-    DescriptorAllocator(VkDevice device) : m_Device(device) {};
+    DescriptorAllocator(VkDevice device) : mDevice(device) {};
     DescriptorAllocator() = default;
 
     void SetDevice(VkDevice device);
@@ -68,12 +68,12 @@ private:
     GRACE_NODISCARD VkDescriptorPool GetPool();
     GRACE_NODISCARD VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
-    VkDevice m_Device = {};
+    VkDevice mDevice = {};
 
-    std::vector<PoolSizeRatio> m_Ratios = {};
-    std::vector<VkDescriptorPool> m_FullPools = {};
-    std::vector<VkDescriptorPool> m_ReadyPools = {};
-    uint32_t m_SetsPerPool = {};
+    std::vector<PoolSizeRatio> mRatios = {};
+    std::vector<VkDescriptorPool> mFullPools = {};
+    std::vector<VkDescriptorPool> mReadyPools = {};
+    uint32_t mSetsPerPool = {};
 };
 
 // ----------------------------------------------------------------------------------
@@ -84,7 +84,7 @@ private:
 class DescriptorWriter
 {
 public:
-    DescriptorWriter(VkDevice device) : m_Device(device) {};
+    DescriptorWriter(VkDevice device) : mDevice(device) {};
     DescriptorWriter() = default;
 
     void SetDevice(VkDevice device);
@@ -157,7 +157,7 @@ public:
     void WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type);
 
 private:
-    VkDevice m_Device = {};
+    VkDevice mDevice = {};
 
     std::deque<VkDescriptorImageInfo> imageInfos = {};
     std::deque<VkDescriptorBufferInfo> bufferInfos = {};
@@ -179,7 +179,7 @@ private:
 class DescriptorLayoutBuilder
 {
 public:
-    DescriptorLayoutBuilder(VkDevice device) : m_Device(device) {};
+    DescriptorLayoutBuilder(VkDevice device) : mDevice(device) {};
     DescriptorLayoutBuilder() = default;
 
     /// @brief Adds a binding to the descriptor layout.
@@ -203,9 +203,9 @@ public:
     void Clear();
 
 private:
-    VkDevice m_Device = {};
+    VkDevice mDevice = {};
 
-    std::vector<VkDescriptorSetLayoutBinding> m_Bindings = {};
+    std::vector<VkDescriptorSetLayoutBinding> mBindings = {};
 };
 
 } // namespace Grace

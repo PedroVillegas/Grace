@@ -52,10 +52,10 @@ public:
     GRACE_NODISCARD constexpr bool HasUsage(ImageUsage usage) const;
 
 private:
-    Device* m_Device = nullptr;
-    Image* m_ParentImage = nullptr;
-    VkImageView m_View = nullptr;
-    uint32_t m_StorageImgId = 0;
+    Device* mDevice = nullptr;
+    Image* mParentImage = nullptr;
+    VkImageView mView = nullptr;
+    uint32_t mStorageImgId = 0;
 };
 
 /// Description used to create an Image object
@@ -150,19 +150,19 @@ public:
     GRACE_NODISCARD constexpr ImageAspect InferAspect() const;
 
 private:
-    Device* m_Device = nullptr;
-    ImageView m_DefaultView = {};
-    VkImage m_Image = nullptr;
-    VmaAllocation m_Allocation = nullptr;
-    UInt3 m_Extent = {};
-    Format m_Format = {};
-    ImageUsage m_UsageFlags = {};
+    Device* mDevice = nullptr;
+    ImageView mDefaultView = {};
+    VkImage mImage = nullptr;
+    VmaAllocation mAllocation = nullptr;
+    UInt3 mExtent = {};
+    Format mFormat = {};
+    ImageUsage mUsageFlags = {};
 
     // For bindless
-    uint32_t m_StorageImgId = 0;
-    uint32_t m_SampledImgId = 0;
+    uint32_t mStorageImgId = 0;
+    uint32_t mSampledImgId = 0;
 
-    bool m_IsSwapchainImage = false;
+    bool mIsSwapchainImage = false;
 };
 
 } // namespace Grace

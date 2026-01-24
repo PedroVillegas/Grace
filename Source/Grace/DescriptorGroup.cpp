@@ -17,57 +17,57 @@ namespace Grace
 void DescriptorAllocator::SetDevice(VkDevice device)
 {
     assert(device != nullptr);
-    m_Device = device;
+    mDevice = device;
 }
 
 void DescriptorAllocator::Initialise(uint32_t maxSets, std::span<PoolSizeRatio> poolRatios)
 {
-    m_Ratios.clear();
+    mRatios.clear();
 
     for (auto r : poolRatios)
     {
-        m_Ratios.push_back(r);
+        mRatios.push_back(r);
     }
 
     VkDescriptorPool newPool = CreatePool(maxSets, poolRatios);
 
-    m_SetsPerPool = uint32_t(maxSets * 1.5f); // Grow it next allocation
+    mSetsPerPool = uint32_t(maxSets * 1.5f); // Grow it next allocation
 
-    m_ReadyPools.push_back(newPool);
+    mReadyPools.push_back(newPool);
 }
 
 void DescriptorAllocator::ClearPools()
 {
-    assert(m_Device != nullptr);
+    assert(mDevice != nullptr);
 
-    for (auto p : m_ReadyPools)
+    for (auto p : mReadyPools)
     {
-        vkResetDescriptorPool(m_Device, p, 0);
+        vkResetDescriptorPool(mDevice, p, 0);
     }
 
-    for (auto p : m_FullPools)
+    for (auto p : mFullPools)
     {
-        vkResetDescriptorPool(m_Device, p, 0);
-        m_ReadyPools.push_back(p);
+        vkResetDescriptorPool(mDevice, p, 0);
+        mReadyPools.push_back(p);
     }
-    m_FullPools.clear();
+    mFullPools.clear();
 }
 
 void DescriptorAllocator::CleanupPools()
 {
-    assert(m_Device != nullptr);
+    assert(mDevice != nullptr);
 
-    for (auto p : m_ReadyPools)
+    for (auto p : mReadyPools)
     {
-        vkDestroyDescriptorPool(m_Device, p, nullptr);
+        vkDestroyDescriptorPool(mDevice, p, nullptr);
     }
-    m_ReadyPools.clear();
+    mReadyPools.clear();
 
-    for (auto p : m_FullPools)
+    for (auto p : mFullPools)
     {
-        vkDestroyDescriptorPool(m_Device, p, nullptr);
+        vkDestroyDescriptorPool(mDevice, p, nullptr);
     }
-    m_FullPools.clear();
+    mFullPools.clear();
 }
 
 VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, void* pNext)
@@ -85,40 +85,40 @@ VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, void
     allocInfo.pSetLayouts = &layout;
 
     VkDescriptorSet ds;
-    VkResult result = vkAllocateDescriptorSets(m_Device, &allocInfo, &ds);
+    VkResult result = vkAllocateDescriptorSets(mDevice, &allocInfo, &ds);
 
     // Allocation failed, try again
     if (result == VK_ERROR_OUT_OF_POOL_MEMORY || result == VK_ERROR_FRAGMENTED_POOL)
     {
-        m_FullPools.push_back(poolToUse);
+        mFullPools.push_back(poolToUse);
 
         poolToUse = GetPool();
         allocInfo.descriptorPool = poolToUse;
 
-        DebugReporter::Check(vkAllocateDescriptorSets(m_Device, &allocInfo, &ds));
+        DebugReporter::Check(vkAllocateDescriptorSets(mDevice, &allocInfo, &ds));
     }
 
-    m_ReadyPools.push_back(poolToUse);
+    mReadyPools.push_back(poolToUse);
     return ds;
 }
 
 VkDescriptorPool DescriptorAllocator::GetPool()
 {
     VkDescriptorPool newPool;
-    if (m_ReadyPools.size() != 0)
+    if (mReadyPools.size() != 0)
     {
-        newPool = m_ReadyPools.back();
-        m_ReadyPools.pop_back();
+        newPool = mReadyPools.back();
+        mReadyPools.pop_back();
     }
     else
     {
         // Need to create a new pool
-        newPool = CreatePool(m_SetsPerPool, m_Ratios);
+        newPool = CreatePool(mSetsPerPool, mRatios);
 
-        m_SetsPerPool = uint32_t(m_SetsPerPool * 1.5);
-        if (m_SetsPerPool > 4092)
+        mSetsPerPool = uint32_t(mSetsPerPool * 1.5);
+        if (mSetsPerPool > 4092)
         {
-            m_SetsPerPool = 4092;
+            mSetsPerPool = 4092;
         }
     }
 
@@ -127,7 +127,7 @@ VkDescriptorPool DescriptorAllocator::GetPool()
 
 VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios)
 {
-    assert(m_Device != nullptr);
+    assert(mDevice != nullptr);
 
     std::vector<VkDescriptorPoolSize> poolSizes;
     for (PoolSizeRatio ratio : poolRatios)
@@ -144,7 +144,7 @@ VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<Po
     poolInfo.pPoolSizes = poolSizes.data();
 
     VkDescriptorPool newPool;
-    DebugReporter::Check(vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &newPool));
+    DebugReporter::Check(vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &newPool));
 
     return newPool;
 }
@@ -156,7 +156,7 @@ VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<Po
 void DescriptorWriter::SetDevice(VkDevice device)
 {
     assert(device != nullptr);
-    m_Device = device;
+    mDevice = device;
 }
 
 void DescriptorWriter::WriteImage(
@@ -336,7 +336,7 @@ void DescriptorWriter::UpdateSet(VkDescriptorSet set)
         write.dstSet = set;
     }
 
-    vkUpdateDescriptorSets(m_Device, (uint32_t) writes.size(), writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(mDevice, (uint32_t) writes.size(), writes.data(), 0, nullptr);
     Clear();
 }
 
@@ -351,18 +351,18 @@ void DescriptorLayoutBuilder::AddBinding(uint32_t binding, VkDescriptorType type
     newbind.descriptorCount = count;
     newbind.descriptorType = type;
 
-    m_Bindings.push_back(newbind);
+    mBindings.push_back(newbind);
 }
 
 void DescriptorLayoutBuilder::Clear()
 {
-    m_Bindings.clear();
+    mBindings.clear();
 }
 
 VkDescriptorSetLayout
 DescriptorLayoutBuilder::Build(VkShaderStageFlags shaderStages, void* pNext, VkDescriptorSetLayoutCreateFlags flags)
 {
-    for (auto& b : m_Bindings)
+    for (auto& b : mBindings)
     {
         b.stageFlags |= shaderStages;
     }
@@ -370,13 +370,13 @@ DescriptorLayoutBuilder::Build(VkShaderStageFlags shaderStages, void* pNext, VkD
     VkDescriptorSetLayoutCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     info.pNext = pNext;
-    info.pBindings = m_Bindings.data();
-    info.bindingCount = (uint32_t) m_Bindings.size();
+    info.pBindings = mBindings.data();
+    info.bindingCount = (uint32_t) mBindings.size();
     info.flags = flags;
 
     VkDescriptorSetLayout set;
 
-    DebugReporter::Check(vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &set));
+    DebugReporter::Check(vkCreateDescriptorSetLayout(mDevice, &info, nullptr, &set));
 
     return set;
 }
