@@ -1,11 +1,12 @@
 #pragma once
 
-#include <string>
-
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/SyncGroup.hpp>
+#include <Grace/Enums.hpp>
+#include <Grace/TypesVector.hpp>
 
 namespace Grace
 {
@@ -46,7 +47,9 @@ public:
 
     void SetStorageImgId(uint32_t storageImgId);
 
-    GRACE_NODISCARD VkImageUsageFlags GetUsageFlags() const;
+    GRACE_NODISCARD constexpr ImageUsage GetUsageFlags() const;
+
+    GRACE_NODISCARD constexpr bool HasUsage(ImageUsage usage) const;
 
 private:
     Device* m_Device = nullptr;
@@ -61,13 +64,19 @@ struct GRACE_EXPORT ImageDesc
     /// Name used to identify the image, e.g. in validation errors
     const char* name;
     /// Specifies the image's dimensions
-    VkExtent3D dimensions;
+    UInt3 dimensions;
     /// Specifies the image's format
-    VkFormat format;
+    Format format;
     /// Specifies how the image is allowed to be used
-    VkImageUsageFlags usage;
+    ImageUsage usage;
+    /// Specifies what access type the image should be initialised for upon creation
+    AccessType access = AccessType::None;
+    /// Size of data in bytes
+    size_t size = 0;
+    /// Pointer to data used to fill the image with upon creation
+    const void* data = nullptr;
     /// Specifies whether mipmaps should be generated
-    bool mipmapped;
+    bool mipmapped = false;
 };
 
 class GRACE_EXPORT Image
@@ -102,22 +111,19 @@ public:
     GRACE_NODISCARD bool IsNull() const;
 
     /// @returns `VkImage` of image which holds actual data.
-    GRACE_NODISCARD VkImage GetImage() const;
+    GRACE_NODISCARD const VkImage& GetImage() const;
 
     /// @returns `VkImageView` of image which tells you how the data is stored.
     GRACE_NODISCARD const ImageView& GetDefaultView() const;
 
     /// @returns Format per pixel of image.
-    GRACE_NODISCARD VkFormat GetFormat() const;
-
-    /// @returns Format per pixel of image as `const *`.
-    GRACE_NODISCARD const VkFormat* GetFormatPtr() const;
+    GRACE_NODISCARD const Format& GetFormat() const;
 
     /// @returns VkExtent2D of image.
-    GRACE_NODISCARD VkExtent2D GetExtent2D() const;
+    GRACE_NODISCARD UInt2 GetExtent2D() const;
 
     /// @returns VkExtent3D of image.
-    GRACE_NODISCARD VkExtent3D GetExtent3D() const;
+    GRACE_NODISCARD const UInt3& GetExtent3D() const;
 
     /// @returns Width of image.
     GRACE_NODISCARD uint32_t GetWidth() const;
@@ -131,24 +137,26 @@ public:
     GRACE_NODISCARD uint32_t GetMaxMipLevels() const;
 
     /// @returns Usage flags used to create image.
-    GRACE_NODISCARD VkImageUsageFlags GetUsageFlags() const;
+    GRACE_NODISCARD constexpr ImageUsage GetUsageFlags() const;
+
+    GRACE_NODISCARD constexpr bool HasUsage(ImageUsage usage) const;
 
     /// @returns `VmaAllocation` which represents a single memory allocation.
-    GRACE_NODISCARD VmaAllocation GetAllocation() const;
+    GRACE_NODISCARD const VmaAllocation& GetAllocation() const;
 
     /// @returns `VmaAllocationInfo` which stores metadata of the memory allocation e.g. allocation size.
     GRACE_NODISCARD VmaAllocationInfo2 GetAllocationInfo() const;
 
-private:
-    GRACE_NODISCARD VkImageCreateInfo ImageCreateInfo(VkImageUsageFlags usageFlags) const;
+    GRACE_NODISCARD constexpr ImageAspect InferAspect() const;
 
+private:
     Device* m_Device = nullptr;
     ImageView m_DefaultView = {};
     VkImage m_Image = nullptr;
     VmaAllocation m_Allocation = nullptr;
-    VkExtent3D m_Extent = {};
-    VkFormat m_Format = {};
-    VkImageUsageFlags m_UsageFlags = {};
+    UInt3 m_Extent = {};
+    Format m_Format = {};
+    ImageUsage m_UsageFlags = {};
 
     // For bindless
     uint32_t m_StorageImgId = 0;

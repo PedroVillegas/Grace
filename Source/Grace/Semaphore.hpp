@@ -43,64 +43,22 @@ class GRACE_EXPORT Semaphore
                   "Semaphore type must be derived from SemaphoreType::SemaphoreTypeBase!");
 
 public:
-    ~Semaphore()
-    {
-        if (!IsNull())
-        {
-            vkDestroySemaphore(m_pDevice->GetVkHandle(), m_Semaphore, nullptr);
-        }
-    }
-
+    ~Semaphore();
     Semaphore() = default;
-
-    Semaphore(Device* pDevice, const SemaphoreDesc& desc) : m_pDevice(pDevice)
-    {
-        VkSemaphoreCreateInfo cinfo = {};
-        cinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        cinfo.pNext = nullptr;
-        cinfo.flags = 0;
-
-        VkSemaphoreTypeCreateInfo tcinfo = {};
-        if constexpr (std::is_same_v<SemTy, SemaphoreType::Timeline>)
-        {
-            tcinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-            tcinfo.pNext = nullptr;
-            tcinfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-            tcinfo.initialValue = desc.initialValue;
-            cinfo.pNext = &tcinfo;
-        }
-
-        DebugReporter::Check(vkCreateSemaphore(m_pDevice->GetVkHandle(), &cinfo, nullptr, &m_Semaphore));
-        AssignDebugName<VkSemaphore>(m_pDevice->GetVkHandle(), m_Semaphore, desc.name);
-    }
+    Semaphore(Device* pDevice, const SemaphoreDesc& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkSemaphore handle more than once
     Semaphore(const Semaphore&) = delete;
     Semaphore& operator=(const Semaphore&) = delete;
 
-    Semaphore(Semaphore&& other) noexcept : m_pDevice(other.m_pDevice), m_Semaphore(other.m_Semaphore)
-    {
-        other.m_Semaphore = VK_NULL_HANDLE;
-    }
+    Semaphore(Semaphore&& other) noexcept;
 
-    Semaphore& operator=(Semaphore&& other) noexcept
-    {
-        m_pDevice = other.m_pDevice;
-        m_Semaphore = other.m_Semaphore;
-        other.m_Semaphore = VK_NULL_HANDLE;
-        return *this;
-    }
+    Semaphore& operator=(Semaphore&& other) noexcept;
 
-    GRACE_NODISCARD bool IsNull() const
-    {
-        return m_Semaphore == VK_NULL_HANDLE;
-    }
+    GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD VkSemaphore GetVkSemaphore() const
-    {
-        return m_Semaphore;
-    }
+    GRACE_NODISCARD const VkSemaphore& GetVkSemaphore() const;
 
 private:
     Device* m_pDevice = nullptr;

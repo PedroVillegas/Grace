@@ -1,7 +1,11 @@
+# IDE folders
+.idea/
 .vscode/
 .vs/
-.idea/
+.cache/
+.venv/
+
 Build/
 Examples/Resources/SPIRV/
-Examples/Bin
+Examples/Bin/
 Notes.md

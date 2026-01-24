@@ -1,78 +1,64 @@
-cmake_minimum_required(VERSION 3.25)
-
-project(Grace VERSION 1.0.0)
-
-message("Building Grace...")
+message(STATUS "[GRACE_INFO] Building Grace...")
 
 include(FetchContent)
 
 FetchContent_Declare(
-        vma
-        DOWNLOAD_EXTRACT_TIMESTAMP true
-        URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.2.1.zip
+    pybind
+    URL https://github.com/pybind/pybind11/archive/refs/tags/v3.0.1.zip
 )
-FetchContent_MakeAvailable(vma)
+
+FetchContent_Declare(
+    vma
+    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
+)
+FetchContent_MakeAvailable(vma pybind)
+
+if (NOT DEFINED GRACE_TARGET_VULKAN_API_VERSION)
+    message(STATUS "[GRACE_WARN] GRACE_TARGET_VULKAN_API_VERSION was not defined - default is 1.3!")
+    set(GRACE_TARGET_VULKAN_API_VERSION 13)
+endif()
 
 if(NOT DEFINED GRACE_SHADERS_DIR)
     message(FATAL_ERROR "[GRACE_ERROR] GRACE_SHADERS_DIR must be defined!")
 endif()
 
 if(NOT DEFINED GRACE_SPIRV_DIR)
-    message(WARNING "[GRACE_WARN] GRACE_SPIRV_DIR was not defined - falling back to default!")
+    message(STATUS "[GRACE_WARN] GRACE_SPIRV_DIR was not defined - falling back to default!")
     set(GRACE_SPIRV_DIR ${GRACE_SHADERS_DIR}/../SPIRV)
 endif()
 
-if (NOT DEFINED GRACE_DESIRED_VULKAN_SDK_VERSION)
-    find_package(Vulkan GRACE_DESIRED_VULKAN_SDK_VERSION REQUIRED)
-else()
-    find_package(Vulkan REQUIRED)
+include(${CMAKE_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
+
+add_library(Grace SHARED)
+
+set(GRACE_PY_SHADER_COMP_SCRIPT ${CMAKE_SOURCE_DIR}/Scripts/ShaderCompiler.py)
+
+if(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
+    target_sources(Grace PUBLIC Grace/Ext/ShaderCompiler.cpp)
+    target_link_libraries(Grace PUBLIC pybind11::embed)
+    target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
 endif()
 
-set(Vulkan_BIN_DIR ${Vulkan_INCLUDE_DIR}/../Bin)
-
-if (Vulkan_FOUND)
-    message("-- Found Vulkan SDK: ${Vulkan_VERSION}")
-endif()
-
-find_program(GLSL_COMPILER glslc HINTS Vulkan_BIN_DIR)
-if (EXISTS ${GLSL_COMPILER})
-    message("-- Found GLSL to SPIRV compiler (${GLSL_COMPILER})")
-endif()
-
-find_program(HLSL_COMPILER dxc HINTS Vulkan_BIN_DIR)
-if (EXISTS ${HLSL_COMPILER})
-    message("-- Found HLSL to SPIRV compiler (${HLSL_COMPILER})")
-endif()
-
-if (DEFINED GRACE_SLANG_COMPILER_DIR)
-    set(SLANG_COMPILER "${GRACE_SLANG_COMPILER_DIR}/slangc.exe")
-    message("-- Found SLANG to SPIRV compiler (${SLANG_COMPILER})")
-else()
-    find_program(SLANG_COMPILER slangc HINTS Vulkan_BIN_DIR)
-    if (EXISTS ${SLANG_COMPILER})
-        message("-- Found SLANG to SPIRV compiler (${SLANG_COMPILER})")
-    endif()
-endif()
-
-set(
-    GRACE_LIB_SOURCE
+set(GRACE_LIB_SOURCE
     Grace/Buffer.cpp
     Grace/CommandGroup.cpp
     Grace/Context.cpp
     Grace/DebugReporter.cpp
+    Grace/DeletionQueue.cpp
     Grace/DescriptorGroup.cpp
     Grace/Device.cpp
+    Grace/Fence.cpp
     Grace/GpuResourceTable.cpp
     Grace/HelperFunctions.cpp
     Grace/Image.cpp
     Grace/PipelineGroup.cpp
+    Grace/QueryManager.cpp
     Grace/ResourceManager.cpp
     Grace/Sampler.cpp
+    Grace/Semaphore.cpp
     Grace/Swapchain.cpp
     Grace/SyncGroup.cpp
-    Grace/QueryManager.cpp
-    Grace/Fence.cpp
-    "${vma_SOURCE_DIR}/src/VmaUsage.cpp"
+    Grace/VmaUsage.cpp
 )
 
 target_sources(
@@ -106,116 +92,26 @@ target_include_directories(
     Grace
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Vulkan_INCLUDE_DIRS}
+    PUBLIC ${vma_SOURCE_DIR}/include/
 )
 
 target_link_libraries(
     Grace
-    PUBLIC VulkanMemoryAllocator
     PUBLIC ${Vulkan_LIBRARIES}
 )
 
+include(${CMAKE_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
+
 target_compile_definitions(
     Grace
-    PUBLIC GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
     PUBLIC Grace_EXPORTS
+    PUBLIC GRACE_SHADERS_DIR="${GRACE_SHADERS_DIR}"
+    PUBLIC GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
+    PUBLIC GRACE_SLANG_COMPILER="${SLANG_COMPILER}"
+    PUBLIC GRACE_SLANG_COMPILER_ARGS="${GRACE_SLANG_COMPILER_ARGS}"
+    PUBLIC GRACE_HLSL_COMPILER="${HLSL_COMPILER}"
+    PUBLIC GRACE_HLSL_COMPILER_ARGS="${GRACE_HLSL_COMPILER_ARGS}"
+    PUBLIC GRACE_GLSL_COMPILER="${GLSL_COMPILER}"
+    PUBLIC GRACE_GLSL_COMPILER_ARGS="${GRACE_GLSL_COMPILER_ARGS}"
+    PUBLIC GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 )
-
-
-file(GLOB_RECURSE GLSL_SOURCE_FILES
-    "${GRACE_SHADERS_DIR}/*.frag"
-    "${GRACE_SHADERS_DIR}/*.vert"
-    "${GRACE_SHADERS_DIR}/*.comp"
-)
-
-file(GLOB_RECURSE HLSL_FILES
-    "${GRACE_SHADERS_DIR}/*.hlsl"
-)
-
-file(GLOB_RECURSE SLANG_FILES
-    "${GRACE_SHADERS_DIR}/*.slang"
-)
-
-foreach(GLSL ${GLSL_SOURCE_FILES})
-    get_filename_component(FILE_NAME ${GLSL} NAME)
-    set(SPIRV "${GRACE_SPIRV_DIR}/${FILE_NAME}.spv")
-    add_custom_command(
-        OUTPUT ${SPIRV}
-        COMMAND ${GLSL_COMPILER} ${GLSL} -g -o ${SPIRV} --target-env=vulkan1.4
-        DEPENDS ${GLSL}
-        COMMENT "Compiling GLSL Shader: ${GLSL}"
-    )
-    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach(GLSL)
-
-foreach(HLSL ${HLSL_FILES})
-    # Read top of file to determine shader stage
-    file(STRINGS ${HLSL} SHADER_STAGE LIMIT_INPUT 32 REGEX "#pragma")
-    if (${SHADER_STAGE} STREQUAL "#pragma compute")
-        set(TARGET_PROFILE "cs_6_5")
-    elseif(${SHADER_STAGE} STREQUAL "#pragma vertex")
-        set(TARGET_PROFILE "vs_6_5")
-    elseif(${SHADER_STAGE} STREQUAL "#pragma pixel")
-        set(TARGET_PROFILE "ps_6_5")
-    endif()
-
-    get_filename_component(FILE_NAME ${HLSL} NAME)
-    set(SPIRV "${GRACE_SPIRV_DIR}/${FILE_NAME}.spv")
-
-    set(HLSL_COMPILE_CMD
-        ${HLSL_COMPILER} ${HLSL}
-        -spirv
-        -HV 2021
-        -T ${TARGET_PROFILE}
-        -E "main"
-        -Fo ${SPIRV}
-        -fvk-use-scalar-layout
-        -fspv-target-env=vulkan1.3
-    )
-
-    add_custom_command(
-        OUTPUT ${SPIRV}
-        COMMAND ${HLSL_COMPILE_CMD}
-        DEPENDS ${HLSL}
-        COMMENT "Compiling HLSL Shader: ${HLSL}"
-    )
-
-    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach(HLSL)
-
-# spirv-opt generates invalid spirv with debug info, so debug info is disabled for now
-#set(SLANG_COMPILE_DEBUG_INFO $<IF:$<CONFIG:Debug>,-g,-g0>)
-#set(SLANG_COMPILE_OPT $<IF:$<CONFIG:Debug>,-O0,-O2>)
-
-set(SLANG_COMPILE_DEBUG_INFO -g0)
-set(SLANG_COMPILE_OPT -O2)
-
-foreach(SLANG ${SLANG_FILES})
-    get_filename_component(FILE_NAME ${SLANG} NAME)
-    set(SPIRV "${GRACE_SPIRV_DIR}/${FILE_NAME}.spv")
-
-    set(SLANG_COMPILE_CMD
-        ${SLANG_COMPILER} ${SLANG}
-        -target spirv
-        -profile spirv_1_6
-        -force-glsl-scalar-layout
-        ${SLANG_COMPILE_OPT}
-        ${SLANG_COMPILE_DEBUG_INFO}
-        -o ${SPIRV}
-        -entry main
-    )
-
-    add_custom_command(
-        OUTPUT ${SPIRV}
-        COMMAND ${SLANG_COMPILE_CMD}
-        DEPENDS ${SLANG}
-        COMMENT "Compiling SLANG Shader: ${SLANG}"
-    )
-
-    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach(SLANG)
-
-add_custom_target(Shaders ALL DEPENDS ${SPIRV_BINARY_FILES})
-
-add_dependencies(Grace Shaders)
-
-message(" ")

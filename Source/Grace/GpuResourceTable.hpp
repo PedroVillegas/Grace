@@ -2,6 +2,7 @@
 
 #include <Grace/DescriptorGroup.hpp>
 #include <Grace/Macros.hpp>
+#include <Grace/TypesHandle.hpp>
 
 namespace Grace
 {
@@ -12,16 +13,19 @@ class Buffer;
 class Sampler;
 class Device;
 
-/// Permanent binding for Storage Images.
-static const uint32_t STORAGE_IMAGE_BINDING = 0U;
-/// Permanent binding for Sampled Images.
-static const uint32_t SAMPLED_IMAGE_BINDING = 1U;
-/// Permanent binding for Combined Image Samplers.
-static const uint32_t COMBINED_IMAGE_SAMPLER_BINDING = 2U;
-/// Permanent binding for Samplers.
-static const uint32_t SAMPLER_BINDING = 3U;
-/// Permanent binding for Uniform Buffers.
-static const uint32_t UNIFORM_BUFFER_BINDING = 4U;
+namespace Bindless
+{
+
+enum class DescriptorTypeBindingIndex : uint32_t
+{
+    StorageImage = 0U,
+    SampledImage = 1U,
+    CombinedImageSampler = 2U,
+    Sampler = 3U,
+    UniformBuffer = 4U,
+};
+
+}; // namespace Bindless
 
 class SlotPool
 {
@@ -45,8 +49,6 @@ private:
 ///
 /// When submitting a valid resource, it will be allocated a slot in the GPU resource array
 /// which is then set for the resource.
-///
-/// This DOES NOT manage resources
 class GpuResourceTable
 {
 public:
@@ -80,14 +82,10 @@ public:
 
     void UpdateTable();
 
-    /// The one and only `VkDescriptorPool` required.
-    VkDescriptorPool soleDescriptorPool = {};
-    /// The one and only `VkDescriptorSetLayout` required.
-    VkDescriptorSetLayout soleDescriptorSetLayout = {};
-    /// The one and only `VkDescriptorSet` required.
-    VkDescriptorSet soleDescriptorSet = {};
-    /// The one and only `VkPipelineLayout` required.
-    VkPipelineLayout solePipelineLayout = {};
+    VkDescriptorPool bindlessDescriptorPool = {};
+    VkDescriptorSetLayout bindlessDescriptorSetLayout = {};
+    VkDescriptorSet bindlessDescriptorSet = {};
+    PipelineLayoutHandle bindlessPipelineLayout = {};
 
 private:
     Device* m_Device = nullptr;

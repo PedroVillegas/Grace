@@ -4,13 +4,14 @@
 #include <queue>
 #include <cassert>
 
+#include <Grace/DeletionQueue.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
 #include <Grace/Semaphore.hpp>
-#include <Grace/HandleTypes.hpp>
+#include <Grace/TypesHandle.hpp>
 #include <Grace/Macros.hpp>
 
 namespace Grace
@@ -35,9 +36,6 @@ template <typename Res>
 class Registry
 {
 public:
-    Registry() = default;
-    ~Registry() = default;
-
     std::vector<RegistryEntry<Res>>& GetAll()
     {
         return m_Registry;
@@ -74,7 +72,7 @@ public:
         return m_Registry[resourceHandle.handle].resource;
     }
 
-    void Free(Handle<Res>& resourceHandle)
+    void Free(Handle<Res>& resourceHandle, bool deferred)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.handle < m_Registry.size();
@@ -86,11 +84,14 @@ public:
         m_Registry[resourceHandle.handle].validator = INVALID_VALIDATOR;
 
         // Slot is freed up and can be reused for the next resource created
-        m_FreeSlots.emplace(resourceHandle.handle, resourceHandle.validator);
+        m_FreeSlots.emplace(resourceHandle.handle, ++m_Validator);
 
         // Invalidate resourceHandle
-        resourceHandle.handle = INVALID_HANDLE;
-        resourceHandle.validator = INVALID_VALIDATOR;
+        if (!deferred)
+        {
+            resourceHandle.handle = INVALID_HANDLE;
+            resourceHandle.validator = INVALID_VALIDATOR;
+        }
     }
 
 private:
@@ -109,6 +110,10 @@ private:
 class ResourceManager
 {
 public:
+    explicit ResourceManager(uint32_t framesInFlight);
+
+    void FlushDeletionQueue(uint32_t frameIndex);
+
     template <typename Res, typename... Args>
     GRACE_NODISCARD Handle<Res> Create(Args&&... args)
     {
@@ -122,15 +127,27 @@ public:
     }
 
     template <typename Res>
-    void Free(Handle<Res>& handle)
+    void Free(Handle<Res>& handle, uint32_t frameIndex = std::numeric_limits<uint32_t>::max())
     {
-        ResourceRegistry<Res>().Free(handle);
+        if (frameIndex != std::numeric_limits<uint32_t>::max())
+        {
+            m_DeletionQueue->PushDeleter(
+                [&]()
+                {
+                    ResourceRegistry<Res>().Free(handle, true);
+                },
+                frameIndex);
+            return;
+        }
+        ResourceRegistry<Res>().Free(handle, false);
     }
 
     /// Fetches ALL Images found in the Image's Registry
     GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
+    std::unique_ptr<DeletionQueue> m_DeletionQueue = nullptr;
+
     template <typename Res>
     auto& ResourceRegistry();
 

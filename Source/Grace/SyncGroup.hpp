@@ -13,10 +13,8 @@ namespace Grace
 class Image;
 class Buffer;
 
-GRACE_NODISCARD GRACE_EXPORT VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask);
-
 /// Defines a bunch of potential resource usages
-enum class AccessType : uint64_t
+enum class AccessType : uint32_t
 {
     None = 0, // No access. Useful primarily for initialization
 
@@ -103,6 +101,7 @@ enum class AccessType : uint64_t
     AccelerationStructureBuildWrite, // Written as an acceleration structure during a build
 
     ColorAttachmentReadWrite, // Read or written as a color attachment during rendering
+    DepthStencilAttachmentReadWrite, // Read or written as a depth or stencil attachment during rendering
 
     // General access
     General, // Covers any access - useful for debug, generally avoid for performance reasons
@@ -117,7 +116,7 @@ struct AccessInfo
     VkImageLayout imageLayout;
 };
 
-static const std::array<AccessInfo, 67> AccessTypeMap = {
+static const std::array<AccessInfo, 68> AccessTypeMap = {
     { // AccessType::None
       { .stageMask = VK_PIPELINE_STAGE_2_NONE,
         .accessMask = VK_ACCESS_2_NONE,
@@ -399,6 +398,11 @@ static const std::array<AccessInfo, 67> AccessTypeMap = {
       // AccessType::ColorAttachmentReadWrite
       { .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         .accessMask = VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+        .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL },
+
+      // AccessType::DepthStencilAttachmentReadWrite
+      { .stageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+        .accessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL },
 
       // AccessType::General

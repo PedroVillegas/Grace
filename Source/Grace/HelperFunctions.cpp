@@ -11,6 +11,40 @@
 namespace Grace
 {
 
+VkImageSubresourceRange EntireImageSubresourceRange(ImageAspect aspect)
+{
+    return {
+        .aspectMask = static_cast<VkImageAspectFlags>(aspect),
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS,
+    };
+}
+
+VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format)
+{
+    // clang-format off
+    switch (format)
+    {
+    case VK_FORMAT_D16_UNORM: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D32_SFLOAT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+    case VK_FORMAT_D16_UNORM_S8_UINT: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D24_UNORM_S8_UINT: GRACE_FALLTHROUGH;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    case VK_FORMAT_S8_UINT:
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    default:
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    // clang-format on
+}
+
 VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue* clear, VkImageLayout imageLayout)
 {
     assert(!image.IsNull());
@@ -65,50 +99,6 @@ VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
           .pDepthAttachment = pDepthAttachment });
 }
 
-void CopyImageToImage(CommandBuffer cmd,
-                      const Image& src,
-                      const Image& dst,
-                      VkExtent2D srcExtent,
-                      VkExtent2D dstExtent,
-                      uint32_t srcMipLevel,
-                      uint32_t dstMipLevel)
-{
-    assert(!cmd.IsNull());
-    assert(!src.IsNull());
-    assert(!dst.IsNull());
-
-    VkImageBlit2 blitRegion = {};
-    blitRegion.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
-    blitRegion.pNext = nullptr;
-    blitRegion.srcOffsets[1].x = srcExtent.width;
-    blitRegion.srcOffsets[1].y = srcExtent.height;
-    blitRegion.srcOffsets[1].z = 1;
-    blitRegion.dstOffsets[1].x = dstExtent.width;
-    blitRegion.dstOffsets[1].y = dstExtent.height;
-    blitRegion.dstOffsets[1].z = 1;
-    blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blitRegion.srcSubresource.baseArrayLayer = 0;
-    blitRegion.srcSubresource.layerCount = 1;
-    blitRegion.srcSubresource.mipLevel = srcMipLevel;
-    blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    blitRegion.dstSubresource.baseArrayLayer = 0;
-    blitRegion.dstSubresource.layerCount = 1;
-    blitRegion.dstSubresource.mipLevel = dstMipLevel;
-
-    VkBlitImageInfo2 blitInfo = {};
-    blitInfo.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
-    blitInfo.pNext = nullptr;
-    blitInfo.dstImage = dst.GetImage();
-    blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    blitInfo.srcImage = src.GetImage();
-    blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    blitInfo.filter = VK_FILTER_LINEAR;
-    blitInfo.regionCount = 1;
-    blitInfo.pRegions = &blitRegion;
-
-    cmd.BlitImage(blitInfo);
-}
-
 VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                          VkSemaphoreSubmitInfo* signalSemaphoreInfo,
                          VkSemaphoreSubmitInfo* waitSemaphoreInfo)
@@ -131,38 +121,6 @@ VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
     return submitInfo;
 }
 
-void GenerateMipmaps(CommandBuffer& cmd, const Image& image)
-{
-    assert(!cmd.IsNull());
-    assert(!image.IsNull());
-
-    cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
-    cmd.PipelineBarrier();
-
-    VkExtent2D imageSize = image.GetExtent2D();
-    int mipLevels = int(std::floor(std::log2(std::max(image.GetWidth(), image.GetHeight())))) + 1;
-    for (int mip = 0; mip < mipLevels; mip++)
-    {
-        VkExtent2D halfSize = imageSize;
-        halfSize.width /= 2;
-        halfSize.height /= 2;
-
-        VkImageSubresourceRange subres = ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-        subres.baseMipLevel = mip;
-        subres.levelCount = 1;
-
-        // Make sure to transition the final mip level back to src optimal
-        if (mip < mipLevels - 1)
-        {
-            CopyImageToImage(cmd, image, image, imageSize, halfSize, mip, mip + 1);
-            imageSize = halfSize;
-        }
-
-        cmd.AddMemoryBarrier({AccessType::CopyWrite}, {AccessType::CopyRead});
-        cmd.PipelineBarrier();
-    }
-}
-
 VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module)
 {
     assert(module != nullptr);
@@ -174,23 +132,24 @@ VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stag
                                              .pName = "main" });
 }
 
-bool CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule)
+void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule)
 {
     assert(device != nullptr);
     assert(std::filesystem::exists(filename));
 
     auto shaderCode = ReadSpvFile(filename);
 
-    VkShaderModuleCreateInfo smci = {};
-    smci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    smci.codeSize = shaderCode.size();
-    smci.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
+    VkShaderModuleCreateInfo smci = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .codeSize = shaderCode.size(),
+        .pCode = reinterpret_cast<const uint32_t*>(shaderCode.data()),
+    };
 
     DebugReporter::Check(vkCreateShaderModule(device, &smci, nullptr, &shaderModule));
     const std::string shaderModuleDebugName = filename.filename().string();
     AssignDebugName<VkShaderModule>(device, shaderModule, shaderModuleDebugName.c_str());
-
-    return true;
 }
 
 std::vector<char> ReadSpvFile(const std::filesystem::path& filename)
@@ -234,6 +193,7 @@ QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceK
             indices.graphicsFamily = i;
         }
 
+#ifdef GRACE_USE_GLFW
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surfaceKHR, &presentSupport);
 
@@ -241,6 +201,7 @@ QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceK
         {
             indices.presentFamily = i;
         }
+#endif
 
         if (indices.IsComplete())
         {

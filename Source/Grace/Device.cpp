@@ -3,23 +3,26 @@
 #include <cassert>
 #include <set>
 
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
 #include <GLFW/glfw3.h>
 #endif
-
-#include <iostream>
 
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
+#include <Grace/CommandGroup.hpp>
 
 namespace Grace
 {
 
 Device::~Device()
 {
-    m_Swapchain.reset();
-    vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+    if (m_SurfaceKHR != VK_NULL_HANDLE)
+    {
+        m_Swapchain.reset();
+        vkDestroySurfaceKHR(m_ParentInstance, m_SurfaceKHR, nullptr);
+    }
+
     m_ResourceMgr.reset();
     m_ResourceTable.reset();
     m_CmdGroupAllocator.reset();
@@ -28,11 +31,21 @@ Device::~Device()
     vkDestroyDevice(m_Device, nullptr);
 }
 
-Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(instance)
-{
-    LogicalDeviceDesc ldd = {};
+Device::Device() = default;
 
-#ifdef USE_GLFW
+Device::Device(VkInstance instance, const DeviceDesc& desc)
+    : m_ParentInstance(instance), m_FramesInFlight(desc.framesInFlight)
+{
+    assert(desc.framesInFlight > 0);
+
+    LogicalDeviceDesc ldd = {};
+    ldd.requiredExt = std::move(desc.requiredExtensions);
+
+#ifdef GRACE_USE_GLFW
+    ldd.requiredExt.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+#endif
+
+#ifdef GRACE_USE_GLFW
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -48,7 +61,7 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableInstanceExtensions.data());
 
     std::vector<const char*> extensions
-#ifdef USE_GLFW
+#ifdef GRACE_USE_GLFW
         (glfwExtensions, glfwExtensions + glfwExtensionCount)
 #endif
             ;
@@ -58,8 +71,6 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
         if (strcmp(availableExt.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
-
-    ldd.requiredExt = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME };
 
     // Look for and select a graphics card in the system that supports the features we need
     uint32_t deviceCount = 0;
@@ -97,10 +108,12 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
                      m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
                      0,
                      &m_Queues[static_cast<uint32_t>(QueueFamily::Graphics)]);
+#ifdef GRACE_USE_GLFW
     vkGetDeviceQueue(m_Device,
                      m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
                      0,
                      &m_Queues[static_cast<uint32_t>(QueueFamily::Present)]);
+#endif
 
     if (m_Queues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
     {
@@ -133,9 +146,12 @@ Device::Device(VkInstance instance, const DeviceDesc& desc) : m_ParentInstance(i
 
     m_QueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
     m_CmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
-    m_ResourceMgr = std::make_unique<ResourceManager>();
+    m_ResourceMgr = std::make_unique<ResourceManager>(desc.framesInFlight);
     m_ResourceTable = std::make_unique<GpuResourceTable>(
         this, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
+
+    m_SingleTimeCmdsPool = GetCommandPool(QueueFamily::Graphics, "Grace::CommandPool::SingleTimeCommands");
+    m_SingleTimeCmdsBuffer = std::make_unique<CommandBuffer>(m_SingleTimeCmdsPool->GetOrAllocateCommandBuffer());
 }
 
 bool Device::IsNull() const
@@ -158,30 +174,55 @@ void Device::WaitIdle()
     vkDeviceWaitIdle(m_Device);
 }
 
-void Device::WaitForFence(const Fence& fence, uint64_t timeout)
+uint32_t Device::GetCurrentFrameInFlightIndex() const
 {
-    std::array waitOn = { fence.GetVkFence() };
-    vkWaitForFences(m_Device, 1, waitOn.data(), VK_TRUE, timeout);
+    return m_FrameInFlightIndex;
 }
 
-void Device::WaitForFences(const std::vector<VkFence>& fences, uint64_t timeout, bool waitAll)
+void Device::AdvanceToNextFrame()
 {
-    vkWaitForFences(
-        m_Device, static_cast<uint32_t>(fences.size()), fences.data(), static_cast<VkBool32>(waitAll), timeout);
+    m_FrameInFlightIndex = (m_FrameInFlightIndex + 1) % m_FramesInFlight;
 }
 
-void Device::ResetFence(const Fence& fence)
+void Device::WaitForFence(FenceHandle fence, uint64_t timeout)
 {
-    std::array reset = { fence.GetVkFence() };
-    vkResetFences(m_Device, 1, reset.data());
+    const Fence& waitFor = GetFence(fence);
+    vkWaitForFences(m_Device, 1, &waitFor.GetVkFence(), VK_TRUE, timeout);
+    m_ResourceMgr->FlushDeletionQueue(m_FrameInFlightIndex);
 }
 
-void Device::ResetFences(const std::vector<VkFence>& fences)
+void Device::WaitForFences(const std::initializer_list<VkFence>&& fences, uint64_t timeout, bool waitAll)
 {
-    vkResetFences(m_Device, static_cast<uint32_t>(fences.size()), fences.data());
+    vkWaitForFences(m_Device, static_cast<uint32_t>(fences.size()), fences.begin(), waitAll, timeout);
+    m_ResourceMgr->FlushDeletionQueue(m_FrameInFlightIndex);
 }
 
-void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, const Fence& fence)
+void Device::ResetFence(FenceHandle fence)
+{
+    const Fence& toReset = GetFence(fence);
+    vkResetFences(m_Device, 1, &toReset.GetVkFence());
+}
+
+void Device::ResetFences(const std::initializer_list<VkFence>&& fences)
+{
+    vkResetFences(m_Device, static_cast<uint32_t>(fences.size()), fences.begin());
+}
+
+void Device::SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd)
+{
+    VkCommandBufferSubmitInfo cmdInfo = {};
+    cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmdInfo.pNext = nullptr;
+    cmdInfo.commandBuffer = cmd.GetVkCommandBuffer();
+    cmdInfo.deviceMask = 0;
+
+    VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, nullptr, nullptr);
+
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queueFamily), 1, &submitInfo, nullptr));
+    WaitIdle();
+}
+
+void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, FenceHandle fence)
 {
     VkCommandBufferSubmitInfo cmdInfo = {};
     cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -192,7 +233,7 @@ void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSync
     VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
     waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
     waitSemaphoreInfo.pNext = nullptr;
-    waitSemaphoreInfo.semaphore = fsg.acquireSemaphore.GetVkSemaphore();
+    waitSemaphoreInfo.semaphore = GetBinarySemaphore(fsg.acquireSemaphore).GetVkSemaphore();
     waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     waitSemaphoreInfo.deviceIndex = 0;
     waitSemaphoreInfo.value = 1;
@@ -200,72 +241,72 @@ void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSync
     VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
     signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
     signalSemaphoreInfo.pNext = nullptr;
-    signalSemaphoreInfo.semaphore = fsg.presentSemaphore.GetVkSemaphore();
+    signalSemaphoreInfo.semaphore = GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore();
     signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
     signalSemaphoreInfo.deviceIndex = 0;
     signalSemaphoreInfo.value = 1;
 
     VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
 
-    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), 1, &submitInfo, fence.GetVkFence()));
+    const Fence& fenceToSignal = GetFence(fence);
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), 1, &submitInfo, fenceToSignal.GetVkFence()));
 }
 
-void Device::BatchSubmit(QueueFamily queue,
-                    const std::vector<CommandBuffer>& cmds,
-                    const std::vector<FrameSyncGroup>& fsgs,
-                    const Fence& fence)
+// void Device::BatchSubmit(QueueFamily queue,
+//                          const std::initializer_list<CommandBuffer>&& cmds,
+//                          const std::initializer_list<FrameSyncGroup>&& fsgs,
+//                          FenceHandle fence)
+// {
+//     uint32_t N = static_cast<uint32_t>(cmds.size());
+//     std::vector<VkSubmitInfo2> submitInfos(N);
+//
+//     for (uint32_t i = 0; i < N; ++i)
+//     {
+//         VkCommandBufferSubmitInfo cmdInfo = {};
+//         cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+//         cmdInfo.pNext = nullptr;
+//         cmdInfo.commandBuffer = (cmds.begin() + i)->GetVkCommandBuffer();
+//         cmdInfo.deviceMask = 0;
+//
+//         if (fsgs.size() > 0)
+//         {
+//             VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
+//             waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+//             waitSemaphoreInfo.pNext = nullptr;
+//             waitSemaphoreInfo.semaphore = GetBinarySemaphore((fsgs.begin() + i)->acquireSemaphore).GetVkSemaphore();
+//             waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+//             waitSemaphoreInfo.deviceIndex = 0;
+//             waitSemaphoreInfo.value = 1;
+//
+//             VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
+//             signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+//             signalSemaphoreInfo.pNext = nullptr;
+//             signalSemaphoreInfo.semaphore = GetBinarySemaphore((fsgs.begin() + i)->presentSemaphore).GetVkSemaphore();
+//             signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+//             signalSemaphoreInfo.deviceIndex = 0;
+//             signalSemaphoreInfo.value = 1;
+//
+//             submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
+//         } else
+//         {
+//             submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
+//         }
+//     }
+//
+//     const Fence& fenceToSignal = GetFence(fence);
+//     DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
+// }
+
+SwapchainStatus Device::Present(const FrameSyncGroup& fsg)
 {
-    uint32_t N = static_cast<uint32_t>(cmds.size());
-    std::vector<VkSubmitInfo2> submitInfos(N);
-
-    for (uint32_t i = 0; i < N; ++i)
-    {
-        VkCommandBufferSubmitInfo cmdInfo = {};
-        cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-        cmdInfo.pNext = nullptr;
-        cmdInfo.commandBuffer = cmds[i].GetVkCommandBuffer();
-        cmdInfo.deviceMask = 0;
-
-        if (!fsgs.empty())
-        {
-            VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
-            waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            waitSemaphoreInfo.pNext = nullptr;
-            waitSemaphoreInfo.semaphore = fsgs[i].acquireSemaphore.GetVkSemaphore();
-            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            waitSemaphoreInfo.deviceIndex = 0;
-            waitSemaphoreInfo.value = 1;
-
-            VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
-            signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            signalSemaphoreInfo.pNext = nullptr;
-            signalSemaphoreInfo.semaphore = fsgs[i].presentSemaphore.GetVkSemaphore();
-            signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            signalSemaphoreInfo.deviceIndex = 0;
-            signalSemaphoreInfo.value = 1;
-
-            submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
-        }
-        else
-        {
-            submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
-        }
-    }
-
-    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fence.GetVkFence()));
-}
-
-SwapchainStatus Device::Present(const BinarySemaphore& waitOn, uint32_t swapchainImageIndex)
-{
-    std::array waitSemaphore = { waitOn.GetVkSemaphore() };
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = waitSemaphore.data();
+    presentInfo.pWaitSemaphores = &GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore();
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_Swapchain->GetVkHandle();
-    presentInfo.pImageIndices = &swapchainImageIndex;
+    presentInfo.pImageIndices = &fsg.imageIndex;
     presentInfo.pResults = nullptr;
 
     VkResult result = vkQueuePresentKHR(GetQueue(QueueFamily::Present), &presentInfo);
@@ -273,8 +314,7 @@ SwapchainStatus Device::Present(const BinarySemaphore& waitOn, uint32_t swapchai
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
         return SwapchainStatus::ShouldResize;
-    }
-    else if (result != VK_SUCCESS)
+    } else if (result != VK_SUCCESS)
     {
         return SwapchainStatus::Failure;
     }
@@ -284,27 +324,43 @@ SwapchainStatus Device::Present(const BinarySemaphore& waitOn, uint32_t swapchai
 
 VkDescriptorPool& Device::GetSoleDescriptorPool()
 {
-    return m_ResourceTable->soleDescriptorPool;
+    return m_ResourceTable->bindlessDescriptorPool;
 }
 
 VkDescriptorSet& Device::GetSoleDescriptorSet()
 {
-    return m_ResourceTable->soleDescriptorSet;
+    return m_ResourceTable->bindlessDescriptorSet;
 }
 
 VkDescriptorSetLayout& Device::GetSoleDescriptorSetLayout()
 {
-    return m_ResourceTable->soleDescriptorSetLayout;
+    return m_ResourceTable->bindlessDescriptorSetLayout;
 }
 
-VkPipelineLayout& Device::GetSolePipelineLayout()
+PipelineLayoutHandle Device::GetSolePipelineLayout()
 {
-    return m_ResourceTable->solePipelineLayout;
+    return m_ResourceTable->bindlessPipelineLayout;
 }
 
 void Device::UpdateBindlessDescriptorSet()
 {
     m_ResourceTable->UpdateTable();
+}
+
+void Device::CopyMemoryToHostVisibleBuffer(BufferHandle dst,
+                                           VkDeviceSize offsetIntoDst,
+                                           const void* pHostMem,
+                                           VkDeviceSize hostMemBytes)
+{
+    vmaCopyMemoryToAllocation(m_Allocator, pHostMem, GetBuffer(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
+}
+
+void Device::CopyMemoryToHostVisibleImage(ImageHandle dst,
+                                          VkDeviceSize offsetIntoDst,
+                                          const void* pHostMem,
+                                          VkDeviceSize hostMemBytes)
+{
+    vmaCopyMemoryToAllocation(m_Allocator, pHostMem, GetImage(dst).GetAllocation(), offsetIntoDst, hostMemBytes);
 }
 
 void Device::SubmitImageView(ImageView& view)
@@ -316,7 +372,7 @@ BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 {
     BufferHandle newHandle = m_ResourceMgr->Create<Buffer>(this, desc);
 
-    if (desc.usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+    if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::UniformBuffer))
     {
         Buffer& b = m_ResourceMgr->Get<Buffer>(newHandle);
         m_ResourceTable->SubmitBuffer(b);
@@ -335,6 +391,11 @@ void Device::FreeBuffer(BufferHandle& handle)
     m_ResourceMgr->Free<Buffer>(handle);
 }
 
+void Device::FreeBufferDeferred(BufferHandle& handle)
+{
+    m_ResourceMgr->Free<Buffer>(handle, m_FrameInFlightIndex);
+}
+
 ImageHandle Device::CreateImage(const ImageDesc& desc)
 {
     ImageHandle newHandle = m_ResourceMgr->Create<Image>(this, desc);
@@ -343,6 +404,11 @@ ImageHandle Device::CreateImage(const ImageDesc& desc)
     m_ResourceTable->SubmitImage(t);
 
     return newHandle;
+}
+
+ImageHandle Device::CreateSwapchainImage(VkImage image, const ImageDesc& desc)
+{
+    return m_ResourceMgr->Create<Image>(this, image, desc);
 }
 
 Image& Device::GetImage(const ImageHandle& handle)
@@ -359,6 +425,12 @@ void Device::FreeImage(ImageHandle& handle)
 {
     m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
     m_ResourceMgr->Free<Image>(handle);
+}
+
+void Device::FreeImageDeferred(ImageHandle& handle)
+{
+    m_ResourceTable->FreeImage(m_ResourceMgr->Get<Image>(handle));
+    m_ResourceMgr->Free<Image>(handle, m_FrameInFlightIndex);
 }
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)
@@ -380,6 +452,12 @@ void Device::FreeSampler(SamplerHandle& handle)
 {
     m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
     m_ResourceMgr->Free<Sampler>(handle);
+}
+
+void Device::FreeSamplerDeferred(SamplerHandle& handle)
+{
+    m_ResourceTable->FreeSampler(m_ResourceMgr->Get<Sampler>(handle));
+    m_ResourceMgr->Free<Sampler>(handle, m_FrameInFlightIndex);
 }
 
 PipelineHandle Device::CreatePipeline(const PipelineDesc& desc)
@@ -467,6 +545,19 @@ void Device::FreeCommandBuffer(CommandBuffer commandBuffer)
     m_CmdGroupAllocator->FreeCommandBuffer();
 }
 
+CommandBuffer& Device::BeginSingleTimeCommands()
+{
+    m_SingleTimeCmdsBuffer->BeginRecording();
+    return *m_SingleTimeCmdsBuffer;
+}
+
+void Device::EndAndSubmitSingleTimeCommands()
+{
+    m_SingleTimeCmdsBuffer->EndRecording();
+    SubmitAndWait(QueueFamily::Graphics, *m_SingleTimeCmdsBuffer);
+    m_SingleTimeCmdsPool->Reset();
+}
+
 uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 {
     assert(queueFamily != QueueFamily::Undefined);
@@ -490,10 +581,10 @@ QueryManager* Device::GetQueryManagerPtr()
 
 FrameSyncGroup& Device::AcquireNextSwapchainImage(VkExtent2D imageExtent)
 {
-    return m_Swapchain->AcquireNextImage(this, imageExtent);
+    return m_Swapchain->AcquireNextImage(imageExtent);
 }
 
-const Image& Device::GetRecentlyAcquiredSwapchainImage() const
+ImageHandle Device::GetRecentlyAcquiredSwapchainImage() const
 {
     return m_Swapchain->GetRecentAcquiredImage();
 }
@@ -503,7 +594,7 @@ const FrameSyncGroup& Device::GetRecentImageAcquiredDesc()
     return m_Swapchain->GetRecentFrameSyncGroup();
 }
 
-VkFormat Device::GetSwapchainFormat() const
+const Format& Device::GetSwapchainFormat() const
 {
     return m_Swapchain->GetFormat();
 }
@@ -566,6 +657,7 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     // Vulkan 1.3 features
     VkPhysicalDeviceVulkan13Features features13 = {};
     features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.pNext = nullptr;
     features13.synchronization2 = true;
     features13.dynamicRendering = true;
 
@@ -671,7 +763,9 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
+#ifdef GRACE_USE_GLFW
         m_QueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value()
+#endif
     };
 
     // Queue priorities are floats in [0.0, 1.0] - required
@@ -695,18 +789,23 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
 
     bool bExtensionsSupported = CheckDeviceExtensionSupport(device, requiredExt);
 
+#ifdef GRACE_USE_GLFW
     bool bSwapChainAdequate = false;
     if (bExtensionsSupported)
     {
         SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, m_SurfaceKHR);
         bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
+#endif
 
     VkPhysicalDeviceFeatures2 supportedFeatures = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
 
-    return indices.IsComplete() && bExtensionsSupported && bSwapChainAdequate
-        && supportedFeatures.features.samplerAnisotropy;
+    return indices.IsComplete()
+#ifdef GRACE_USE_GLFW
+        && bSwapChainAdequate
+#endif
+        && bExtensionsSupported;
 }
 
 bool Device::CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const

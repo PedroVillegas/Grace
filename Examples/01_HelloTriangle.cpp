@@ -1,9 +1,9 @@
 #include <chrono>
 #include <format>
-#include <iostream>
 
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
+#include <Grace/Ext/ShaderCompiler.hpp>
 
 int main()
 {
@@ -14,16 +14,17 @@ int main()
     uint32_t windowHeight = 600;
 
     glfwInit();
+    const GLFWvidmode* vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_POSITION_X, (vm->width - windowWidth) / 2);
+    glfwWindowHint(GLFW_POSITION_Y, (vm->height - windowHeight) / 2);
     GLFWwindow* pWindow = glfwCreateWindow(windowWidth, windowHeight, "Hello Triangle", nullptr, nullptr);
     glfwSetWindowUserPointer(pWindow, &framebufferHasResized);
-    glfwSetFramebufferSizeCallback(pWindow,
-                                   [](GLFWwindow* pWindow, int width, int height)
-                                   {
-                                       bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
-                                       self = true;
-                                   });
+    glfwSetFramebufferSizeCallback(pWindow, [](GLFWwindow* pWindow, int width, int height) {
+        bool& self = *static_cast<bool*>(glfwGetWindowUserPointer(pWindow));
+        self = true;
+    });
 
     const Grace::DeviceDesc deviceDesc = {
         .maxImageDescriptors = 65535,
@@ -31,8 +32,8 @@ int main()
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
         .queryGroupDesc = {
-            .pipelineStatisticsFlags = VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT
-                                     | VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+            .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
+                                     | Grace::QueryStats::FragmentShaderInvocations,
         },
         .pGlfwWindow = pWindow,
     };
@@ -44,10 +45,8 @@ int main()
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
     // Grab a Command Pool for the Graphics Queue and allocate a command buffer from it
-    Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Command pool");
+    Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example01::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
-
-    const VkFormat swapchainFormat = pDevice->GetSwapchainFormat();
 
     Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
         .flags = 0,
@@ -55,62 +54,100 @@ int main()
         .pushConstantRanges = {},
     });
 
-    // Create pipeline from hello triangle shader
-    Grace::PipelineBuilder pbuilder(pDevice);
-    pbuilder.AddShader("helloTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    pbuilder.AddShader("helloTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    pbuilder.SetColourAttachmentFormat(&swapchainFormat);
-    pbuilder.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pbuilder.SetPolygonMode(VK_POLYGON_MODE_FILL);
-    pbuilder.SetCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pbuilder.SetMultisamplingNone();
-    pbuilder.DisableBlending();
-    pbuilder.DisableDepthTest();
-    pbuilder.BuildGraphicsPipeline("Hello Triangle Pipeline", pDevice->GetPipelineLayout(helloTrianglePLH));
+    // Create static pipeline from hello triangle shader
+    Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline({
+        .name = "Example01::helloTrianglePH",
+        .shaders = {
+            { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },
+            { .stage = Grace::ShaderStage::Fragment, .name = "01_HelloTriangle.frag.spv" },
+        },
+        .graphicsState = {
+            .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
+            .topology = Grace::Topology::TriangleList,
+            .polygonMode = Grace::PolygonMode::Fill,
+            .cullMode = Grace::CullMode::Back,
+            .frontFace = Grace::FrontFace::Clockwise,
+        },
+        .layout = helloTrianglePLH,
+    });
 
-    const Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline(pbuilder.pipelineDesc);
-
-    pDevice->FreePipelineLayout(helloTrianglePLH);
+    const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+        .name = "Example01::inFlightFence",
+        .flags = Grace::FenceFlags::CreateSignalled,
+    });
 
     /* Render loop */
     std::chrono::high_resolution_clock::time_point lastTime = std::chrono::high_resolution_clock::now();
+
+    bool compiling = false;
 
     while (!glfwWindowShouldClose(pWindow))
     {
         glfwPollEvents();
 
+        if (glfwGetKey(pWindow, GLFW_KEY_C) == GLFW_PRESS && !compiling)
+        {
+            compiling = true;
+            pDevice->WaitIdle();
+            pDevice->FreePipeline(helloTrianglePH);
+
+            Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
+
+            helloTrianglePH = pDevice->CreatePipeline({
+                .name = "Example01::helloTrianglePH",
+                .shaders = {
+                    { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },
+                    { .stage = Grace::ShaderStage::Fragment, .name = "01_HelloTriangle.frag.spv" },
+                },
+                .graphicsState = {
+                    .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
+                    .topology = Grace::Topology::TriangleList,
+                    .polygonMode = Grace::PolygonMode::Fill,
+                    .cullMode = Grace::CullMode::Back,
+                    .frontFace = Grace::FrontFace::Clockwise,
+                },
+                .layout = helloTrianglePLH,
+            });
+        }
+
+        if (glfwGetKey(pWindow, GLFW_KEY_C) == GLFW_RELEASE && compiling)
+        {
+            compiling = false;
+        }
+
         /* Prepare the frame */
 
+        const uint32_t frameIndex = pDevice->GetCurrentFrameInFlightIndex();
+
         // The inFlightFences are created with signal bit, so they will already start signalled for the first use
-        pDevice->WaitForFences({ pDevice->GetRecentImageAcquiredDesc().inFlightFence });
+        pDevice->WaitForFence(inFlightFence);
 
         // Acquire an available image from the swapchain
         const Grace::FrameSyncGroup& fsg = pDevice->AcquireNextSwapchainImage({ windowWidth, windowHeight });
 
         // Reset the fence only when work has been submitted, otherwise next frame will be waiting on 'work'
         // to finish indefinitely
-        pDevice->ResetFences({ fsg.inFlightFence });
+        pDevice->ResetFence(inFlightFence);
 
         // Reset command pool, which will reset all command buffers allocated from it too
         pCmdPool->Reset();
 
         // Now that the command buffer has been reset, we can start recording for the subsequent frame
         cmd.BeginRecording();
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(0);
-        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(0);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::Timestamp>(frameIndex);
+        cmd.ResetQueryPoolFullRange<Grace::QueryType::PipelineStatistics>(frameIndex);
 
-        cmd.WriteTimestamp("GPU Frame Begin", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame Begin", Grace::PipelineStage::AllCommands, frameIndex);
 
         /* Record commands */
 
-        const Grace::Image& swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
+        const Grace::ImageHandle swapchainImg = pDevice->GetRecentlyAcquiredSwapchainImage();
 
         // Transition swapchain image to a writable layout
         cmd.AddImageBarrier(swapchainImg, { Grace::AccessType::None }, { Grace::AccessType::ClearWrite });
         cmd.PipelineBarrier();
 
-        cmd.ClearColorImage(
-            swapchainImg, { 0.35F, 0.55F, 0.85F, 1.0F }, { Grace::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT) });
+        cmd.ClearColorImage(swapchainImg, Grace::Float4(0.35F, 0.55F, 0.85F, 1.0F));
 
         cmd.AddImageBarrier(
             swapchainImg, { Grace::AccessType::ClearWrite }, { Grace::AccessType::ColorAttachmentReadWrite });
@@ -119,7 +156,7 @@ int main()
         cmd.BeginDebugLabel("Hello Triangle Pass");
         cmd.BeginDynamicRendering({
             .renderArea = { .extent = { windowWidth, windowHeight } },
-            .colorAttachments = { Grace::ColourAttachmentInfo(swapchainImg, nullptr) },
+            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->GetImage(swapchainImg), nullptr) },
         });
 
         cmd.SetViewport({ {
@@ -137,15 +174,13 @@ int main()
         } });
 
         // Bind helloTriangle pipeline and execute a draw call
-        cmd.BindGraphicsPipeline(pDevice->GetPipeline(helloTrianglePH));
+        cmd.BindPipeline(helloTrianglePH);
 
-        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", 0);
+        cmd.BeginQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats", frameIndex);
 
-        cmd.WriteTimestamp(
-            "Hello Triangle Pass Begin", VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("Hello Triangle Pass Begin", Grace::PipelineStage::VertexShader, frameIndex);
         cmd.Draw(3, 1, 0, 0);
-        cmd.WriteTimestamp(
-            "Hello Triangle Pass End", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0, Grace::QueryWriteFlags::None);
+        cmd.WriteTimestamp("Hello Triangle Pass End", Grace::PipelineStage::FragmentShader, frameIndex);
 
         cmd.EndQuery<Grace::QueryType::PipelineStatistics>("Hello Triangle Pipeline Stats");
 
@@ -160,7 +195,7 @@ int main()
 
         /* Wrap up the frame */
 
-        cmd.WriteTimestamp("GPU Frame End", VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+        cmd.WriteTimestamp("GPU Frame End", Grace::PipelineStage::AllCommands, frameIndex);
 
         // Finish recording for the command buffer for this frame
         cmd.EndRecording();
@@ -171,23 +206,16 @@ int main()
         // wait on the acquireSemaphore to be signalled
         // Once the submission is complete, one can be sure that the swapchain image is no
         // longer being written to, so presentSemaphore is signalled
-        pDevice->Submit(Grace::QueueFamily::Graphics,
-                        { cmd },
-                        { fsg.acquireSemaphore },
-                        { fsg.presentSemaphore },
-                        fsg.inFlightFence);
+        pDevice->Submit(Grace::QueueFamily::Graphics, cmd, fsg, inFlightFence);
 
         // Present image as soon as it is safe to do so - when presentSemaphore is signalled
-        const Grace::SwapchainStatus ss = pDevice->Present(fsg.presentSemaphore, fsg.imageIndex);
+        const Grace::SwapchainStatus ss = pDevice->Present(fsg);
 
         const Grace::TimestampQueryGroup& tqg =
-            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, VK_QUERY_RESULT_WAIT_BIT);
+            pDevice->GetQueryPoolResults<Grace::QueryType::Timestamp>(0, 0, Grace::QueryResult::Wait);
 
         const Grace::PipelineStatsQueryGroup& psqg = pDevice->GetQueryPoolResults<Grace::QueryType::PipelineStatistics>(
-            0, 0, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
-
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(pDevice->GetPhysicalDevice(), &props);
+            0, 0, Grace::QueryResult::WithAvailability);
 
         float helloTrianglePassTime =
             tqg.Duration<Grace::TimestampUnits::Milliseconds>("Hello Triangle Pass Begin", "Hello Triangle Pass End");
@@ -213,8 +241,7 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
-        }
-        else if (ss == Grace::SwapchainStatus::Failure)
+        } else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }
@@ -230,6 +257,8 @@ int main()
             helloTrianglePassTime,
             fragmentInvocations);
         glfwSetWindowTitle(pWindow, windowTitle.c_str());
+
+        pDevice->AdvanceToNextFrame();
     }
 
     glfwTerminate();

@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Enums.hpp>
 
 namespace Grace
 {
@@ -12,7 +13,7 @@ class Device;
 struct GRACE_EXPORT FenceDesc
 {
     const char* name = "";
-    VkFenceCreateFlags createFlags = 0;
+    FenceFlags flags = {};
 };
 
 class GRACE_EXPORT Fence
@@ -32,7 +33,7 @@ public:
 
     GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD const VkFence GetVkFence() const;
+    GRACE_NODISCARD const VkFence& GetVkFence() const;
 
 private:
     Device* m_pDevice = nullptr;

@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 #include <Grace/GraceExport.h>
 #include <Grace/Macros.hpp>
+#include <Grace/Enums.hpp>
 
 namespace Grace
 {
@@ -27,7 +28,7 @@ struct GRACE_EXPORT QueryGroupDesc
     uint32_t timestampQueriesCount = 256U;
     uint32_t occlusionQueriesCount = 256U;
     uint32_t pipelineStatisticsCount = 32U;
-    VkQueryPipelineStatisticFlags pipelineStatisticsFlags;
+    QueryStats pipelineStatisticsFlags;
 };
 
 namespace TimestampUnits
@@ -133,6 +134,7 @@ public:
         return m_ValuesPerQuery;
     }
 
+    /// Returns duration if vkGetQueryPoolResults was successful, 0.0 otherwise.
     template <typename UnitsType, typename U = QueryTy>
     GRACE_NODISCARD std::enable_if_t<std::is_same_v<U, QueryType::Timestamp>, double>
     Duration(const char* start, const char* end, uint32_t frameIndex = 0U) const
@@ -142,8 +144,21 @@ public:
                       || std::is_same_v<UnitsType, TimestampUnits::Milliseconds>
                       || std::is_same_v<UnitsType, TimestampUnits::Seconds>);
 
-        double duration = static_cast<double>(GetQuery(end, 0, frameIndex) - GetQuery(start, 0, frameIndex))
-                        * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
+        if (m_LastResult != VK_SUCCESS)
+        {
+            return 0.0;
+        }
+
+        uint64_t endStamp = GetQuery(end, 0, frameIndex);
+        uint64_t startStamp = GetQuery(start, 0, frameIndex);
+
+        if (endStamp == std::numeric_limits<uint64_t>::max() ||  startStamp == std::numeric_limits<uint64_t>::max())
+        {
+            return 0.0;
+        }
+
+        double duration =
+            static_cast<double>(endStamp - startStamp) * static_cast<double>(m_TimestampPeriod) * UnitsType::value;
 
         return duration;
     }
@@ -177,6 +192,9 @@ private:
         m_NamedQueryMap[name] = offset;
         return offset;
     }
+
+public:
+    VkResult m_LastResult = VK_SUCCESS;
 
 private:
     VkQueryPool m_QueryPool = nullptr;

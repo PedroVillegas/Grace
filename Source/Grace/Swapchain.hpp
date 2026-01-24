@@ -27,8 +27,8 @@ enum class SwapchainStatus : uint8_t
 
 struct GRACE_EXPORT FrameSyncGroup
 {
-    BinarySemaphore acquireSemaphore = {};
-    BinarySemaphore presentSemaphore = {};
+    BinarySemaphoreHandle acquireSemaphore = {};
+    BinarySemaphoreHandle presentSemaphore = {};
     uint32_t imageIndex = ~0U;
 };
 
@@ -45,7 +45,7 @@ public:
     Swapchain(Swapchain&& other) noexcept = delete;
     Swapchain& operator=(Swapchain&& other) noexcept = delete;
 
-    FrameSyncGroup& AcquireNextImage(Device* device, VkExtent2D imageExtent);
+    FrameSyncGroup& AcquireNextImage(VkExtent2D imageExtent);
 
     GRACE_NODISCARD const FrameSyncGroup& GetRecentFrameSyncGroup() const;
 
@@ -53,9 +53,9 @@ public:
 
     GRACE_NODISCARD SwapchainStatus GetStatus() const;
 
-    GRACE_NODISCARD VkFormat GetFormat() const;
+    GRACE_NODISCARD const Format& GetFormat() const;
 
-    GRACE_NODISCARD const Image& GetRecentAcquiredImage() const;
+    GRACE_NODISCARD ImageHandle GetRecentAcquiredImage() const;
 
 private:
     void Create(VkExtent2D imageExtent);
@@ -70,8 +70,8 @@ private:
 
 private:
     Device* m_Device = nullptr;
-    VkSwapchainKHR m_Swapchain = {};
-    std::vector<Image> m_Images = {};
+    VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
+    std::vector<ImageHandle> m_Images = {};
     std::vector<FrameSyncGroup> m_ImageAcquiredSyncStructs = {};
     uint32_t m_ImageAcquiredCycleIndex = 0U;
     SwapchainStatus m_SwapchainStatus = SwapchainStatus::Unknown;

@@ -3,24 +3,12 @@
 #include <cassert>
 
 #include <Grace/DebugReporter.hpp>
+#include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
-
-#include "CommandGroup.hpp"
+#include <Grace/HelperFunctions.hpp>
 
 namespace Grace
 {
-
-VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask)
-{
-    VkImageSubresourceRange subImage = {};
-    subImage.aspectMask = aspectMask;
-    subImage.baseMipLevel = 0;
-    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-    subImage.baseArrayLayer = 0;
-    subImage.layerCount = 1;
-
-    return subImage;
-}
 
 BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
 {
@@ -96,7 +84,7 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
     assert(!image.IsNull());
 
     m_ImageBarriers.emplace_back(image.GetImage(),
-                                 ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT),
+                                 EntireImageSubresourceRange(image.InferAspect()),
                                  std::move(accessesBefore),
                                  std::move(accessesAfter),
                                  ImageLayout::Optimal,
@@ -170,8 +158,7 @@ void BarrierBuilder::GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemo
     }
 }
 
-void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier,
-                                                  VkBufferMemoryBarrier2& vkBarrierOut)
+void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, VkBufferMemoryBarrier2& vkBarrierOut)
 {
     vkBarrierOut.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
     vkBarrierOut.pNext = nullptr;
