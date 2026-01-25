@@ -17,10 +17,11 @@ Semaphore<SemTy>::~Semaphore()
 template <typename SemTy>
 Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : mDevicePtr(pDevice)
 {
-    VkSemaphoreCreateInfo cinfo = {};
-    cinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    cinfo.pNext = nullptr;
-    cinfo.flags = 0;
+    VkSemaphoreCreateInfo cinfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+    };
 
     VkSemaphoreTypeCreateInfo tcinfo = {};
     if constexpr (std::is_same_v<SemTy, SemaphoreType::Timeline>)

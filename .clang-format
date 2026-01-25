@@ -14,6 +14,8 @@ SortIncludes: Never
 AccessModifierOffset: -4
 
 InsertNewlineAtEOF: true
+QualifierAlignment: Custom
+QualifierOrder: ['static', 'inline', 'constexpr', 'const', 'type']
 
 # Add a 'namespace Foo' on closing brace automatically.
 FixNamespaceComments: true

@@ -61,7 +61,7 @@ struct ShaderDesc
 
 struct GraphicsState
 {
-    std::vector<Format> colourAttachmentFormats = {};
+    std::initializer_list<Format> colourAttachmentFormats = {};
     Format depthAttachmentFormat = Format::Undefined;
     Format stencilAttachmentFormat = Format::Undefined;
     Topology topology = Topology::TriangleList;
@@ -74,12 +74,20 @@ struct GraphicsState
     CompareOp depthCompareOp = CompareOp::LessOrEqual;
 };
 
-/// Description used to create a Pipeline object
-struct GRACE_EXPORT PipelineDesc
+/// Description used to create a Graphics Pipeline object
+struct GRACE_EXPORT GraphicsPipelineDesc
 {
     const char* name = "no_name";
-    std::vector<ShaderDesc> shaders;
+    std::initializer_list<ShaderDesc> shaders;
     GraphicsState graphicsState;
+    PipelineLayoutHandle layout;
+};
+
+/// Description used to create a Compute Pipeline object
+struct GRACE_EXPORT ComputePipelineDesc
+{
+    const char* name = "no_name";
+    ShaderDesc shader;
     PipelineLayoutHandle layout;
 };
 
@@ -88,7 +96,8 @@ class GRACE_EXPORT Pipeline
 public:
     ~Pipeline();
     Pipeline() = default;
-    Pipeline(Device* pDevice, const PipelineDesc& desc);
+    Pipeline(Device* pDevice, const GraphicsPipelineDesc&& desc);
+    Pipeline(Device* pDevice, const ComputePipelineDesc& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkPipeline handle more than once

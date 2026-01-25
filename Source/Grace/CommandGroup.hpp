@@ -85,7 +85,7 @@ public:
 
     /// GRAPHICS OPS
 
-    void BeginDynamicRendering(const DynamicRenderingDesc& desc) const;
+    void BeginDynamicRendering(const DynamicRenderingDesc&& desc) const;
 
     void EndDynamicRendering() const;
 
@@ -199,7 +199,7 @@ public:
 
 private:
     Device* mDevicePtr = nullptr;
-    VkCommandBuffer mCmdBuffer = {};
+    VkCommandBuffer mCmdBuffer = nullptr;
     BarrierBuilder mBarrierBuilder = {};
     QueueFamily mQueueFamily = QueueFamily::Undefined;
     QueryManager* mQueryMgrPtr = nullptr;

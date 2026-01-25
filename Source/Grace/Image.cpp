@@ -26,30 +26,37 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : mDevice(pDevi
 
     const ImageAspect aspectMask = mParentImage->InferAspect();
 
-    VkImageViewCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    info.pNext = nullptr;
+    VkImageViewCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .image = mParentImage->GetImage(),
+        .viewType = VK_IMAGE_VIEW_TYPE_1D,
+        .format = static_cast<VkFormat>(mParentImage->GetFormat()),
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        },
+        .subresourceRange = {
+            .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+            .baseMipLevel = desc.mipLevel,
+            .levelCount = desc.levelCount,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+    };
+
     info.viewType = mParentImage->GetExtent3D().y > 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_1D;
     info.viewType = mParentImage->GetExtent3D().z > 1 ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
-    info.image = mParentImage->GetImage();
-    info.format = static_cast<VkFormat>(mParentImage->GetFormat());
-    info.subresourceRange.baseMipLevel = desc.mipLevel;
-    info.subresourceRange.levelCount = desc.levelCount;
-    info.subresourceRange.baseArrayLayer = 0;
-    info.subresourceRange.layerCount = 1;
-    info.subresourceRange.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-    info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
     DebugReporter::Check(vkCreateImageView(mDevice->GetVkHandle(), &info, nullptr, &mView));
     AssignDebugName<VkImageView>(mDevice->GetVkHandle(), mView, desc.name);
 }
 
 ImageView::ImageView(ImageView&& other) noexcept
-    : mDevice(other.mDevice), mParentImage(other.mParentImage), mView(other.mView),
-      mStorageImgId(other.mStorageImgId)
+    : mDevice(other.mDevice), mParentImage(other.mParentImage), mView(other.mView), mStorageImgId(other.mStorageImgId)
 {
     other.mView = nullptr;
 }
@@ -124,38 +131,54 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
     const uint32_t mipLevels = desc.mipmapped ? GetMaxMipLevels() : 1;
     const ImageAspect aspectMask = InferAspect();
 
-    VkImageCreateInfo imgcinfo = {};
-    imgcinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imgcinfo.pNext = nullptr;
-    imgcinfo.flags = 0;
+    VkImageCreateInfo imgcinfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_1D,
+        .format = static_cast<VkFormat>(mFormat),
+        .extent = VkExtent3D(mExtent.x, mExtent.y, mExtent.z),
+        .mipLevels = mipLevels,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = static_cast<VkImageUsageFlags>(desc.usage),
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+
     imgcinfo.imageType = desc.dimensions.y > 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_1D;
     imgcinfo.imageType = desc.dimensions.z > 1 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
-    imgcinfo.format = static_cast<VkFormat>(mFormat);
-    imgcinfo.extent = VkExtent3D(mExtent.x, mExtent.y, mExtent.z);
-    imgcinfo.mipLevels = mipLevels;
-    imgcinfo.arrayLayers = 1;
-    imgcinfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imgcinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imgcinfo.usage = static_cast<VkImageUsageFlags>(desc.usage);
-    if (desc.mipmapped)
-        imgcinfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    imgcinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (desc.mipmapped)
+    {
+        imgcinfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    }
+
+    VmaAllocationCreateInfo allocInfo = {
+        .flags = 0,
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .preferredFlags = 0,
+        .memoryTypeBits = 0,
+        .pool = nullptr,
+        .pUserData = nullptr,
+        .priority = 1.0F,
+    };
 
     DebugReporter::Check(
         vmaCreateImage(mDevice->GetVmaHandle(), &imgcinfo, &allocInfo, &mImage, &mAllocation, nullptr));
     AssignDebugName<VkImage>(mDevice->GetVkHandle(), mImage, desc.name);
 
     mDefaultView = ImageView(mDevice,
-                              {
-                                  .name = desc.name,
-                                  .image = this,
-                                  .mipLevel = 0,
-                                  .levelCount = mipLevels,
-                              });
+                             {
+                                 .name = desc.name,
+                                 .image = this,
+                                 .mipLevel = 0,
+                                 .levelCount = mipLevels,
+                             });
 
     if (desc.data != nullptr || desc.access != AccessType::None)
     {
@@ -177,74 +200,100 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
             mDevice->CopyMemoryToHostVisibleBuffer(stagingBuffer, 0, desc.data, desc.size);
 
-            VkImageMemoryBarrier2 layoutTransition = {};
-            layoutTransition.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-            layoutTransition.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-            layoutTransition.srcAccessMask = VK_ACCESS_2_NONE;
-            layoutTransition.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
-            layoutTransition.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            layoutTransition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            layoutTransition.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-            layoutTransition.image = mImage;
-            layoutTransition.subresourceRange.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-            layoutTransition.subresourceRange.baseMipLevel = 0;
-            layoutTransition.subresourceRange.levelCount = mipLevels;
-            layoutTransition.subresourceRange.baseArrayLayer = 0;
-            layoutTransition.subresourceRange.layerCount = 1;
+            const VkImageMemoryBarrier2  layoutTransition = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                .pNext = nullptr,
+                .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+                .srcAccessMask = VK_ACCESS_2_NONE,
+                .dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+                .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = mImage,
+                .subresourceRange = {
+                    .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+                    .baseMipLevel = 0,
+                    .levelCount = mipLevels,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
 
-            VkDependencyInfo depInfo = {};
-            depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            depInfo.imageMemoryBarrierCount = 1;
-            depInfo.pImageMemoryBarriers = &layoutTransition;
+            const VkDependencyInfo layoutTransitionDepInfo = {
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .pNext = nullptr,
+                .dependencyFlags = 0,
+                .memoryBarrierCount = 0,
+                .pMemoryBarriers = nullptr,
+                .bufferMemoryBarrierCount = 0,
+                .pBufferMemoryBarriers = nullptr,
+                .imageMemoryBarrierCount = 1,
+                .pImageMemoryBarriers = &layoutTransition,
+            };
 
-            vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
+            vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &layoutTransitionDepInfo);
 
             // Copy image data to staging buffer, then copy staging buffer to image; image stays gpu visible only
-            VkBufferImageCopy2 copyRegion = {};
-            copyRegion.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
-            copyRegion.pNext = nullptr;
-            copyRegion.bufferOffset = 0;
-            copyRegion.bufferRowLength = 0;
-            copyRegion.bufferImageHeight = 0;
-            copyRegion.imageSubresource.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-            copyRegion.imageSubresource.mipLevel = 0;
-            copyRegion.imageSubresource.baseArrayLayer = 0;
-            copyRegion.imageSubresource.layerCount = 1;
-            copyRegion.imageOffset = { .x = 0, .y = 0, .z = 0 };
-            copyRegion.imageExtent = { .width = desc.dimensions.x,
-                                       .height = desc.dimensions.y,
-                                       .depth = desc.dimensions.z };
+            const VkBufferImageCopy2 copyRegion = {
+                .sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
+                .pNext = nullptr,
+                .bufferOffset = 0,
+                .bufferRowLength = 0,
+                .bufferImageHeight = 0,
+                .imageSubresource = {
+                    .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                    },
+                .imageOffset = { .x = 0, .y = 0, .z = 0 },
+                .imageExtent = {
+                    .width = desc.dimensions.x,
+                    .height = desc.dimensions.y,
+                    .depth = desc.dimensions.z,
+                },
+            };
 
-            VkCopyBufferToImageInfo2 copyInfo = {};
-            copyInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2;
-            copyInfo.pNext = nullptr;
-            copyInfo.srcBuffer = mDevice->GetBuffer(stagingBuffer).GetVkHandle();
-            copyInfo.dstImage = mImage;
-            copyInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            copyInfo.regionCount = 1;
-            copyInfo.pRegions = &copyRegion;
+            const VkCopyBufferToImageInfo2 copyInfo = {
+                .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2,
+                .pNext = nullptr,
+                .srcBuffer = mDevice->GetBuffer(stagingBuffer).GetVkHandle(),
+                .dstImage = mImage,
+                .dstImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                .regionCount = 1,
+                .pRegions = &copyRegion,
+            };
 
             vkCmdCopyBufferToImage2(cmd.GetVkCommandBuffer(), &copyInfo);
 
             if (desc.mipmapped)
             {
-                {
-                    VkMemoryBarrier2 memBarrier = {};
-                    memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
-                    memBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
-                    memBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                    memBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
-                    memBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                const VkMemoryBarrier2 memBarrier = {
+                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                    .pNext = nullptr,
+                    .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+                    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    .dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+                    .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                };
 
-                    VkDependencyInfo depInfo = {};
-                    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-                    depInfo.memoryBarrierCount = 1;
-                    depInfo.pMemoryBarriers = &memBarrier;
+                const VkDependencyInfo memBarrierDepInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                    .pNext = nullptr,
+                    .dependencyFlags = 0,
+                    .memoryBarrierCount = 1,
+                    .pMemoryBarriers = &memBarrier,
+                    .bufferMemoryBarrierCount = 0,
+                    .pBufferMemoryBarriers = nullptr,
+                    .imageMemoryBarrierCount = 0,
+                    .pImageMemoryBarriers = nullptr,
+                };
 
-                    vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
-                }
+                vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &memBarrierDepInfo);
 
-                VkExtent2D imageSize = { desc.dimensions.x, desc.dimensions.y };
+                VkExtent2D imageSize = VkExtent2D(desc.dimensions.x, desc.dimensions.y);
                 for (uint32_t mip = 0; mip < mipLevels; mip++)
                 {
                     VkExtent2D halfSize = imageSize;
@@ -253,79 +302,107 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
                     if (mip < mipLevels - 1)
                     {
-                        VkImageBlit2 blitRegion = {};
-                        blitRegion.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
-                        blitRegion.pNext = nullptr;
-                        blitRegion.srcOffsets[1].x = imageSize.width;
-                        blitRegion.srcOffsets[1].y = imageSize.height;
-                        blitRegion.srcOffsets[1].z = 1;
-                        blitRegion.dstOffsets[1].x = halfSize.width;
-                        blitRegion.dstOffsets[1].y = halfSize.height;
-                        blitRegion.dstOffsets[1].z = 1;
-                        blitRegion.srcSubresource.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-                        blitRegion.srcSubresource.baseArrayLayer = 0;
-                        blitRegion.srcSubresource.layerCount = 1;
-                        blitRegion.srcSubresource.mipLevel = mip;
-                        blitRegion.dstSubresource.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-                        blitRegion.dstSubresource.baseArrayLayer = 0;
-                        blitRegion.dstSubresource.layerCount = 1;
-                        blitRegion.dstSubresource.mipLevel = mip + 1;
+                        const VkImageBlit2  blitRegion = {
+                            .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+                            .pNext = nullptr,
+                            .srcSubresource = {
+                                .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+                                .mipLevel = mip,
+                                .baseArrayLayer = 0,
+                                .layerCount = 1,
+                            },
+                            .srcOffsets = {
+                                VkOffset3D(0, 0, 0),
+                                VkOffset3D(imageSize.width, imageSize.height, 1),
+                            },
+                            .dstSubresource = {
+                                .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+                                .mipLevel = mip + 1,
+                                .baseArrayLayer = 0,
+                                .layerCount = 1,
+                            },
+                            .dstOffsets = {
+                                VkOffset3D(0, 0, 0),
+                                VkOffset3D(halfSize.width, halfSize.height, 1),
+                            },
+                        };
 
-                        VkBlitImageInfo2 blitInfo = {};
-                        blitInfo.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
-                        blitInfo.pNext = nullptr;
-                        blitInfo.srcImage = mImage;
-                        blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-                        blitInfo.dstImage = mImage;
-                        blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-                        blitInfo.filter = VK_FILTER_LINEAR;
-                        blitInfo.regionCount = 1;
-                        blitInfo.pRegions = &blitRegion;
+                        const VkBlitImageInfo2 blitInfo = {
+                            .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+                            .pNext = nullptr,
+                            .srcImage = mImage,
+                            .srcImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                            .dstImage = mImage,
+                            .dstImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                            .regionCount = 1,
+                            .pRegions = &blitRegion,
+                            .filter = VK_FILTER_LINEAR,
+                        };
 
                         cmd.BlitImage(blitInfo);
                         imageSize = halfSize;
                     }
 
-                    {
-                        VkMemoryBarrier2 memBarrier = {};
-                        memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
-                        memBarrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
-                        memBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                        memBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
-                        memBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+                    const VkMemoryBarrier2 memBarrierAfter = {
+                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                        .pNext = nullptr,
+                        .srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+                        .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        .dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+                        .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+                    };
 
-                        VkDependencyInfo depInfo = {};
-                        depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-                        depInfo.memoryBarrierCount = 1;
-                        depInfo.pMemoryBarriers = &memBarrier;
+                    const VkDependencyInfo memBarrierAfterDepInfo = {
+                        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                        .pNext = nullptr,
+                        .dependencyFlags = 0,
+                        .memoryBarrierCount = 1,
+                        .pMemoryBarriers = &memBarrierAfter,
+                        .bufferMemoryBarrierCount = 0,
+                        .pBufferMemoryBarriers = nullptr,
+                        .imageMemoryBarrierCount = 0,
+                        .pImageMemoryBarriers = nullptr,
+                    };
 
-                        vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
-                    }
+                    vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &memBarrierAfterDepInfo);
                 }
             }
         }
 
         if (desc.access != AccessType::None)
         {
-            VkImageMemoryBarrier2 layoutTransition = {};
-            layoutTransition.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-            layoutTransition.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-            layoutTransition.srcAccessMask = VK_ACCESS_2_NONE;
-            layoutTransition.dstStageMask = VK_PIPELINE_STAGE_2_NONE;
-            layoutTransition.dstAccessMask = VK_ACCESS_2_NONE;
-            layoutTransition.oldLayout = desc.data == nullptr ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL;
-            layoutTransition.newLayout = AccessTypeMap[static_cast<uint32_t>(desc.access)].imageLayout;
-            layoutTransition.image = mImage;
-            layoutTransition.subresourceRange.aspectMask = static_cast<VkImageAspectFlags>(aspectMask);
-            layoutTransition.subresourceRange.baseMipLevel = 0;
-            layoutTransition.subresourceRange.levelCount = mipLevels;
-            layoutTransition.subresourceRange.baseArrayLayer = 0;
-            layoutTransition.subresourceRange.layerCount = 1;
+            const VkImageMemoryBarrier2  layoutTransition = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                .pNext = nullptr,
+                .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+                .srcAccessMask = VK_ACCESS_2_NONE,
+                .dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+                .dstAccessMask = VK_ACCESS_2_NONE,
+                .oldLayout = desc.data == nullptr ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL,
+                .newLayout = AccessTypeMap[static_cast<uint32_t>(desc.access)].imageLayout,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = mImage,
+                .subresourceRange = {
+                    .aspectMask = static_cast<VkImageAspectFlags>(aspectMask),
+                    .baseMipLevel = 0,
+                    .levelCount = mipLevels,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
 
-            VkDependencyInfo depInfo = {};
-            depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            depInfo.imageMemoryBarrierCount = 1;
-            depInfo.pImageMemoryBarriers = &layoutTransition;
+            const VkDependencyInfo depInfo = {
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .pNext = nullptr,
+                .dependencyFlags = 0,
+                .memoryBarrierCount = 0,
+                .pMemoryBarriers = nullptr,
+                .bufferMemoryBarrierCount = 0,
+                .pBufferMemoryBarriers = nullptr,
+                .imageMemoryBarrierCount = 1,
+                .pImageMemoryBarriers = &layoutTransition,
+            };
 
             vkCmdPipelineBarrier2(cmd.GetVkCommandBuffer(), &depInfo);
         }
@@ -348,21 +425,20 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
     assert(image != nullptr);
 
     mDefaultView = ImageView(pDevice,
-                              {
-                                  .name = desc.name,
-                                  .image = this,
-                                  .mipLevel = 0,
-                                  .levelCount = 1,
-                              });
+                             {
+                                 .name = desc.name,
+                                 .image = this,
+                                 .mipLevel = 0,
+                                 .levelCount = 1,
+                             });
 
     AssignDebugName<VkImage>(mDevice->GetVkHandle(), mImage, desc.name);
 }
 
 Image::Image(Image&& other) noexcept
     : mDevice(other.mDevice), mDefaultView(std::move(other.mDefaultView)), mImage(other.mImage),
-      mAllocation(other.mAllocation), mExtent(other.mExtent), mFormat(other.mFormat),
-      mUsageFlags(other.mUsageFlags), mStorageImgId(other.mStorageImgId), mSampledImgId(other.mSampledImgId),
-      mIsSwapchainImage(other.mIsSwapchainImage)
+      mAllocation(other.mAllocation), mExtent(other.mExtent), mFormat(other.mFormat), mUsageFlags(other.mUsageFlags),
+      mStorageImgId(other.mStorageImgId), mSampledImgId(other.mSampledImgId), mIsSwapchainImage(other.mIsSwapchainImage)
 {
     other.mDevice = VK_NULL_HANDLE;
     other.mImage = VK_NULL_HANDLE;

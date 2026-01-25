@@ -31,8 +31,7 @@ int main()
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
         .queryGroupDesc = {
-            .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
-                                     | Grace::QueryStats::FragmentShaderInvocations,
+            .pipelineStatisticsFlags = Grace::QueryStats::ComputeShaderInvocations,
         },
         .pGlfwWindow = pWindow,
     };
@@ -47,9 +46,9 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example03::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreatePipeline({
+    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreateComputePipeline({
         .name = "Example03::simpleComputeShaderPipeline",
-        .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "03_ComputeShader.slang.spv" } },
+        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
@@ -86,9 +85,9 @@ int main()
 
             Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
 
-            simpleComputeShaderPipeline = pDevice->CreatePipeline({
+            simpleComputeShaderPipeline = pDevice->CreateComputePipeline({
                 .name = "Example03::simpleComputeShaderPipeline",
-                .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "03_ComputeShader.slang.spv" } },
+                .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
                 .layout = pDevice->GetSolePipelineLayout(),
             });
         }

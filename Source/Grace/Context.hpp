@@ -38,7 +38,7 @@ private:
     GRACE_NODISCARD std::vector<const char*> GetRequiredExtensions() const;
 
 private:
-    VkInstance mInstance = {};
+    VkInstance mInstance = nullptr;
     std::unique_ptr<Device> mDevice = {};
 };
 

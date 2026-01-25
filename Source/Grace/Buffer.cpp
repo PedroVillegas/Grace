@@ -41,7 +41,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 {
     assert(!mDevice->IsNull());
 
-    VkBufferCreateInfo bufferInfo = {
+    const VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
@@ -52,7 +52,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
         .pQueueFamilyIndices = nullptr,
     };
 
-    VmaAllocationCreateInfo vmaAllocInfo = {
+    const VmaAllocationCreateInfo vmaAllocInfo = {
         .flags = desc.allocFlags,
         .usage = VMA_MEMORY_USAGE_AUTO,
         .requiredFlags = 0,
@@ -70,7 +70,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::DeviceAddress))
     {
-        VkBufferDeviceAddressInfo deviceAddressInfo = {
+        const VkBufferDeviceAddressInfo deviceAddressInfo = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
             .pNext = nullptr,
             .buffer = mBuffer,
@@ -81,15 +81,27 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 
     if (desc.data != nullptr)
     {
-        VkBufferCreateInfo stagingBufferInfo = {};
-        stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        stagingBufferInfo.pNext = nullptr;
-        stagingBufferInfo.size = desc.size;
-        stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        const VkBufferCreateInfo stagingBufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = desc.size,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+        };
 
-        VmaAllocationCreateInfo stagingBufferAllocationInfo = {};
-        stagingBufferAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        stagingBufferAllocationInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        const VmaAllocationCreateInfo stagingBufferAllocationInfo = {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = 0,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
+            .priority = 1.0F,
+        };
 
         VmaAllocation stagingBufferAllocation = nullptr;
         VkBuffer stagingBuffer = VK_NULL_HANDLE;
@@ -106,20 +118,22 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
         cmd.BeginDebugLabel(debugLabel.c_str(), { 1.0F, 1.0F, 1.0F, 1.0F });
 
         // Copy indices data to staging buffer, then copy staging buffer to index buffer
-        VkBufferCopy2 copyRegion = {};
-        copyRegion.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
-        copyRegion.pNext = nullptr;
-        copyRegion.srcOffset = 0;
-        copyRegion.dstOffset = 0;
-        copyRegion.size = desc.size;
+        const VkBufferCopy2 copyRegion = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
+            .pNext = nullptr,
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = desc.size,
+        };
 
-        VkCopyBufferInfo2 copyBufferInfo = {};
-        copyBufferInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
-        copyBufferInfo.pNext = nullptr;
-        copyBufferInfo.srcBuffer = stagingBuffer;
-        copyBufferInfo.dstBuffer = mBuffer;
-        copyBufferInfo.regionCount = 1;
-        copyBufferInfo.pRegions = &copyRegion;
+        const VkCopyBufferInfo2 copyBufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+            .pNext = nullptr,
+            .srcBuffer = stagingBuffer,
+            .dstBuffer = mBuffer,
+            .regionCount = 1,
+            .pRegions = &copyRegion,
+        };
 
         vkCmdCopyBuffer2(cmd.GetVkCommandBuffer(), &copyBufferInfo);
 

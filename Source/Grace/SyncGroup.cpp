@@ -12,7 +12,7 @@ namespace Grace
 
 BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
 {
-    VkMemoryBarrier2 vkMemoryBarrier = {};
+    VkMemoryBarrier2 vkMemoryBarrier;
 
     uint32_t memoryBarrierCount =
         (mMemoryBarrier.accessesBefore.empty() || mMemoryBarrier.accessesAfter.empty()) ? 0 : 1;
@@ -47,16 +47,17 @@ BarrierBuilder& BarrierBuilder::PipelineBarrier(VkCommandBuffer cmd)
         }
     }
 
-    VkDependencyInfo depInfo = {};
-    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    depInfo.pNext = nullptr;
-    depInfo.dependencyFlags = 0;
-    depInfo.memoryBarrierCount = memoryBarrierCount;
-    depInfo.pMemoryBarriers = &vkMemoryBarrier;
-    depInfo.imageMemoryBarrierCount = imageMemoryBarrierCount;
-    depInfo.pImageMemoryBarriers = vkImageMemoryBarriers.data();
-    depInfo.bufferMemoryBarrierCount = bufferMemoryBarrierCount;
-    depInfo.pBufferMemoryBarriers = vkBufferMemoryBarriers.data();
+    const VkDependencyInfo depInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .pNext = nullptr,
+        .dependencyFlags = 0,
+        .memoryBarrierCount = memoryBarrierCount,
+        .pMemoryBarriers = &vkMemoryBarrier,
+        .bufferMemoryBarrierCount = bufferMemoryBarrierCount,
+        .pBufferMemoryBarriers = vkBufferMemoryBarriers.data(),
+        .imageMemoryBarrierCount = imageMemoryBarrierCount,
+        .pImageMemoryBarriers = vkImageMemoryBarriers.data(),
+    };
 
     vkCmdPipelineBarrier2(cmd, &depInfo);
 
@@ -84,14 +85,14 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
     assert(!image.IsNull());
 
     mImageBarriers.emplace_back(image.GetImage(),
-                                 EntireImageSubresourceRange(image.InferAspect()),
-                                 std::move(accessesBefore),
-                                 std::move(accessesAfter),
-                                 ImageLayout::Optimal,
-                                 ImageLayout::Optimal,
-                                 0,
-                                 VK_QUEUE_FAMILY_IGNORED,
-                                 VK_QUEUE_FAMILY_IGNORED);
+                                EntireImageSubresourceRange(image.InferAspect()),
+                                std::move(accessesBefore),
+                                std::move(accessesAfter),
+                                ImageLayout::Optimal,
+                                ImageLayout::Optimal,
+                                0,
+                                VK_QUEUE_FAMILY_IGNORED,
+                                VK_QUEUE_FAMILY_IGNORED);
 
     return *this;
 }
@@ -103,12 +104,12 @@ BarrierBuilder& BarrierBuilder::AddBufferBarrier(const Buffer& buffer,
     assert(!buffer.IsNull());
 
     mBufferBarriers.emplace_back(buffer.GetVkHandle(),
-                                  0,
-                                  VK_WHOLE_SIZE,
-                                  std::move(accessesBefore),
-                                  std::move(accessesAfter),
-                                  VK_QUEUE_FAMILY_IGNORED,
-                                  VK_QUEUE_FAMILY_IGNORED);
+                                 0,
+                                 VK_WHOLE_SIZE,
+                                 std::move(accessesBefore),
+                                 std::move(accessesAfter),
+                                 VK_QUEUE_FAMILY_IGNORED,
+                                 VK_QUEUE_FAMILY_IGNORED);
 
     return *this;
 }
@@ -247,8 +248,7 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
         if (barrier.discardContents == VK_TRUE)
         {
             vkBarrierOut.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        }
-        else
+        } else
         {
             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 

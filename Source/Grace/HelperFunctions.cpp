@@ -49,19 +49,24 @@ VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue*
 {
     assert(!image.IsNull());
 
-    VkRenderingAttachmentInfo colourAttachment = {};
-    colourAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    colourAttachment.pNext = nullptr;
-
-    colourAttachment.imageView = image.GetDefaultView().GetVkHandle();
-    colourAttachment.imageLayout = imageLayout;
-    colourAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-    colourAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
+    VkClearValue cl = {};
     if (clear)
     {
-        colourAttachment.clearValue = *clear;
+        cl = *clear;
     }
+
+    VkRenderingAttachmentInfo colourAttachment = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = nullptr,
+        .imageView = image.GetDefaultView().GetVkHandle(),
+        .imageLayout = imageLayout,
+        .resolveMode = VK_RESOLVE_MODE_NONE,
+        .resolveImageView = nullptr,
+        .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = cl,
+    };
 
     return colourAttachment;
 }
@@ -70,15 +75,18 @@ VkRenderingAttachmentInfo DepthAttachmentInfo(const Image& image, VkImageLayout 
 {
     assert(!image.IsNull());
 
-    VkRenderingAttachmentInfo depthAttachment = {};
-    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    depthAttachment.pNext = nullptr;
-
-    depthAttachment.imageView = image.GetDefaultView().GetVkHandle();
-    depthAttachment.imageLayout = imageLayout;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depthAttachment.clearValue.depthStencil.depth = 0.0F;
+    VkRenderingAttachmentInfo depthAttachment = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = nullptr,
+        .imageView = image.GetDefaultView().GetVkHandle(),
+        .imageLayout = imageLayout,
+        .resolveMode = VK_RESOLVE_MODE_NONE,
+        .resolveImageView = nullptr,
+        .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = { .depthStencil = { .depth = 0.0F } },
+    };
 
     return depthAttachment;
 }
@@ -105,18 +113,17 @@ VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
 {
     assert(cmdInfo != nullptr);
 
-    VkSubmitInfo2 submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-    submitInfo.pNext = nullptr;
-
-    submitInfo.waitSemaphoreInfoCount = waitSemaphoreInfo == nullptr ? 0 : 1;
-    submitInfo.pWaitSemaphoreInfos = waitSemaphoreInfo;
-
-    submitInfo.signalSemaphoreInfoCount = signalSemaphoreInfo == nullptr ? 0 : 1;
-    submitInfo.pSignalSemaphoreInfos = signalSemaphoreInfo;
-
-    submitInfo.commandBufferInfoCount = 1;
-    submitInfo.pCommandBufferInfos = cmdInfo;
+    VkSubmitInfo2 submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+        .pNext = nullptr,
+        .flags = 0,
+        .waitSemaphoreInfoCount = waitSemaphoreInfo == nullptr ? 0U : 1U,
+        .pWaitSemaphoreInfos = waitSemaphoreInfo,
+        .commandBufferInfoCount = 1,
+        .pCommandBufferInfos = cmdInfo,
+        .signalSemaphoreInfoCount = signalSemaphoreInfo == nullptr ? 0U : 1U,
+        .pSignalSemaphoreInfos = signalSemaphoreInfo,
+    };
 
     return submitInfo;
 }

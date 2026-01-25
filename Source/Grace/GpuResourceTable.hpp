@@ -82,9 +82,9 @@ public:
 
     void UpdateTable();
 
-    VkDescriptorPool bindlessDescriptorPool = {};
-    VkDescriptorSetLayout bindlessDescriptorSetLayout = {};
-    VkDescriptorSet bindlessDescriptorSet = {};
+    VkDescriptorPool bindlessDescriptorPool = nullptr;
+    VkDescriptorSetLayout bindlessDescriptorSetLayout = nullptr;
+    VkDescriptorSet bindlessDescriptorSet = nullptr;
     PipelineLayoutHandle bindlessPipelineLayout = {};
 
 private:

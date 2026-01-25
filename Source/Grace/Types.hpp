@@ -1,5 +1,6 @@
 #pragma once
-#include <vector>
+
+#include <initializer_list>
 
 namespace Grace
 {
@@ -13,9 +14,9 @@ struct Rect2D
 struct DynamicRenderingDesc
 {
     Rect2D renderArea = {};
-    std::vector<VkRenderingAttachmentInfo> colorAttachments = {};
-    std::vector<VkRenderingAttachmentInfo> depthAttachments = {};
-    std::vector<VkRenderingAttachmentInfo> stencilAttachments = {};
+    std::initializer_list<VkRenderingAttachmentInfo> colorAttachments = {};
+    std::initializer_list<VkRenderingAttachmentInfo> depthAttachments = {};
+    std::initializer_list<VkRenderingAttachmentInfo> stencilAttachments = {};
     VkRenderingFlags flags = 0;
     uint32_t layerCount = 1U;
     uint32_t viewMask = 0U;

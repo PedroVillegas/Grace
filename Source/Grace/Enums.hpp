@@ -13,6 +13,7 @@ constexpr auto operator|(const T lhs, const T rhs)
     using underlying = std::underlying_type_t<T>;
     return static_cast<T>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 }
+
 #define GRACE_ENUM_ENABLE_BITMASK_OR_OP(Enum) consteval void EnableBitmaskOrOp(Enum)
 
 template <typename T>
@@ -22,6 +23,7 @@ constexpr auto operator&(const T lhs, const T rhs)
     using underlying = std::underlying_type_t<T>;
     return static_cast<T>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
 }
+
 #define GRACE_ENUM_ENABLE_BITMASK_AND_OP(Enum) consteval void EnableBitmaskAndOp(Enum)
 
 /// Returns `true` if `enumBitmask` has `bit` set, `false` otherwise
@@ -30,6 +32,14 @@ template <typename T>
 constexpr bool EnumBitmaskHasBitSet(const T enumBitmask, const T bit)
 {
     return static_cast<bool>(enumBitmask & bit);
+}
+
+template <typename Enum1, typename Enum2>
+    requires std::is_enum_v<Enum1> and std::is_enum_v<Enum2>
+         and std::is_same_v<std::underlying_type_t<Enum1>, std::underlying_type_t<Enum2>>
+constexpr const Enum2* EnumCastSafe(const Enum1* enum_)
+{
+    return reinterpret_cast<const Enum2*>(enum_);
 }
 
 /// Specifies how a given resource should be accessed from within a shader
@@ -609,7 +619,7 @@ GRACE_ENUM_ENABLE_BITMASK_OR_OP(PipelineStage);
 GRACE_ENUM_ENABLE_BITMASK_AND_OP(PipelineStage);
 
 /// Specifies the format that data can be stored in inside buffers and images
-enum class Format : uint32_t
+enum class Format : int
 {
     Undefined = VK_FORMAT_UNDEFINED,
 

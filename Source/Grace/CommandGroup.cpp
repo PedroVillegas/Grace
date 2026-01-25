@@ -38,13 +38,14 @@ CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFa
         mAllCommandPoolsAllocated[static_cast<uint32_t>(queueFamily)];
     if (mFreeCommandPools.empty())
     {
-        VkCommandPoolCreateInfo poolInfo = {};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.pNext = nullptr;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = mDevicePtr->GetQueueFamilyIndex(queueFamily);
+        const VkCommandPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = mDevicePtr->GetQueueFamilyIndex(queueFamily),
+        };
 
-        VkCommandPool allocatedCmdPool = {};
+        VkCommandPool allocatedCmdPool = nullptr;
         DebugReporter::Check(vkCreateCommandPool(mDevicePtr->GetVkHandle(), &poolInfo, nullptr, &allocatedCmdPool));
 
         allocatedPoolsOfQueueFamily.emplace_back(mDevicePtr, allocatedCmdPool, queueFamily);
@@ -109,14 +110,15 @@ CommandBuffer CommandPool::GetOrAllocateCommandBuffer()
 {
     if (mCommandBuffers.size() == mCommandBuffersInUse)
     {
-        VkCommandBufferAllocateInfo allocInfo = {};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.pNext = nullptr;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = mCommandPool;
-        allocInfo.commandBufferCount = 1;
+        const VkCommandBufferAllocateInfo allocInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = mCommandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
 
-        VkCommandBuffer allocated = {};
+        VkCommandBuffer allocated = nullptr;
         DebugReporter::Check(vkAllocateCommandBuffers(mDevice->GetVkHandle(), &allocInfo, &allocated));
 
         mCommandBuffers.push_back(allocated);
@@ -160,11 +162,12 @@ void CommandBuffer::Reset(VkCommandBufferResetFlags resetFlags) const
 void CommandBuffer::BeginRecording(VkCommandBufferUsageFlags usageFlags,
                                    const VkCommandBufferInheritanceInfo* pInheritanceInfo) const
 {
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = usageFlags;
-    beginInfo.pInheritanceInfo = pInheritanceInfo;
+    const VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = usageFlags,
+        .pInheritanceInfo = pInheritanceInfo,
+    };
 
     DebugReporter::Check(vkBeginCommandBuffer(mCmdBuffer, &beginInfo));
 }
@@ -208,28 +211,24 @@ void CommandBuffer::PushConstants(PipelineLayoutHandle layout, uint32_t size, co
 
 void CommandBuffer::BeginDebugLabel(const char* label, const Float4& colour) const
 {
-    VkDebugUtilsLabelEXT labelInfo = {};
-    labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-    labelInfo.pNext = nullptr;
-    labelInfo.pLabelName = label;
-    labelInfo.color[0] = colour.x;
-    labelInfo.color[1] = colour.y;
-    labelInfo.color[2] = colour.z;
-    labelInfo.color[3] = colour.w;
+    const VkDebugUtilsLabelEXT labelInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+        .pNext = nullptr,
+        .pLabelName = label,
+        .color = { colour.x, colour.y, colour.z, colour.w },
+    };
 
     vkCmdBeginDebugUtilsLabelEXT_Meta(mCmdBuffer, &labelInfo);
 }
 
 void CommandBuffer::InsertDebugLabel(const char* label, const Float4& colour) const
 {
-    VkDebugUtilsLabelEXT labelInfo = {};
-    labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-    labelInfo.pNext = nullptr;
-    labelInfo.pLabelName = label;
-    labelInfo.color[0] = colour.x;
-    labelInfo.color[1] = colour.y;
-    labelInfo.color[2] = colour.z;
-    labelInfo.color[3] = colour.w;
+    const VkDebugUtilsLabelEXT labelInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+        .pNext = nullptr,
+        .pLabelName = label,
+        .color = { colour.x, colour.y, colour.z, colour.w },
+    };
 
     vkCmdInsertDebugUtilsLabelEXT_Meta(mCmdBuffer, &labelInfo);
 }
@@ -265,22 +264,23 @@ void CommandBuffer::PipelineBarrier()
     mBarrierBuilder.PipelineBarrier(mCmdBuffer);
 }
 
-void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc& desc) const
+void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc&& desc) const
 {
-    assert(!desc.colorAttachments.empty());
+    assert(desc.colorAttachments.size() > 0);
     assert(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
 
-    VkRenderingInfo renderInfo = {};
-    renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    renderInfo.pNext = nullptr;
-    renderInfo.flags = desc.flags;
-    renderInfo.renderArea = VkRect2D(desc.renderArea.offset, desc.renderArea.extent);
-    renderInfo.layerCount = desc.layerCount;
-    renderInfo.viewMask = desc.viewMask;
-    renderInfo.colorAttachmentCount = static_cast<uint32_t>(desc.colorAttachments.size());
-    renderInfo.pColorAttachments = desc.colorAttachments.data();
-    renderInfo.pDepthAttachment = desc.depthAttachments.data();
-    renderInfo.pStencilAttachment = desc.stencilAttachments.data();
+    const VkRenderingInfo renderInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .pNext = nullptr,
+        .flags = desc.flags,
+        .renderArea = VkRect2D(desc.renderArea.offset, desc.renderArea.extent),
+        .layerCount = desc.layerCount,
+        .viewMask = desc.viewMask,
+        .colorAttachmentCount = static_cast<uint32_t>(desc.colorAttachments.size()),
+        .pColorAttachments = desc.colorAttachments.begin(),
+        .pDepthAttachment = desc.depthAttachments.begin(),
+        .pStencilAttachment = desc.stencilAttachments.begin(),
+    };
 
     vkCmdBeginRendering(mCmdBuffer, &renderInfo);
 }
@@ -450,11 +450,8 @@ void CommandBuffer::CopyBufferRanges(BufferHandle srcBuffer,
     const Buffer& dstbuf = mDevicePtr->GetBuffer(dstBuffer);
     assert(!srcbuf.IsNull());
     assert(!dstbuf.IsNull());
-    vkCmdCopyBuffer(mCmdBuffer,
-                    srcbuf.GetVkHandle(),
-                    dstbuf.GetVkHandle(),
-                    static_cast<uint32_t>(regions.size()),
-                    regions.begin());
+    vkCmdCopyBuffer(
+        mCmdBuffer, srcbuf.GetVkHandle(), dstbuf.GetVkHandle(), static_cast<uint32_t>(regions.size()), regions.begin());
 }
 
 void CommandBuffer::FillBuffer(BufferHandle buffer, uint32_t data, VkDeviceSize offset, VkDeviceSize size) const

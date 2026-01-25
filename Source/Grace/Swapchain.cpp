@@ -67,38 +67,43 @@ void Swapchain::Create(VkExtent2D imageExtent)
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
-    VkSwapchainCreateInfoKHR createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = surfaceKHR;
-    createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = true;
-    createInfo.oldSwapchain = mSwapchain;
+    VkSwapchainCreateInfoKHR createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = nullptr,
+        .flags = 0,
+        .surface = surfaceKHR,
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
+        .preTransform = swapChainSupport.capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = presentMode,
+        .clipped = true,
+        .oldSwapchain = mSwapchain,
+    };
 
-    std::array<uint32_t, 2> queueFamilyIndices = { mDevice->GetQueueFamilyIndex(QueueFamily::Graphics),
-                                                   mDevice->GetQueueFamilyIndex(QueueFamily::Present) };
+    std::array queueFamilyIndices = { mDevice->GetQueueFamilyIndex(QueueFamily::Graphics),
+                                      mDevice->GetQueueFamilyIndex(QueueFamily::Present) };
 
     if (mDevice->GetQueueFamilyIndex(QueueFamily::Graphics) != mDevice->GetQueueFamilyIndex(QueueFamily::Present))
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-    }
-    else
+    } else
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         createInfo.queueFamilyIndexCount = 0;     // Optional
         createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
-    VkSwapchainKHR tempSwapchain = {};
+    VkSwapchainKHR tempSwapchain = nullptr;
     DebugReporter::Check(vkCreateSwapchainKHR(mDevice->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
     assert(tempSwapchain != nullptr);
 
@@ -119,15 +124,14 @@ void Swapchain::Create(VkExtent2D imageExtent)
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
         const std::string name = "Grace::SwapchainImage::" + std::to_string(i);
-        mImages[i] = mDevice->CreateSwapchainImage(
-            tempImages[i],
-            {
-                .name = name.c_str(),
-                .dimensions = { extent.width, extent.height, 1 },
-                .format = static_cast<Format>(surfaceFormat.format),
-                .usage = ImageUsage::ColorAttachment | ImageUsage::TransferSrc,
-                .mipmapped = false,
-            });
+        mImages[i] = mDevice->CreateSwapchainImage(tempImages[i],
+                                                   {
+                                                       .name = name.c_str(),
+                                                       .dimensions = { extent.width, extent.height, 1 },
+                                                       .format = static_cast<Format>(surfaceFormat.format),
+                                                       .usage = ImageUsage::ColorAttachment | ImageUsage::TransferSrc,
+                                                       .mipmapped = false,
+                                                   });
     }
 
     for (uint32_t i = 0; i < mImageAcquiredSyncStructs.size(); ++i)
@@ -174,20 +178,15 @@ FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
     const BinarySemaphore& acqSem = mDevice->GetBinarySemaphore(frameSync.acquireSemaphore);
 
     // Acquire an image from the swap chain
-    VkResult result = vkAcquireNextImageKHR(mDevice->GetVkHandle(),
-                                            mSwapchain,
-                                            UINT64_MAX,
-                                            acqSem.GetVkSemaphore(),
-                                            nullptr,
-                                            &frameSync.imageIndex);
+    VkResult result = vkAcquireNextImageKHR(
+        mDevice->GetVkHandle(), mSwapchain, UINT64_MAX, acqSem.GetVkSemaphore(), nullptr, &frameSync.imageIndex);
 
     // Check if swap chain is still adequate to present
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         Create(imageExtent);
         mSwapchainStatus = SwapchainStatus::ShouldResize;
-    }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         mSwapchainStatus = SwapchainStatus::Failure;
         assert("Failed to acquire swap chain image!");

@@ -210,13 +210,14 @@ void Device::ResetFences(const std::initializer_list<VkFence>&& fences)
 
 void Device::SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd)
 {
-    VkCommandBufferSubmitInfo cmdInfo = {};
-    cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-    cmdInfo.pNext = nullptr;
-    cmdInfo.commandBuffer = cmd.GetVkCommandBuffer();
-    cmdInfo.deviceMask = 0;
+    VkCommandBufferSubmitInfo cmdInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .pNext = nullptr,
+        .commandBuffer = cmd.GetVkCommandBuffer(),
+        .deviceMask = 0,
+    };
 
-    VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, nullptr, nullptr);
+    const VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, nullptr, nullptr);
 
     DebugReporter::Check(vkQueueSubmit2(GetQueue(queueFamily), 1, &submitInfo, nullptr));
     WaitIdle();
@@ -224,97 +225,56 @@ void Device::SubmitAndWait(QueueFamily queueFamily, const CommandBuffer& cmd)
 
 void Device::Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, FenceHandle fence)
 {
-    VkCommandBufferSubmitInfo cmdInfo = {};
-    cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-    cmdInfo.pNext = nullptr;
-    cmdInfo.commandBuffer = cmd.GetVkCommandBuffer();
-    cmdInfo.deviceMask = 0;
+    VkCommandBufferSubmitInfo cmdInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                                          .pNext = nullptr,
+                                          .commandBuffer = cmd.GetVkCommandBuffer(),
+                                          .deviceMask = 0 };
 
-    VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
-    waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    waitSemaphoreInfo.pNext = nullptr;
-    waitSemaphoreInfo.semaphore = GetBinarySemaphore(fsg.acquireSemaphore).GetVkSemaphore();
-    waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    waitSemaphoreInfo.deviceIndex = 0;
-    waitSemaphoreInfo.value = 1;
+    VkSemaphoreSubmitInfo waitSemaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .semaphore = GetBinarySemaphore(fsg.acquireSemaphore).GetVkSemaphore(),
+        .value = 1,
+        .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .deviceIndex = 0,
+    };
 
-    VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
-    signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    signalSemaphoreInfo.pNext = nullptr;
-    signalSemaphoreInfo.semaphore = GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore();
-    signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-    signalSemaphoreInfo.deviceIndex = 0;
-    signalSemaphoreInfo.value = 1;
+    VkSemaphoreSubmitInfo signalSemaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .semaphore = GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore(),
+        .value = 1,
+        .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .deviceIndex = 0,
+    };
 
-    VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
+    const VkSubmitInfo2 submitInfo = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
 
     const Fence& fenceToSignal = GetFence(fence);
     DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), 1, &submitInfo, fenceToSignal.GetVkFence()));
 }
 
-// void Device::BatchSubmit(QueueFamily queue,
-//                          const std::initializer_list<CommandBuffer>&& cmds,
-//                          const std::initializer_list<FrameSyncGroup>&& fsgs,
-//                          FenceHandle fence)
-// {
-//     uint32_t N = static_cast<uint32_t>(cmds.size());
-//     std::vector<VkSubmitInfo2> submitInfos(N);
-//
-//     for (uint32_t i = 0; i < N; ++i)
-//     {
-//         VkCommandBufferSubmitInfo cmdInfo = {};
-//         cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-//         cmdInfo.pNext = nullptr;
-//         cmdInfo.commandBuffer = (cmds.begin() + i)->GetVkCommandBuffer();
-//         cmdInfo.deviceMask = 0;
-//
-//         if (fsgs.size() > 0)
-//         {
-//             VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
-//             waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-//             waitSemaphoreInfo.pNext = nullptr;
-//             waitSemaphoreInfo.semaphore = GetBinarySemaphore((fsgs.begin() + i)->acquireSemaphore).GetVkSemaphore();
-//             waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-//             waitSemaphoreInfo.deviceIndex = 0;
-//             waitSemaphoreInfo.value = 1;
-//
-//             VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
-//             signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-//             signalSemaphoreInfo.pNext = nullptr;
-//             signalSemaphoreInfo.semaphore = GetBinarySemaphore((fsgs.begin() + i)->presentSemaphore).GetVkSemaphore();
-//             signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-//             signalSemaphoreInfo.deviceIndex = 0;
-//             signalSemaphoreInfo.value = 1;
-//
-//             submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
-//         } else
-//         {
-//             submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
-//         }
-//     }
-//
-//     const Fence& fenceToSignal = GetFence(fence);
-//     DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
-// }
-
 SwapchainStatus Device::Present(const FrameSyncGroup& fsg)
 {
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.pNext = nullptr;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore();
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &mSwapchain->GetVkHandle();
-    presentInfo.pImageIndices = &fsg.imageIndex;
-    presentInfo.pResults = nullptr;
+    const VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext = nullptr,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &GetBinarySemaphore(fsg.presentSemaphore).GetVkSemaphore(),
+        .swapchainCount = 1,
+        .pSwapchains = &mSwapchain->GetVkHandle(),
+        .pImageIndices = &fsg.imageIndex,
+        .pResults = nullptr,
+    };
 
-    VkResult result = vkQueuePresentKHR(GetQueue(QueueFamily::Present), &presentInfo);
+    const VkResult result = vkQueuePresentKHR(GetQueue(QueueFamily::Present), &presentInfo);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
         return SwapchainStatus::ShouldResize;
-    } else if (result != VK_SUCCESS)
+    }
+
+    if (result != VK_SUCCESS)
     {
         return SwapchainStatus::Failure;
     }
@@ -460,7 +420,12 @@ void Device::FreeSamplerDeferred(SamplerHandle& handle)
     mResourceMgr->Free<Sampler>(handle, mFrameInFlightIndex);
 }
 
-PipelineHandle Device::CreatePipeline(const PipelineDesc& desc)
+PipelineHandle Device::CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc)
+{
+    return mResourceMgr->Create<Pipeline>(this, std::move(desc));
+}
+
+PipelineHandle Device::CreateComputePipeline(const ComputePipelineDesc& desc)
 {
     return mResourceMgr->Create<Pipeline>(this, desc);
 }
@@ -697,16 +662,18 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
 
     // Set up a logical device to interface with the physical device
     // Can create multiple logical devices from the same physical device if there are varying requirements
-    VkDeviceCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pNext = &features2;
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(desc.queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = desc.queueCreateInfos.data();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(desc.requiredExt.size());
-    createInfo.ppEnabledExtensionNames = desc.requiredExt.data();
-    createInfo.pEnabledFeatures = nullptr;
-    createInfo.enabledLayerCount = 0;
-    createInfo.ppEnabledLayerNames = nullptr;
+    const VkDeviceCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = &features2,
+        .flags = 0,
+        .queueCreateInfoCount = static_cast<uint32_t>(desc.queueCreateInfos.size()),
+        .pQueueCreateInfos = desc.queueCreateInfos.data(),
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
+        .enabledExtensionCount = static_cast<uint32_t>(desc.requiredExt.size()),
+        .ppEnabledExtensionNames = desc.requiredExt.data(),
+        .pEnabledFeatures = nullptr,
+    };
 
     DebugReporter::Check(vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice));
 }
@@ -769,14 +736,17 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
     };
 
     // Queue priorities are floats in [0.0, 1.0] - required
-    float queuePriority = 1.0F;
-    for (uint32_t queueFamily : uniqueQueueFamilies)
+    const float queuePriority = 1.0F;
+    for (const uint32_t queueFamily : uniqueQueueFamilies)
     {
-        VkDeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
+        const VkDeviceQueueCreateInfo queueCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .queueFamilyIndex = queueFamily,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+        };
         queueCreateInfos.push_back(queueCreateInfo);
     }
 }

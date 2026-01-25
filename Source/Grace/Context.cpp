@@ -31,32 +31,35 @@ Context::Context(const ContextDesc& desc)
     vkCmdEndDebugUtilsLabelEXT_Meta = nullptr;
     vkCmdInsertDebugUtilsLabelEXT_Meta = nullptr;
 
-    VkApplicationInfo appInfo = {};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-
-    uint32_t apiVersion = VK_API_VERSION_1_3;
+    VkApplicationInfo appInfo = {
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pNext = nullptr,
+        .pApplicationName = "",
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "",
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = VK_API_VERSION_1_3,
+    };
 
 #if (GRACE_TARGET_VULKAN_API_VERSION == 13)
-    apiVersion = VK_API_VERSION_1_3;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 #elif (GRACE_TARGET_VULKAN_API_VERSION == 14)
-    apiVersion = VK_API_VERSION_1_4
+    appInfo.apiVersion = VK_API_VERSION_1_4;
 #else
     vkEnumerateInstanceVersion(&apiVersion);
     assert(apiVersion >= VK_API_VERSION_1_3);
 #endif
 
-    appInfo.apiVersion = apiVersion;
-
-    VkInstanceCreateInfo ici = {};
-    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    ici.pNext = nullptr;
-    ici.flags = 0;
-    ici.pApplicationInfo = &appInfo;
-    ici.enabledLayerCount = 0;
+    VkInstanceCreateInfo ici = {
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .pApplicationInfo = &appInfo,
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
+        .enabledExtensionCount = 0,
+        .ppEnabledExtensionNames = nullptr
+    };
 
     std::vector<const char*> extensions = GetRequiredExtensions();
     extensions.insert(extensions.end(), desc.extensions.begin(), desc.extensions.end());

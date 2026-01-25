@@ -55,7 +55,7 @@ int main()
     });
 
     // Create static pipeline from hello triangle shader
-    Grace::PipelineHandle helloTrianglePH = pDevice->CreatePipeline({
+    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline({
         .name = "Example01::helloTrianglePH",
         .shaders = {
             { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },
@@ -93,7 +93,7 @@ int main()
 
             Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
 
-            helloTrianglePH = pDevice->CreatePipeline({
+            helloTrianglePH = pDevice->CreateGraphicsPipeline({
                 .name = "Example01::helloTrianglePH",
                 .shaders = {
                     { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },

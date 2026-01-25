@@ -119,7 +119,7 @@ int main()
         .mipmapped = false,
     });
 
-    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreatePipeline({
+    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline({
         .name = "Example02::texturedCubePipeline",
         .shaders = {
             { .stage = Grace::ShaderStage::Vertex, .name = "02_TexturedCube.vert.spv" },

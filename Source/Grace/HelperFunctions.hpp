@@ -23,196 +23,148 @@ void AssignDebugName(VkDevice device, VK_HANDLE handle, const char* name)
     if constexpr (std::is_same_v<VK_HANDLE, VkInstance>)
     {
         objectType = VK_OBJECT_TYPE_INSTANCE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPhysicalDevice>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPhysicalDevice>)
     {
         objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDevice>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDevice>)
     {
         objectType = VK_OBJECT_TYPE_DEVICE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkQueue>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkQueue>)
     {
         objectType = VK_OBJECT_TYPE_QUEUE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSemaphore>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSemaphore>)
     {
         objectType = VK_OBJECT_TYPE_SEMAPHORE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSemaphore>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSemaphore>)
     {
         objectType = VK_OBJECT_TYPE_SEMAPHORE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkCommandBuffer>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkCommandBuffer>)
     {
         objectType = VK_OBJECT_TYPE_COMMAND_BUFFER;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkFence>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkFence>)
     {
         objectType = VK_OBJECT_TYPE_FENCE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDeviceMemory>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDeviceMemory>)
     {
         objectType = VK_OBJECT_TYPE_DEVICE_MEMORY;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkBuffer>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkBuffer>)
     {
         objectType = VK_OBJECT_TYPE_BUFFER;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkImage>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkImage>)
     {
         objectType = VK_OBJECT_TYPE_IMAGE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkEvent>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkEvent>)
     {
         objectType = VK_OBJECT_TYPE_EVENT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkQueryPool>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkQueryPool>)
     {
         objectType = VK_OBJECT_TYPE_QUERY_POOL;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkBufferView>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkBufferView>)
     {
         objectType = VK_OBJECT_TYPE_BUFFER_VIEW;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkImageView>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkImageView>)
     {
         objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkShaderModule>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkShaderModule>)
     {
         objectType = VK_OBJECT_TYPE_SHADER_MODULE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineCache>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineCache>)
     {
         objectType = VK_OBJECT_TYPE_PIPELINE_CACHE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineLayout>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineLayout>)
     {
         objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkRenderPass>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkRenderPass>)
     {
         objectType = VK_OBJECT_TYPE_RENDER_PASS;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPipeline>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPipeline>)
     {
         objectType = VK_OBJECT_TYPE_PIPELINE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorSetLayout>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorSetLayout>)
     {
         objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSampler>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSampler>)
     {
         objectType = VK_OBJECT_TYPE_SAMPLER;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorPool>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorPool>)
     {
         objectType = VK_OBJECT_TYPE_DESCRIPTOR_POOL;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorSet>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorSet>)
     {
         objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkFramebuffer>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkFramebuffer>)
     {
         objectType = VK_OBJECT_TYPE_FRAMEBUFFER;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkCommandPool>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkCommandPool>)
     {
         objectType = VK_OBJECT_TYPE_COMMAND_POOL;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSamplerYcbcrConversion>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSamplerYcbcrConversion>)
     {
         objectType = VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorUpdateTemplate>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDescriptorUpdateTemplate>)
     {
         objectType = VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPrivateDataSlot>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPrivateDataSlot>)
     {
         objectType = VK_OBJECT_TYPE_PRIVATE_DATA_SLOT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSurfaceKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSurfaceKHR>)
     {
         objectType = VK_OBJECT_TYPE_SURFACE_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkSwapchainKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkSwapchainKHR>)
     {
         objectType = VK_OBJECT_TYPE_SWAPCHAIN_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDisplayKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDisplayKHR>)
     {
         objectType = VK_OBJECT_TYPE_DISPLAY_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDisplayModeKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDisplayModeKHR>)
     {
         objectType = VK_OBJECT_TYPE_DISPLAY_MODE_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDebugReportCallbackEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDebugReportCallbackEXT>)
     {
         objectType = VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkVideoSessionKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkVideoSessionKHR>)
     {
         objectType = VK_OBJECT_TYPE_VIDEO_SESSION_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkVideoSessionParametersKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkVideoSessionParametersKHR>)
     {
         objectType = VK_OBJECT_TYPE_VIDEO_SESSION_PARAMETERS_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkCuModuleNVX>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkCuModuleNVX>)
     {
         objectType = VK_OBJECT_TYPE_CU_MODULE_NVX;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkCuFunctionNVX>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkCuFunctionNVX>)
     {
         objectType = VK_OBJECT_TYPE_CU_FUNCTION_NVX;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDebugUtilsMessengerEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDebugUtilsMessengerEXT>)
     {
         objectType = VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkAccelerationStructureKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkAccelerationStructureKHR>)
     {
         objectType = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkValidationCacheEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkValidationCacheEXT>)
     {
         objectType = VK_OBJECT_TYPE_VALIDATION_CACHE_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkAccelerationStructureNV>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkAccelerationStructureNV>)
     {
         objectType = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPerformanceConfigurationINTEL>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPerformanceConfigurationINTEL>)
     {
         objectType = VK_OBJECT_TYPE_PERFORMANCE_CONFIGURATION_INTEL;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkDeferredOperationKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkDeferredOperationKHR>)
     {
         objectType = VK_OBJECT_TYPE_DEFERRED_OPERATION_KHR;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkIndirectCommandsLayoutEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkIndirectCommandsLayoutEXT>)
     {
         objectType = VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkMicromapEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkMicromapEXT>)
     {
         objectType = VK_OBJECT_TYPE_MICROMAP_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkOpticalFlowSessionNV>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkOpticalFlowSessionNV>)
     {
         objectType = VK_OBJECT_TYPE_OPTICAL_FLOW_SESSION_NV;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkShaderEXT>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkShaderEXT>)
     {
         objectType = VK_OBJECT_TYPE_SHADER_EXT;
-    }
-    else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineBinaryKHR>)
+    } else if constexpr (std::is_same_v<VK_HANDLE, VkPipelineBinaryKHR>)
     {
         objectType = VK_OBJECT_TYPE_PIPELINE_BINARY_KHR;
     }
@@ -227,11 +179,13 @@ void AssignDebugName(VkDevice device, VK_HANDLE handle, const char* name)
         objectType = VK_OBJECT_TYPE_INDIRECT_EXECUTION_SET_EXT;
     }
 
-    VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-    nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    nameInfo.objectType = objectType;
-    nameInfo.objectHandle = uint64_t(handle);
-    nameInfo.pObjectName = name;
+    VkDebugUtilsObjectNameInfoEXT nameInfo = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        .pNext = nullptr,
+        .objectType = objectType,
+        .objectHandle = reinterpret_cast<uint64_t>(handle),
+        .pObjectName = name,
+    };
     GRACE_SET_VK_DEBUG_NAME(device, &nameInfo);
 }
 
@@ -268,9 +222,9 @@ struct QueueFamilyIndices
     {
         return graphicsFamily.has_value()
 #ifdef GRACE_USE_GLFW
-        && presentFamily.has_value()
+            && presentFamily.has_value()
 #endif
-        ;
+            ;
     }
 };
 

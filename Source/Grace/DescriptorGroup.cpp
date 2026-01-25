@@ -77,14 +77,15 @@ VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, void
     // Get or create a pool to allocate from
     VkDescriptorPool poolToUse = GetPool();
 
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.pNext = pNext;
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = poolToUse;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
+    VkDescriptorSetAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .pNext = pNext,
+        .descriptorPool = poolToUse,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &layout,
+    };
 
-    VkDescriptorSet ds;
+    VkDescriptorSet ds = nullptr;
     VkResult result = vkAllocateDescriptorSets(mDevice, &allocInfo, &ds);
 
     // Allocation failed, try again
@@ -109,8 +110,7 @@ VkDescriptorPool DescriptorAllocator::GetPool()
     {
         newPool = mReadyPools.back();
         mReadyPools.pop_back();
-    }
-    else
+    } else
     {
         // Need to create a new pool
         newPool = CreatePool(mSetsPerPool, mRatios);
@@ -130,20 +130,21 @@ VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<Po
     assert(mDevice != nullptr);
 
     std::vector<VkDescriptorPoolSize> poolSizes;
-    for (PoolSizeRatio ratio : poolRatios)
+    for (const PoolSizeRatio ratio : poolRatios)
     {
-        poolSizes.push_back(
-            VkDescriptorPoolSize { .type = ratio.type, .descriptorCount = uint32_t(ratio.ratio * setCount) });
+        poolSizes.emplace_back(ratio.type, static_cast<uint32_t>(ratio.ratio * static_cast<float>(setCount)));
     }
 
-    VkDescriptorPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-    poolInfo.maxSets = setCount;
-    poolInfo.poolSizeCount = (uint32_t) poolSizes.size();
-    poolInfo.pPoolSizes = poolSizes.data();
+    const VkDescriptorPoolCreateInfo poolInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
+        .maxSets = setCount,
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data(),
+    };
 
-    VkDescriptorPool newPool;
+    VkDescriptorPool newPool = nullptr;
     DebugReporter::Check(vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &newPool));
 
     return newPool;
@@ -206,13 +207,18 @@ void DescriptorWriter::WriteBuffer(int binding, VkBuffer buffer, size_t size, si
     });
     // clang-format on
 
-    VkWriteDescriptorSet write = {};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstBinding = binding;
-    write.dstSet = nullptr; // Empty until we need to write it
-    write.descriptorCount = 1;
-    write.descriptorType = type;
-    write.pBufferInfo = &info;
+    const VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = nullptr,
+        .dstBinding = static_cast<uint32_t>(binding),
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pImageInfo = nullptr,
+        .pBufferInfo = &info,
+        .pTexelBufferView = nullptr,
+    };
 
     writes.push_back(write);
 }
@@ -233,15 +239,18 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
     });
     // clang-format on
 
-    VkWriteDescriptorSet write = {};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.pNext = nullptr;
-    write.dstBinding = binding;
-    write.dstSet = nullptr; // Empty until we need to write it
-    write.descriptorCount = 1;
-    write.descriptorType = type;
-    write.pImageInfo = &info;
-    write.dstArrayElement = resourceId;
+    const VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = nullptr,
+        .dstBinding = static_cast<uint32_t>(binding),
+        .dstArrayElement = resourceId,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pImageInfo = &info,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
+    };
 
     writes.push_back(write);
 }
@@ -258,15 +267,18 @@ void DescriptorWriter::WriteSamplerBindless(const uint32_t resourceId, int bindi
     });
     // clang-format on
 
-    VkWriteDescriptorSet write = {};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.pNext = nullptr;
-    write.dstBinding = binding;
-    write.dstSet = nullptr; // Empty until we need to write it
-    write.descriptorCount = 1;
-    write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    write.pImageInfo = &info;
-    write.dstArrayElement = resourceId;
+    const VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = nullptr,
+        .dstBinding = static_cast<uint32_t>(binding),
+        .dstArrayElement = resourceId,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+        .pImageInfo = &info,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
+    };
 
     writes.push_back(write);
 }
@@ -282,15 +294,18 @@ void DescriptorWriter::WriteImageBindless(
     });
     // clang-format on
 
-    VkWriteDescriptorSet write = {};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.pNext = nullptr;
-    write.dstBinding = binding;
-    write.dstSet = nullptr; // Empty until we need to write it
-    write.descriptorCount = 1;
-    write.descriptorType = type;
-    write.pImageInfo = &info;
-    write.dstArrayElement = resourceId;
+    const VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = nullptr,
+        .dstBinding = static_cast<uint32_t>(binding),
+        .dstArrayElement = resourceId,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pImageInfo = &info,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
+    };
 
     writes.push_back(write);
 }
@@ -308,14 +323,18 @@ void DescriptorWriter::WriteBufferBindless(
     });
     // clang-format on
 
-    VkWriteDescriptorSet write = {};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstBinding = binding;
-    write.dstSet = nullptr; // Empty until we need to write it
-    write.descriptorCount = 1;
-    write.descriptorType = type;
-    write.pBufferInfo = &info;
-    write.dstArrayElement = resourceId;
+    const VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = nullptr,
+        .dstBinding = static_cast<uint32_t>(binding),
+        .dstArrayElement = resourceId,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pImageInfo = nullptr,
+        .pBufferInfo = &info,
+        .pTexelBufferView = nullptr,
+    };
 
     writes.push_back(write);
 }
@@ -346,10 +365,13 @@ void DescriptorWriter::UpdateSet(VkDescriptorSet set)
 
 void DescriptorLayoutBuilder::AddBinding(uint32_t binding, VkDescriptorType type, uint32_t count)
 {
-    VkDescriptorSetLayoutBinding newbind = {};
-    newbind.binding = binding;
-    newbind.descriptorCount = count;
-    newbind.descriptorType = type;
+    const VkDescriptorSetLayoutBinding newbind = {
+        .binding = binding,
+        .descriptorType = type,
+        .descriptorCount = count,
+        .stageFlags = 0,
+        .pImmutableSamplers = nullptr,
+    };
 
     mBindings.push_back(newbind);
 }
@@ -367,15 +389,15 @@ DescriptorLayoutBuilder::Build(VkShaderStageFlags shaderStages, void* pNext, VkD
         b.stageFlags |= shaderStages;
     }
 
-    VkDescriptorSetLayoutCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    info.pNext = pNext;
-    info.pBindings = mBindings.data();
-    info.bindingCount = (uint32_t) mBindings.size();
-    info.flags = flags;
+    const VkDescriptorSetLayoutCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pNext = pNext,
+        .flags = flags,
+        .bindingCount = static_cast<uint32_t>(mBindings.size()),
+        .pBindings = mBindings.data(),
+    };
 
-    VkDescriptorSetLayout set;
-
+    VkDescriptorSetLayout set = nullptr;
     DebugReporter::Check(vkCreateDescriptorSetLayout(mDevice, &info, nullptr, &set));
 
     return set;

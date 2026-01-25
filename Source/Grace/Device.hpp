@@ -113,7 +113,9 @@ public:
 
     /// PIPELINE OPS
 
-    GRACE_NODISCARD PipelineHandle CreatePipeline(const PipelineDesc& info);
+    GRACE_NODISCARD PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc);
+
+    GRACE_NODISCARD PipelineHandle CreateComputePipeline(const ComputePipelineDesc& desc);
 
     GRACE_NODISCARD Pipeline& GetPipeline(const PipelineHandle& handle);
 
@@ -172,10 +174,7 @@ public:
     void Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, FenceHandle fence);
 
     template <size_t N>
-    void BatchSubmit(QueueFamily queue,
-                     CommandBuffer (&& cmds)[N],
-                     FrameSyncGroup (&& fsgs)[N],
-                     FenceHandle fence)
+    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FrameSyncGroup (&&fsgs)[N], FenceHandle fence)
     {
         static_assert(N > 0, "N must be greater than zero");
 
@@ -183,27 +182,30 @@ public:
 
         for (uint32_t i = 0; i < N; ++i)
         {
-            VkCommandBufferSubmitInfo cmdInfo = {};
-            cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-            cmdInfo.pNext = nullptr;
-            cmdInfo.commandBuffer = cmds[i].GetVkCommandBuffer();
-            cmdInfo.deviceMask = 0;
+            VkCommandBufferSubmitInfo cmdInfo = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
+                .commandBuffer = cmds[i].GetVkCommandBuffer(),
+                .deviceMask = 0,
+            };
 
-            VkSemaphoreSubmitInfo waitSemaphoreInfo = {};
-            waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            waitSemaphoreInfo.pNext = nullptr;
-            waitSemaphoreInfo.semaphore = GetBinarySemaphore(fsgs[i].acquireSemaphore).GetVkSemaphore();
-            waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            waitSemaphoreInfo.deviceIndex = 0;
-            waitSemaphoreInfo.value = 1;
+            VkSemaphoreSubmitInfo waitSemaphoreInfo = {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = GetBinarySemaphore(fsgs[i].acquireSemaphore).GetVkSemaphore(),
+                .value = 1,
+                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                .deviceIndex = 0,
+            };
 
-            VkSemaphoreSubmitInfo signalSemaphoreInfo = {};
-            signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            signalSemaphoreInfo.pNext = nullptr;
-            signalSemaphoreInfo.semaphore = GetBinarySemaphore(fsgs[i].presentSemaphore).GetVkSemaphore();
-            signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            signalSemaphoreInfo.deviceIndex = 0;
-            signalSemaphoreInfo.value = 1;
+            VkSemaphoreSubmitInfo signalSemaphoreInfo = {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = GetBinarySemaphore(fsgs[i].presentSemaphore).GetVkSemaphore(),
+                .value = 1,
+                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                .deviceIndex = 0,
+            };
 
             submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
         }
@@ -213,9 +215,7 @@ public:
     }
 
     template <size_t N>
-    void BatchSubmit(QueueFamily queue,
-                     CommandBuffer (&& cmds)[N],
-                     FenceHandle fence)
+    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FenceHandle fence)
     {
         static_assert(N > 0, "N must be greater than zero");
 
@@ -223,11 +223,12 @@ public:
 
         for (uint32_t i = 0; i < N; ++i)
         {
-            VkCommandBufferSubmitInfo cmdInfo = {};
-            cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-            cmdInfo.pNext = nullptr;
-            cmdInfo.commandBuffer = cmds[i].GetVkCommandBuffer();
-            cmdInfo.deviceMask = 0;
+            VkCommandBufferSubmitInfo cmdInfo = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
+                .commandBuffer = cmds[i].GetVkCommandBuffer(),
+                .deviceMask = 0,
+            };
 
             submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
         }
@@ -327,11 +328,11 @@ private:
                                                      const std::vector<const char*>& requiredExt) const;
 
 private:
-    VkInstance mParentInstance = {};
-    VkDevice mDevice = {};
-    VmaAllocator mAllocator = {};
-    VkPhysicalDevice mPhysicalDevice = {};
-    VkSurfaceKHR mSurfaceKHR = {};
+    VkInstance mParentInstance = nullptr;
+    VkDevice mDevice = nullptr;
+    VmaAllocator mAllocator = nullptr;
+    VkPhysicalDevice mPhysicalDevice = nullptr;
+    VkSurfaceKHR mSurfaceKHR = nullptr;
     std::array<std::optional<uint32_t>, static_cast<uint32_t>(QueueFamily::Undefined)> mQueueFamilyIndices = {};
     std::array<VkQueue, static_cast<uint32_t>(QueueFamily::Undefined)> mQueues = {};
 

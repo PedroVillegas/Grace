@@ -26,16 +26,15 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example04::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    const Grace::PipelineHandle streamCompactionPipeline = pDevice->CreatePipeline({
+    const Grace::PipelineHandle streamCompactionPipeline = pDevice->CreateComputePipeline({
         .name = "Example04::streamCompactionPipeline",
-        .shaders = { { .stage = Grace::ShaderStage::Compute, .name = "04_StreamCompaction.slang.spv" } },
+        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompaction.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
-    const Grace::PipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->CreatePipeline({
+    const Grace::PipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->CreateComputePipeline({
         .name = "Example04::streamCompactionNonOrderPreservingPipeline",
-        .shaders = { { .stage = Grace::ShaderStage::Compute,
-                       .name = "04_StreamCompactionNonOrderPreserving.slang.spv" } },
+        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompactionNonOrderPreserving.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 

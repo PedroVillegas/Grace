@@ -23,8 +23,8 @@ class Buffer;
 /// to multiply the maxSets by.
 struct PoolSizeRatio
 {
-    VkDescriptorType type = {};
-    float ratio = {};
+    VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    float ratio = 0.0F;
 };
 
 /// @brief A growable abstraction of `VkDescriptorPool`s.
@@ -68,7 +68,7 @@ private:
     GRACE_NODISCARD VkDescriptorPool GetPool();
     GRACE_NODISCARD VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
-    VkDevice mDevice = {};
+    VkDevice mDevice = nullptr;
 
     std::vector<PoolSizeRatio> mRatios = {};
     std::vector<VkDescriptorPool> mFullPools = {};
@@ -157,7 +157,7 @@ public:
     void WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type);
 
 private:
-    VkDevice mDevice = {};
+    VkDevice mDevice = nullptr;
 
     std::deque<VkDescriptorImageInfo> imageInfos = {};
     std::deque<VkDescriptorBufferInfo> bufferInfos = {};
@@ -196,14 +196,15 @@ public:
     /// @param flags Flags for layout creation e.g. Update-After-Bind.
     ///
     /// @returns `VkDescriptorSetLayout` of all bindings added thus far.
-    GRACE_NODISCARD VkDescriptorSetLayout
-    Build(VkShaderStageFlags shaderStages, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
+    GRACE_NODISCARD VkDescriptorSetLayout Build(VkShaderStageFlags shaderStages,
+                                                void* pNext = nullptr,
+                                                VkDescriptorSetLayoutCreateFlags flags = 0);
 
     /// @brief Clear all bindings that have been added.
     void Clear();
 
 private:
-    VkDevice mDevice = {};
+    VkDevice mDevice = nullptr;
 
     std::vector<VkDescriptorSetLayoutBinding> mBindings = {};
 };
