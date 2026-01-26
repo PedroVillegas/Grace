@@ -27,11 +27,11 @@ if(NOT DEFINED GRACE_SPIRV_DIR)
     set(GRACE_SPIRV_DIR ${GRACE_SHADERS_DIR}/../SPIRV)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
+include(${PROJECT_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
 
 add_library(Grace SHARED)
 
-set(GRACE_PY_SHADER_COMP_SCRIPT ${CMAKE_SOURCE_DIR}/Scripts/ShaderCompiler.py)
+set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
 
 if(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
     target_sources(Grace PUBLIC Grace/Ext/ShaderCompiler.cpp)
@@ -100,7 +100,7 @@ target_link_libraries(
     PUBLIC ${Vulkan_LIBRARIES}
 )
 
-include(${CMAKE_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
+include(${PROJECT_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
 
 target_compile_definitions(
     Grace
