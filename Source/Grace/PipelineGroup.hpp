@@ -61,7 +61,7 @@ struct ShaderDesc
 
 struct GraphicsState
 {
-    std::initializer_list<Format> colourAttachmentFormats = {};
+    std::initializer_list<Format> colourAttachmentFormats;
     Format depthAttachmentFormat = Format::Undefined;
     Format stencilAttachmentFormat = Format::Undefined;
     Topology topology = Topology::TriangleList;
