@@ -25,8 +25,7 @@ struct RegistryEntry
     template <typename... Args>
     RegistryEntry(const uint32_t Validator, Args&&... args)
         : validator(Validator), resource(std::forward<Args>(args)...)
-    {
-    }
+    {}
 
     Res resource = {};
     uint32_t validator = 0U;
@@ -132,8 +131,7 @@ public:
         if (frameIndex != std::numeric_limits<uint32_t>::max())
         {
             mDeletionQueue->PushDeleter(
-                [&]()
-                {
+                [&] {
                     ResourceRegistry<Res>().Free(handle, true);
                 },
                 frameIndex);

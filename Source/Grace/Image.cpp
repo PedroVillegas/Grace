@@ -157,7 +157,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
         imgcinfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
-    VmaAllocationCreateInfo allocInfo = {
+    const VmaAllocationCreateInfo allocInfo = {
         .flags = 0,
         .usage = VMA_MEMORY_USAGE_GPU_ONLY,
         .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -190,7 +190,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
         if (desc.data != nullptr)
         {
-            stagingBuffer = pDevice->CreateBuffer({
+            stagingBuffer = mDevice->CreateBuffer({
                 .name = "Staging Buffer",
                 .usage = BufferUsage::TransferSrc,
                 .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,

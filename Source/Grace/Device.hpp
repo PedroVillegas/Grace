@@ -113,7 +113,9 @@ public:
 
     /// PIPELINE OPS
 
-    GRACE_NODISCARD PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc);
+    template <size_t NumShaders, size_t NumColourAttachments>
+    GRACE_NODISCARD PipelineHandle
+    CreateGraphicsPipeline(const GraphicsPipelineDesc<NumShaders, NumColourAttachments>&& desc);
 
     GRACE_NODISCARD PipelineHandle CreateComputePipeline(const ComputePipelineDesc& desc);
 
@@ -174,68 +176,10 @@ public:
     void Submit(QueueFamily queue, const CommandBuffer& cmd, const FrameSyncGroup& fsg, FenceHandle fence);
 
     template <size_t N>
-    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FrameSyncGroup (&&fsgs)[N], FenceHandle fence)
-    {
-        static_assert(N > 0, "N must be greater than zero");
-
-        std::array<VkSubmitInfo2, N> submitInfos;
-
-        for (uint32_t i = 0; i < N; ++i)
-        {
-            VkCommandBufferSubmitInfo cmdInfo = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                .pNext = nullptr,
-                .commandBuffer = cmds[i].GetVkCommandBuffer(),
-                .deviceMask = 0,
-            };
-
-            VkSemaphoreSubmitInfo waitSemaphoreInfo = {
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = nullptr,
-                .semaphore = GetBinarySemaphore(fsgs[i].acquireSemaphore).GetVkSemaphore(),
-                .value = 1,
-                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                .deviceIndex = 0,
-            };
-
-            VkSemaphoreSubmitInfo signalSemaphoreInfo = {
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = nullptr,
-                .semaphore = GetBinarySemaphore(fsgs[i].presentSemaphore).GetVkSemaphore(),
-                .value = 1,
-                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                .deviceIndex = 0,
-            };
-
-            submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
-        }
-
-        const Fence& fenceToSignal = GetFence(fence);
-        DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
-    }
+    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FrameSyncGroup (&&fsgs)[N], FenceHandle fence);
 
     template <size_t N>
-    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FenceHandle fence)
-    {
-        static_assert(N > 0, "N must be greater than zero");
-
-        std::array<VkSubmitInfo2, N> submitInfos;
-
-        for (uint32_t i = 0; i < N; ++i)
-        {
-            VkCommandBufferSubmitInfo cmdInfo = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-                .pNext = nullptr,
-                .commandBuffer = cmds[i].GetVkCommandBuffer(),
-                .deviceMask = 0,
-            };
-
-            submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
-        }
-
-        const Fence& fenceToSignal = GetFence(fence);
-        DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
-    }
+    void BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FenceHandle fence);
 
     GRACE_NODISCARD SwapchainStatus Present(const FrameSyncGroup& fsg);
 
@@ -248,46 +192,11 @@ public:
     GRACE_NODISCARD QueryManager* GetQueryManagerPtr();
 
     template <typename T>
-    void ResetQueryPoolFullRange(QueryWriteFlags flags)
-    {
-        QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
-
-        uint32_t first = mFrameInFlightIndex * qg.GetRange();
-        uint32_t count = qg.GetRange();
-
-        vkResetQueryPool(mDevice, qg.GetVkQueryPool(), first, count);
-        mQueryMgr->ResetQueryGroup<T>();
-    }
+    void ResetQueryPoolFullRange(QueryWriteFlags flags);
 
     template <typename T>
     GRACE_NODISCARD const QueryGroup<T>&
-    GetQueryPoolResults(uint32_t firstQuery, uint32_t queryCount, QueryResult flags) const
-    {
-        QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
-
-        uint32_t qc = qg.GetQueryCount();
-        uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
-
-        if (EnumBitmaskHasBitSet(flags, QueryResult::WithAvailability))
-        {
-            stride += sizeof(uint64_t);
-        }
-
-        uint32_t dataSize = qc * stride;
-        VkResult res = vkGetQueryPoolResults(mDevice,
-                                             qg.GetVkQueryPool(),
-                                             mFrameInFlightIndex * qg.GetRange(),
-                                             qc,
-                                             dataSize,
-                                             qg.GetQueries().data(),
-                                             stride,
-                                             VK_QUERY_RESULT_64_BIT | static_cast<VkQueryResultFlagBits>(flags));
-
-        qg.mLastResult = res;
-        DebugReporter::Check(res);
-
-        return qg;
-    }
+    GetQueryPoolResults(uint32_t firstQuery, uint32_t queryCount, QueryResult flags) const;
 
     /// SWAPCHAIN OPS
 
@@ -347,5 +256,117 @@ private:
     uint32_t mFramesInFlight = 1U;
     uint32_t mFrameInFlightIndex = 0U;
 };
+
+template <size_t NumShaders, size_t NumColourAttachments>
+PipelineHandle Device::CreateGraphicsPipeline(const GraphicsPipelineDesc<NumShaders, NumColourAttachments>&& desc)
+{
+    const PipelineLayout& pl = mResourceMgr->Get<PipelineLayout>(desc.layout);
+    return mResourceMgr->Create<Pipeline>(mDevice, pl, std::move(desc));
+}
+
+template <size_t N>
+void Device::BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FrameSyncGroup (&&fsgs)[N], FenceHandle fence)
+{
+    static_assert(N > 0, "N must be greater than zero");
+
+    std::array<VkSubmitInfo2, N> submitInfos;
+
+    for (uint32_t i = 0; i < N; ++i)
+    {
+        VkCommandBufferSubmitInfo cmdInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = nullptr,
+            .commandBuffer = cmds[i].GetVkCommandBuffer(),
+            .deviceMask = 0,
+        };
+
+        VkSemaphoreSubmitInfo waitSemaphoreInfo = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .semaphore = GetBinarySemaphore(fsgs[i].acquireSemaphore).GetVkSemaphore(),
+            .value = 1,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0,
+        };
+
+        VkSemaphoreSubmitInfo signalSemaphoreInfo = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .semaphore = GetBinarySemaphore(fsgs[i].presentSemaphore).GetVkSemaphore(),
+            .value = 1,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0,
+        };
+
+        submitInfos[i] = SubmitInfo(&cmdInfo, &signalSemaphoreInfo, &waitSemaphoreInfo);
+    }
+
+    const Fence& fenceToSignal = GetFence(fence);
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
+}
+
+template <size_t N>
+void Device::BatchSubmit(QueueFamily queue, CommandBuffer (&&cmds)[N], FenceHandle fence)
+{
+    static_assert(N > 0, "N must be greater than zero");
+
+    std::array<VkSubmitInfo2, N> submitInfos;
+
+    for (uint32_t i = 0; i < N; ++i)
+    {
+        VkCommandBufferSubmitInfo cmdInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = nullptr,
+            .commandBuffer = cmds[i].GetVkCommandBuffer(),
+            .deviceMask = 0,
+        };
+
+        submitInfos[i] = SubmitInfo(&cmdInfo, nullptr, nullptr);
+    }
+
+    const Fence& fenceToSignal = GetFence(fence);
+    DebugReporter::Check(vkQueueSubmit2(GetQueue(queue), N, submitInfos.data(), fenceToSignal.GetVkFence()));
+}
+
+template <typename T>
+void Device::ResetQueryPoolFullRange(QueryWriteFlags flags)
+{
+    QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
+
+    uint32_t first = mFrameInFlightIndex * qg.GetRange();
+    uint32_t count = qg.GetRange();
+
+    vkResetQueryPool(mDevice, qg.GetVkQueryPool(), first, count);
+    mQueryMgr->ResetQueryGroup<T>();
+}
+
+template <typename T>
+const QueryGroup<T>& Device::GetQueryPoolResults(uint32_t firstQuery, uint32_t queryCount, QueryResult flags) const
+{
+    QueryGroup<T>& qg = mQueryMgr->GetQueryGroup<T>();
+
+    uint32_t qc = qg.GetQueryCount();
+    uint32_t stride = qg.GetValuesPerQuery() * sizeof(uint64_t);
+
+    if (EnumBitmaskHasBitSet(flags, QueryResult::WithAvailability))
+    {
+        stride += sizeof(uint64_t);
+    }
+
+    uint32_t dataSize = qc * stride;
+    VkResult res = vkGetQueryPoolResults(mDevice,
+                                         qg.GetVkQueryPool(),
+                                         mFrameInFlightIndex * qg.GetRange(),
+                                         qc,
+                                         dataSize,
+                                         qg.GetQueries().data(),
+                                         stride,
+                                         VK_QUERY_RESULT_64_BIT | static_cast<VkQueryResultFlagBits>(flags));
+
+    qg.mLastResult = res;
+    DebugReporter::Check(res);
+
+    return qg;
+}
 
 } // namespace Grace

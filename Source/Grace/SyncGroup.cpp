@@ -118,6 +118,8 @@ void BarrierBuilder::GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemo
 {
     vkBarrierOut.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
     vkBarrierOut.pNext = nullptr;
+    vkBarrierOut.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+    vkBarrierOut.dstStageMask = VK_PIPELINE_STAGE_2_NONE;
     vkBarrierOut.srcAccessMask = VK_ACCESS_2_NONE;
     vkBarrierOut.dstAccessMask = VK_ACCESS_2_NONE;
 

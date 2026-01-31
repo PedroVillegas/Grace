@@ -55,19 +55,21 @@ int main()
     });
 
     // Create static pipeline from hello triangle shader
-    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline({
+    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
         .name = "Example01::helloTrianglePH",
-        .shaders = {
-            { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },
-            { .stage = Grace::ShaderStage::Fragment, .name = "01_HelloTriangle.frag.spv" },
-        },
-        .graphicsState = {
-            .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
-            .topology = Grace::Topology::TriangleList,
-            .polygonMode = Grace::PolygonMode::Fill,
-            .cullMode = Grace::CullMode::Back,
-            .frontFace = Grace::FrontFace::Clockwise,
-        },
+        .shaders =
+            std::array {
+                Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
+                Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
+            },
+        .graphicsState =
+            Grace::GraphicsState {
+                .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
+                .topology = Grace::Topology::TriangleList,
+                .polygonMode = Grace::PolygonMode::Fill,
+                .cullMode = Grace::CullMode::Back,
+                .frontFace = Grace::FrontFace::Clockwise,
+            },
         .layout = helloTrianglePLH,
     });
 
@@ -93,19 +95,21 @@ int main()
 
             Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
 
-            helloTrianglePH = pDevice->CreateGraphicsPipeline({
+            helloTrianglePH = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
                 .name = "Example01::helloTrianglePH",
-                .shaders = {
-                    { .stage = Grace::ShaderStage::Vertex, .name = "01_HelloTriangle.vert.spv" },
-                    { .stage = Grace::ShaderStage::Fragment, .name = "01_HelloTriangle.frag.spv" },
-                },
-                .graphicsState = {
-                    .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
-                    .topology = Grace::Topology::TriangleList,
-                    .polygonMode = Grace::PolygonMode::Fill,
-                    .cullMode = Grace::CullMode::Back,
-                    .frontFace = Grace::FrontFace::Clockwise,
-                },
+                .shaders =
+                    std::array {
+                        Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
+                        Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
+                    },
+                .graphicsState =
+                    Grace::GraphicsState {
+                        .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
+                        .topology = Grace::Topology::TriangleList,
+                        .polygonMode = Grace::PolygonMode::Fill,
+                        .cullMode = Grace::CullMode::Back,
+                        .frontFace = Grace::FrontFace::Clockwise,
+                    },
                 .layout = helloTrianglePLH,
             });
         }

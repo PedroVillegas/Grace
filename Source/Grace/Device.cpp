@@ -420,14 +420,10 @@ void Device::FreeSamplerDeferred(SamplerHandle& handle)
     mResourceMgr->Free<Sampler>(handle, mFrameInFlightIndex);
 }
 
-PipelineHandle Device::CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc)
-{
-    return mResourceMgr->Create<Pipeline>(this, std::move(desc));
-}
-
 PipelineHandle Device::CreateComputePipeline(const ComputePipelineDesc& desc)
 {
-    return mResourceMgr->Create<Pipeline>(this, desc);
+    const PipelineLayout& pl = mResourceMgr->Get<PipelineLayout>(desc.layout);
+    return mResourceMgr->Create<Pipeline>(mDevice, pl, desc);
 }
 
 Pipeline& Device::GetPipeline(const PipelineHandle& handle)

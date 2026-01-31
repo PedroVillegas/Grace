@@ -38,7 +38,6 @@ static glm::mat4 HandleCamera(GLFWwindow* pWindow, Camera& camera, float dt, flo
 int main()
 {
     constexpr uint32_t FRAMES_IN_FLIGHT = 2;
-    // uint32_t frameIndex = 0;
 
     // Timings
     double texturedCubePassTime = 0.0;
@@ -71,10 +70,11 @@ int main()
         .maxSamplerDescriptors = 65535,
         .maxBufferDescriptors = 65535,
         .framesInFlight = FRAMES_IN_FLIGHT,
-        .queryGroupDesc = {
-            .timestampQueriesCount = 8,
-            .pipelineStatisticsFlags = Grace::QueryStats::FragmentShaderInvocations,
-        },
+        .queryGroupDesc =
+            {
+                .timestampQueriesCount = 8,
+                .pipelineStatisticsFlags = Grace::QueryStats::FragmentShaderInvocations,
+            },
         .pGlfwWindow = pWindow,
     };
 
@@ -119,23 +119,25 @@ int main()
         .mipmapped = false,
     });
 
-    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline({
+    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
         .name = "Example02::texturedCubePipeline",
-        .shaders = {
-            { .stage = Grace::ShaderStage::Vertex, .name = "02_TexturedCube.vert.spv" },
-            { .stage = Grace::ShaderStage::Fragment, .name = "02_TexturedCube.frag.spv" },
-        },
-        .graphicsState = {
-            .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
-            .depthAttachmentFormat = Grace::Format::D32_SFloat,
-            .topology = Grace::Topology::TriangleList,
-            .polygonMode = Grace::PolygonMode::Fill,
-            .cullMode = Grace::CullMode::None,
-            .frontFace = Grace::FrontFace::Clockwise,
-            .depthStencilUsage = Grace::DepthStencilUsage::DepthOnly,
-            .depthCompareOp = Grace::CompareOp::GreaterOrEqual,
-        },
-        .layout = pDevice->GetSolePipelineLayout()
+        .shaders =
+            std::array {
+                Grace::ShaderDesc(Grace::ShaderStage::Vertex, "02_TexturedCube.vert.spv"),
+                Grace::ShaderDesc(Grace::ShaderStage::Fragment, "02_TexturedCube.frag.spv"),
+            },
+        .graphicsState =
+            Grace::GraphicsState {
+                .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
+                .depthAttachmentFormat = Grace::Format::D32_SFloat,
+                .topology = Grace::Topology::TriangleList,
+                .polygonMode = Grace::PolygonMode::Fill,
+                .cullMode = Grace::CullMode::None,
+                .frontFace = Grace::FrontFace::Clockwise,
+                .depthStencilUsage = Grace::DepthStencilUsage::DepthOnly,
+                .depthCompareOp = Grace::CompareOp::GreaterOrEqual,
+            },
+        .layout = pDevice->GetSolePipelineLayout(),
     });
 
     // Cube vertex and index buffer
