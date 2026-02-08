@@ -78,7 +78,15 @@ int main()
         .pGlfwWindow = pWindow,
     };
 
-    Grace::Context gpuContext({ .deviceConfig = deviceDesc });
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const std::vector<const char*> glfwRequiredExt(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+    Grace::Context gpuContext({
+        .extensions = std::move(glfwRequiredExt),
+        .deviceConfig = deviceDesc,
+    });
+
     Grace::Device* pDevice = gpuContext.GetDevicePtr();
 
     // Must first create the swapchain with desired extents
@@ -119,16 +127,14 @@ int main()
         .mipmapped = false,
     });
 
-    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
+    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline({
         .name = "Example02::texturedCubePipeline",
-        .shaders =
-            std::array {
+        .shaders = {
                 Grace::ShaderDesc(Grace::ShaderStage::Vertex, "02_TexturedCube.vert.spv"),
                 Grace::ShaderDesc(Grace::ShaderStage::Fragment, "02_TexturedCube.frag.spv"),
             },
-        .graphicsState =
-            Grace::GraphicsState {
-                .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
+        .graphicsState = {
+                .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
                 .depthAttachmentFormat = Grace::Format::D32_SFloat,
                 .topology = Grace::Topology::TriangleList,
                 .polygonMode = Grace::PolygonMode::Fill,

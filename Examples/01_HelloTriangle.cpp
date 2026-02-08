@@ -38,7 +38,14 @@ int main()
         .pGlfwWindow = pWindow,
     };
 
-    Grace::Context gpuContext({ .deviceConfig = deviceDesc });
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const std::vector<const char*> glfwRequiredExt(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+    Grace::Context gpuContext({
+        .extensions = std::move(glfwRequiredExt),
+        .deviceConfig = deviceDesc,
+    });
     Grace::Device* pDevice = gpuContext.GetDevicePtr();
 
     // Must first create the swapchain with desired extents
@@ -55,21 +62,19 @@ int main()
     });
 
     // Create static pipeline from hello triangle shader
-    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
+    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline({
         .name = "Example01::helloTrianglePH",
-        .shaders =
-            std::array {
-                Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
-                Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
-            },
-        .graphicsState =
-            Grace::GraphicsState {
-                .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
-                .topology = Grace::Topology::TriangleList,
-                .polygonMode = Grace::PolygonMode::Fill,
-                .cullMode = Grace::CullMode::Back,
-                .frontFace = Grace::FrontFace::Clockwise,
-            },
+        .shaders = {
+            Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
+            Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
+        },
+        .graphicsState = {
+            .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
+            .topology = Grace::Topology::TriangleList,
+            .polygonMode = Grace::PolygonMode::Fill,
+            .cullMode = Grace::CullMode::Back,
+            .frontFace = Grace::FrontFace::Clockwise,
+        },
         .layout = helloTrianglePLH,
     });
 
@@ -95,21 +100,19 @@ int main()
 
             Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
 
-            helloTrianglePH = pDevice->CreateGraphicsPipeline(Grace::GraphicsPipelineDesc {
+            helloTrianglePH = pDevice->CreateGraphicsPipeline({
                 .name = "Example01::helloTrianglePH",
-                .shaders =
-                    std::array {
-                        Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
-                        Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
-                    },
-                .graphicsState =
-                    Grace::GraphicsState {
-                        .colourAttachmentFormats = std::array { Grace::Format::RGBA8_SRGB },
-                        .topology = Grace::Topology::TriangleList,
-                        .polygonMode = Grace::PolygonMode::Fill,
-                        .cullMode = Grace::CullMode::Back,
-                        .frontFace = Grace::FrontFace::Clockwise,
-                    },
+                .shaders = {
+                    Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
+                    Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
+                },
+                .graphicsState = {
+                    .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },
+                    .topology = Grace::Topology::TriangleList,
+                    .polygonMode = Grace::PolygonMode::Fill,
+                    .cullMode = Grace::CullMode::Back,
+                    .frontFace = Grace::FrontFace::Clockwise,
+                },
                 .layout = helloTrianglePLH,
             });
         }

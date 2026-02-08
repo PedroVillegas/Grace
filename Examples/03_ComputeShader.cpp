@@ -36,7 +36,15 @@ int main()
         .pGlfwWindow = pWindow,
     };
 
-    Grace::Context gpuContext({ .deviceConfig = deviceDesc });
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const std::vector<const char*> glfwRequiredExt(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+    Grace::Context gpuContext({
+        .extensions = std::move(glfwRequiredExt),
+        .deviceConfig = deviceDesc,
+    });
+
     Grace::Device* pDevice = gpuContext.GetDevicePtr();
 
     // Must first create the swapchain with desired extents

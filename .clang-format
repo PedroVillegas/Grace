@@ -62,8 +62,10 @@ BraceWrapping:
   AfterEnum: true
   AfterNamespace: true
   AfterUnion: true
-  AfterControlStatement: true
+  AfterControlStatement: Always
   AfterExternBlock: true
+
+  BeforeCatch: true
 
   SplitEmptyFunction: false
   SplitEmptyRecord: false

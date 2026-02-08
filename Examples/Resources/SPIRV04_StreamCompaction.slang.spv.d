@@ -1,0 +1,1 @@
+C\:/Users/Pedro\ Villegas/Documents/Developer/Grace/Examples/Resources/SPIRV04_StreamCompaction.slang.spv: C\:\\Users\\Pedro\ Villegas\\Documents\\Developer\\Grace\\Examples\\Resources\\Shaders\\04_StreamCompaction.slang

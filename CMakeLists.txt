@@ -3,12 +3,14 @@ cmake_minimum_required(VERSION 3.25)
 project(Grace VERSION 1.0.0)
 
 option(GRACE_COMPILE_EXAMPLES "Compile examples" ON)
+option(GRACE_COMPILE_TESTS "Compile tests" ON)
 option(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT "Enables runtime shader compilation functionality" ON)
+option(GRACE_USE_GLFW "Enables usage of GLFW. GLFW must be linked separately by target using Grace" ON)
 
 if(GRACE_COMPILE_EXAMPLES)
     # Define these in the CMakeLists.txt where Grace is included
-    set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/SPIRV/)
-    set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/Shaders/)
+    set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/SPIRV)
+    set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/Shaders)
 
     # Define these if you don't want to auto recurse and compile shaders (these take precedent)
     # set(GRACE_SLANG_SHADERS shader1.slang shader2.slang)
@@ -26,9 +28,15 @@ if(GRACE_COMPILE_EXAMPLES)
     # set(GRACE_GLSL_COMPILER_ARGS "-example-compiler-arg1 -example-compiler-arg2")
 endif()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 add_subdirectory(Source)
 
 if(GRACE_COMPILE_EXAMPLES)
     message(STATUS "[GRACE_INFO] Compiling examples")
     add_subdirectory(Examples)
+endif()
+
+if(GRACE_COMPILE_TESTS)
+    message(STATUS "[GRACE_INFO] Compiling tests")
+    add_subdirectory(Tests)
 endif()

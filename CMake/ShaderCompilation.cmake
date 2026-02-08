@@ -36,23 +36,23 @@ endif ()
 if (NOT DEFINED GRACE_GLSL_SHADERS)
     message(STATUS "[GRACE_INFO] GRACE_GLSL_SHADERS not defined. Auto-searching for glsl shaders...")
     file(GLOB_RECURSE GRACE_GLSL_SHADERS
-        "${GRACE_SHADERS_DIR}*.frag"
-        "${GRACE_SHADERS_DIR}*.vert"
-        "${GRACE_SHADERS_DIR}*.comp"
+        "${GRACE_SHADERS_DIR}/*.frag"
+        "${GRACE_SHADERS_DIR}/*.vert"
+        "${GRACE_SHADERS_DIR}/*.comp"
     )
 endif ()
 
 if (NOT DEFINED GRACE_HLSL_SHADERS)
     message(STATUS "[GRACE_INFO] GRACE_HLSL_SHADERS not defined. Auto-searching for hlsl shaders...")
     file(GLOB_RECURSE GRACE_HLSL_SHADERS
-        "${GRACE_SHADERS_DIR}*.hlsl"
+        "${GRACE_SHADERS_DIR}/*.hlsl"
     )
 endif ()
 
 if (NOT DEFINED GRACE_SLANG_SHADERS)
     message(STATUS "[GRACE_INFO] GRACE_SLANG_SHADERS not defined. Auto-searching for slang shaders...")
     file(GLOB_RECURSE GRACE_SLANG_SHADERS
-        "${GRACE_SHADERS_DIR}*.slang"
+        "${GRACE_SHADERS_DIR}/*.slang"
     )
 endif ()
 
