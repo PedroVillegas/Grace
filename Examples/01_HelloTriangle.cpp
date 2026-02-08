@@ -1,6 +1,7 @@
 #include <chrono>
 #include <format>
 
+#include <vulkan/vulkan_core.h>
 #include <GLFW/glfw3.h>
 #include <Grace/Grace.hpp>
 #include <Grace/Ext/ShaderCompiler.hpp>
@@ -26,27 +27,22 @@ int main()
         self = true;
     });
 
-    const Grace::DeviceDesc deviceDesc = {
+    uint32_t glfwInstanceExtCount = 0;
+    const char** glfwInstanceExt = glfwGetRequiredInstanceExtensions(&glfwInstanceExtCount);
+    Grace::Context gpuContext({ .extensions = std::vector(glfwInstanceExt, glfwInstanceExt + glfwInstanceExtCount) });
+
+    VkSurfaceKHR surfaceKHR = nullptr;
+    glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
+    Grace::Device* pDevice = gpuContext.DevicePtr({
         .maxImageDescriptors = 65535,
         .maxSamplerDescriptors = 65535,
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
-        .queryGroupDesc = {
-            .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
-                                     | Grace::QueryStats::FragmentShaderInvocations,
-        },
-        .pGlfwWindow = pWindow,
-    };
-
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    const std::vector<const char*> glfwRequiredExt(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-    Grace::Context gpuContext({
-        .extensions = std::move(glfwRequiredExt),
-        .deviceConfig = deviceDesc,
+        .requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
+        .queryGroupDesc = { .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
+                                                     | Grace::QueryStats::FragmentShaderInvocations },
+        .surfacekhr = surfaceKHR,
     });
-    Grace::Device* pDevice = gpuContext.GetDevicePtr();
 
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);

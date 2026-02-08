@@ -5,11 +5,6 @@
 #include <Private/Grace/ScratchVector.hpp>
 
 #include <cstring>
-#include <iostream>
-
-#ifdef GRACE_USE_GLFW
-#include <GLFW/glfw3.h>
-#endif
 
 namespace Grace
 {
@@ -35,7 +30,7 @@ GRACE_NODISCARD static ScratchVector<const char*> GetRequiredExtensions()
     return extensions;
 }
 
-VkInstance& Context::GetInstance()
+VkInstance Context::GetInstance()
 {
     return mInstance;
 }
@@ -95,15 +90,15 @@ Context::Context(const ContextDesc& desc)
     vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdBeginDebugUtilsLabelEXT);
     vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdEndDebugUtilsLabelEXT);
     vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdInsertDebugUtilsLabelEXT);
+}
 
-    mDevice = std::make_unique<Device>(mInstance, desc.deviceConfig);
+Device* Context::DevicePtr(const DeviceDesc& deviceConfig)
+{
+    mDevice = std::make_unique<Device>(mInstance, deviceConfig);
 
     AssignDebugName<VkInstance>(mDevice->GetVkHandle(), mInstance, "Grace::Instance");
     AssignDebugName<VkDevice>(mDevice->GetVkHandle(), mDevice->GetVkHandle(), "Grace::Device");
-}
 
-Device* Context::GetDevicePtr()
-{
     return mDevice.get();
 }
 

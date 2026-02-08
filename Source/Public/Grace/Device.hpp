@@ -10,8 +10,6 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Macros.hpp>
 
-struct GLFWwindow;
-
 namespace Grace
 {
 
@@ -27,7 +25,7 @@ struct GRACE_API DeviceDesc
     uint32_t framesInFlight = 1U;
     std::vector<const char*> requiredExtensions = {};
     QueryGroupDesc queryGroupDesc = {};
-    GLFWwindow* pGlfwWindow = nullptr;
+    VkSurfaceKHR surfacekhr = nullptr;
 };
 
 class GRACE_API Device
@@ -112,10 +110,6 @@ public:
     void FreeSamplerDeferred(SamplerHandle& handle);
 
     /// PIPELINE OPS
-
-    // template <size_t NumShaders, size_t NumColourAttachments>
-    // GRACE_NODISCARD GRACE_API PipelineHandle
-    // CreateGraphicsPipeline(const GraphicsPipelineDesc<NumShaders, NumColourAttachments>&& desc);
 
     GRACE_NODISCARD PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc);
 

@@ -145,16 +145,3 @@ target_compile_definitions(
 	GRACE_GLSL_COMPILER_ARGS="${GRACE_GLSL_COMPILER_ARGS}"
 	GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 )
-
-if (GRACE_USE_GLFW)
-	FetchContent_Declare(
-		glfw
-		EXCLUDE_FROM_ALL
-		DOWNLOAD_EXTRACT_TIMESTAMP true
-		URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
-	)
-	FetchContent_MakeAvailable(glfw)
-
-	target_link_libraries(Grace PUBLIC glfw)
-	target_compile_definitions(Grace PRIVATE GRACE_USE_GLFW)
-endif ()

@@ -218,15 +218,6 @@ struct QueueFamilyIndices
     std::optional<uint32_t> computeFamily = {};
     std::optional<uint32_t> graphicsFamily = {};
     std::optional<uint32_t> presentFamily = {};
-
-    bool IsComplete()
-    {
-        return graphicsFamily.has_value()
-#ifdef GRACE_USE_GLFW
-            && presentFamily.has_value()
-#endif
-            ;
-    }
 };
 
 GRACE_NODISCARD QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR);

@@ -1,18 +1,14 @@
 #include <Grace/Swapchain.hpp>
 
-#include <algorithm>
-#include <string>
-#include <cassert>
-#include <limits>
-
-#ifdef NO_GLFW
-#include <glfw/glfw3.h>
-#endif
-
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+
+#include <algorithm>
+#include <string>
+#include <cassert>
+#include <limits>
 
 namespace Grace
 {
@@ -89,8 +85,10 @@ void Swapchain::Create(VkExtent2D imageExtent)
         .oldSwapchain = mSwapchain,
     };
 
-    std::array queueFamilyIndices = { mDevice->GetQueueFamilyIndex(QueueFamily::Graphics),
-                                      mDevice->GetQueueFamilyIndex(QueueFamily::Present) };
+    std::array queueFamilyIndices = {
+        mDevice->GetQueueFamilyIndex(QueueFamily::Graphics),
+        mDevice->GetQueueFamilyIndex(QueueFamily::Present),
+    };
 
     if (mDevice->GetQueueFamilyIndex(QueueFamily::Graphics) != mDevice->GetQueueFamilyIndex(QueueFamily::Present))
     {

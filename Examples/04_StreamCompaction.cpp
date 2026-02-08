@@ -8,19 +8,14 @@
 
 int main()
 {
-    const Grace::DeviceDesc deviceDesc = {
+    Grace::Context gpuContext {};
+    Grace::Device* pDevice = gpuContext.DevicePtr({
         .maxImageDescriptors = 65535,
         .maxSamplerDescriptors = 65535,
         .maxBufferDescriptors = 65535,
         .framesInFlight = 1,
-        .queryGroupDesc = {
-            .pipelineStatisticsFlags = Grace::QueryStats::ComputeShaderInvocations,
-        },
-        .pGlfwWindow = nullptr,
-    };
-
-    Grace::Context gpuContext({ .deviceConfig = deviceDesc });
-    Grace::Device* pDevice = gpuContext.GetDevicePtr();
+        .queryGroupDesc = { .pipelineStatisticsFlags = Grace::QueryStats::ComputeShaderInvocations },
+    });
 
     // Grab a Command Pool for the Graphics Queue and allocate a command buffer from it
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example04::pCmdPool");

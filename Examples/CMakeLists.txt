@@ -27,13 +27,13 @@ target_link_libraries(HelloTriangle PRIVATE Grace glfw)
 
 add_executable(TexturedCube)
 target_sources(TexturedCube PRIVATE 02_TexturedCube.cpp)
-target_link_libraries(TexturedCube PRIVATE Grace glm)
+target_link_libraries(TexturedCube PRIVATE Grace glfw glm)
 target_include_directories(TexturedCube PRIVATE ${stb_SOURCE_DIR})
 target_compile_definitions(TexturedCube PRIVATE IMAGES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/Resources/Images/")
 
 add_executable(ComputeShader)
 target_sources(ComputeShader PRIVATE 03_ComputeShader.cpp)
-target_link_libraries(ComputeShader PRIVATE Grace)
+target_link_libraries(ComputeShader PRIVATE Grace glfw)
 
 add_executable(StreamCompaction)
 target_sources(StreamCompaction PRIVATE 04_StreamCompaction.cpp)

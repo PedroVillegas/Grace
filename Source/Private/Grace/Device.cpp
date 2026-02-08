@@ -1,18 +1,13 @@
 #include <Grace/Device.hpp>
 
-#include <cassert>
-#include <set>
-#include <iostream>
-
-#ifdef GRACE_USE_GLFW
-#include <GLFW/glfw3.h>
-#endif
-
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/CommandGroup.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+
+#include <cassert>
+#include <set>
 
 namespace Grace
 {
@@ -36,21 +31,12 @@ Device::~Device()
 Device::Device() = default;
 
 Device::Device(VkInstance instance, const DeviceDesc& desc)
-    : mParentInstance(instance), mFramesInFlight(desc.framesInFlight)
+    : mParentInstance(instance), mFramesInFlight(desc.framesInFlight), mSurfaceKHR(desc.surfacekhr)
 {
     assert(desc.framesInFlight > 0);
 
     LogicalDeviceDesc ldd = {};
     ldd.requiredExt = std::move(desc.requiredExtensions);
-
-#ifdef GRACE_USE_GLFW
-    glfwInit();
-    assert(glfwVulkanSupported());
-
-    ldd.requiredExt.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    DebugReporter::Check(glfwCreateWindowSurface(instance, desc.pGlfwWindow, nullptr, &mSurfaceKHR));
-    assert(mSurfaceKHR != VK_NULL_HANDLE);
-#endif
 
     // Look for and select a graphics card in the system that supports the features we need
     uint32_t deviceCount = 0;
@@ -88,12 +74,14 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
                      mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
                      0,
                      &mQueues[static_cast<uint32_t>(QueueFamily::Graphics)]);
-#ifdef GRACE_USE_GLFW
-    vkGetDeviceQueue(mDevice,
-                     mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
-                     0,
-                     &mQueues[static_cast<uint32_t>(QueueFamily::Present)]);
-#endif
+
+    if (mSurfaceKHR != nullptr)
+    {
+        vkGetDeviceQueue(mDevice,
+                         mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value(),
+                         0,
+                         &mQueues[static_cast<uint32_t>(QueueFamily::Present)]);
+    }
 
     if (mQueues[static_cast<uint32_t>(QueueFamily::Transfer)] != nullptr)
     {
@@ -734,16 +722,12 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
             mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)] = i;
         }
 
+        VkBool32 presentSupport = false;
         if (mSurfaceKHR != nullptr)
-        {
-            VkBool32 presentSupport = false;
             vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, i, mSurfaceKHR, &presentSupport);
 
-            if (presentSupport)
-            {
-                mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)] = i;
-            }
-        }
+        if (presentSupport)
+            mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)] = i;
 
         i++;
     }
@@ -752,14 +736,15 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
 
     // Create a queue for each family
     queueCreateInfos.reserve(static_cast<uint32_t>(QueueFamily::Undefined));
+
     std::set<uint32_t> uniqueQueueFamilies = {
         mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Transfer)].value(),
         mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Compute)].value(),
         mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Graphics)].value(),
-#ifdef GRACE_USE_GLFW
-        mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value()
-#endif
     };
+
+    if (mSurfaceKHR != nullptr)
+        uniqueQueueFamilies.emplace(mQueueFamilyIndices[static_cast<uint32_t>(QueueFamily::Present)].value());
 
     // Queue priorities are floats in [0.0, 1.0] - required
     const float queuePriority = 1.0F;
@@ -785,23 +770,21 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
 
     bool bExtensionsSupported = CheckDeviceExtensionSupport(device, requiredExt);
 
-#ifdef GRACE_USE_GLFW
-    bool bSwapChainAdequate = false;
-    if (bExtensionsSupported)
+    bool bSwapChainAdequate = true;
+    if (mSurfaceKHR != nullptr)
     {
-        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, mSurfaceKHR);
-        bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+        if (bExtensionsSupported)
+        {
+            SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, mSurfaceKHR);
+            bSwapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty()
+                              && indices.presentFamily.has_value();
+        }
     }
-#endif
 
     VkPhysicalDeviceFeatures2 supportedFeatures = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
 
-    return indices.IsComplete()
-#ifdef GRACE_USE_GLFW
-        && bSwapChainAdequate
-#endif
-        && bExtensionsSupported;
+    return indices.graphicsFamily.has_value() && bSwapChainAdequate && bExtensionsSupported;
 }
 
 bool Device::CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const

@@ -5,7 +5,6 @@ project(Grace VERSION 1.0.0)
 option(GRACE_COMPILE_EXAMPLES "Compile examples" ON)
 option(GRACE_COMPILE_TESTS "Compile tests" ON)
 option(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT "Enables runtime shader compilation functionality" ON)
-option(GRACE_USE_GLFW "Enables usage of GLFW. GLFW must be linked separately by target using Grace" ON)
 
 if(GRACE_COMPILE_EXAMPLES)
     # Define these in the CMakeLists.txt where Grace is included

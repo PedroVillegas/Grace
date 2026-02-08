@@ -198,21 +198,16 @@ QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceK
             indices.graphicsFamily = i;
         }
 
-#ifdef GRACE_USE_GLFW
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surfaceKHR, &presentSupport);
-
-        if (presentSupport)
+        if (surfaceKHR != nullptr)
         {
-            indices.presentFamily = i;
-        }
-#endif
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surfaceKHR, &presentSupport);
 
-        if (indices.IsComplete())
-        {
-            break;
+            if (presentSupport)
+            {
+                indices.presentFamily = i;
+            }
         }
-
         i++;
     }
 
