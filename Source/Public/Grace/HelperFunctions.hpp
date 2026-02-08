@@ -197,9 +197,9 @@ GRACE_NODISCARD GRACE_API VkRenderingAttachmentInfo
 DepthAttachmentInfo(const Image& image, VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 GRACE_NODISCARD GRACE_API VkRenderingInfo RenderingInfo(VkExtent2D renderArea,
-                                                           uint32_t colourAttachmentCount,
-                                                           const VkRenderingAttachmentInfo* pColourAttachments,
-                                                           const VkRenderingAttachmentInfo* pDepthAttachment);
+                                                        uint32_t colourAttachmentCount,
+                                                        const VkRenderingAttachmentInfo* pColourAttachments,
+                                                        const VkRenderingAttachmentInfo* pDepthAttachment);
 
 GRACE_NODISCARD VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                                          VkSemaphoreSubmitInfo* signalSemaphoreInfo,
@@ -210,7 +210,7 @@ GRACE_NODISCARD std::vector<char> ReadSpvFile(const std::filesystem::path& filen
 GRACE_API void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule);
 
 GRACE_NODISCARD GRACE_API VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage,
-                                                                      VkShaderModule module);
+                                                                                VkShaderModule module);
 
 struct QueueFamilyIndices
 {

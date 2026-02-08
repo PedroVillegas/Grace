@@ -17,16 +17,13 @@ namespace SemaphoreType
 {
 
 struct SemaphoreTypeBase
-{
-};
+{};
 
 struct GRACE_API Binary : SemaphoreTypeBase
-{
-};
+{};
 
 struct GRACE_API Timeline : SemaphoreTypeBase
-{
-};
+{};
 
 } // namespace SemaphoreType
 

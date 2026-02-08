@@ -12,9 +12,9 @@ enum class byte : unsigned char;
 namespace Grace
 {
 
-constexpr uint32_t kStackAllocatorInitialSize = 100U * 1024U; // 100 KiB
+constexpr uint32_t kStackAllocatorInitialSize = 64U * 1024U; // 64 KiB
 
-class GRACE_EXPORT_TESTBED StackAllocatorState
+class GRACE_API_TESTBED StackAllocatorState
 {
 public:
     static StackAllocatorState& Instance();
@@ -42,7 +42,7 @@ private:
 };
 
 template <typename T>
-class GRACE_EXPORT_TESTBED StackAllocator
+class GRACE_API_TESTBED StackAllocator
 {
 public:
     using value_type = T;

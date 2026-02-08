@@ -13,7 +13,7 @@ namespace Grace
 
 struct ContextDesc
 {
-    std::vector<const char *> extensions;
+    std::vector<const char*> extensions;
     DeviceDesc deviceConfig;
 };
 

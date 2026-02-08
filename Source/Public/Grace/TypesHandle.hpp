@@ -8,9 +8,9 @@ namespace Grace
 
 namespace SemaphoreType
 {
-    struct Binary;
-    struct Timeline;
-}
+struct Binary;
+struct Timeline;
+} // namespace SemaphoreType
 
 constexpr uint32_t INVALID_HANDLE = ~0U;
 constexpr uint32_t INVALID_VALIDATOR = ~0U;
@@ -32,9 +32,7 @@ struct GRACE_API Handle
 {
     Handle() = default;
 
-    Handle(uint32_t UUID, uint32_t Validator) : handle(UUID), validator(Validator)
-    {
-    }
+    Handle(uint32_t UUID, uint32_t Validator) : handle(UUID), validator(Validator) {}
 
     GRACE_NODISCARD bool HasValidHandle() const
     {

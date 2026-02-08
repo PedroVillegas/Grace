@@ -129,7 +129,7 @@ enum class AccessType : uint32_t
 
     AccelerationStructureBuildWrite, // Written as an acceleration structure during a build
 
-    ColorAttachmentReadWrite, // Read or written as a color attachment during rendering
+    ColorAttachmentReadWrite,        // Read or written as a color attachment during rendering
     DepthStencilAttachmentReadWrite, // Read or written as a depth or stencil attachment during rendering
 
     // General access

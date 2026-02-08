@@ -51,20 +51,16 @@ namespace QueryType
 {
 
 struct QueryTypeBase
-{
-};
+{};
 
 struct GRACE_API Timestamp : QueryTypeBase
-{
-};
+{};
 
 struct GRACE_API Occlusion : QueryTypeBase
-{
-};
+{};
 
 struct GRACE_API PipelineStatistics : QueryTypeBase
-{
-};
+{};
 
 } // namespace QueryType
 
@@ -152,7 +148,7 @@ public:
         uint64_t endStamp = GetQuery(end, 0, frameIndex);
         uint64_t startStamp = GetQuery(start, 0, frameIndex);
 
-        if (endStamp == std::numeric_limits<uint64_t>::max() ||  startStamp == std::numeric_limits<uint64_t>::max())
+        if (endStamp == std::numeric_limits<uint64_t>::max() || startStamp == std::numeric_limits<uint64_t>::max())
         {
             return 0.0;
         }
@@ -235,12 +231,10 @@ public:
         if constexpr (std::is_same_v<T, QueryType::Timestamp>)
         {
             return mTimestampQueryGroup;
-        }
-        else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
+        } else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
         {
             return mOcclusionQueryGroup;
-        }
-        else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
+        } else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
         {
             return mPipelineStatsQueryGroup;
         }

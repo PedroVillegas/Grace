@@ -103,13 +103,13 @@ public:
 
 private:
     /// Translates a Grace::MemoryBarrier into a VkMemoryBarrier2
-    static void GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemoryBarrier2& vkBarrierOut) ;
+    static void GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemoryBarrier2& vkBarrierOut);
 
     /// Translates a Grace::BufferBarrier into a VkBufferMemoryBarrier2
-    static void GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, VkBufferMemoryBarrier2& vkBarrierOut) ;
+    static void GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, VkBufferMemoryBarrier2& vkBarrierOut);
 
     /// Translates a Grace::ImageBarrier into a VkImageMemoryBarrier2
-    static void GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, VkImageMemoryBarrier2& vkBarrierOut) ;
+    static void GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, VkImageMemoryBarrier2& vkBarrierOut);
 
 private:
     MemoryBarrier mMemoryBarrier = {};
