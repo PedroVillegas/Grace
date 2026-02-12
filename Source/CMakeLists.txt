@@ -8,10 +8,17 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+	yaml-cpp
+	GIT_REPOSITORY 	https://github.com/jbeder/yaml-cpp.git
+	GIT_TAG 		yaml-cpp-0.9.0
+)
+
+FetchContent_Declare(
 	vma
 	URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
 )
-FetchContent_MakeAvailable(vma pybind)
+
+FetchContent_MakeAvailable(vma pybind yaml-cpp)
 
 if (NOT DEFINED GRACE_TARGET_VULKAN_API_VERSION)
 	message(STATUS "[GRACE_WARN] GRACE_TARGET_VULKAN_API_VERSION was not defined - default is 1.3!")
@@ -32,6 +39,7 @@ include(${PROJECT_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
 add_library(Grace SHARED)
 
 set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
+set(GRACE_PY_YAML_CONFIG_PARSER_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/YamlConfigParser.py)
 
 if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
 	target_sources(Grace PRIVATE Private/Grace/ShaderCompiler.cpp)
@@ -45,6 +53,7 @@ target_sources(
 	Private/Grace/PipelineGroup.cpp
 	Private/Grace/Buffer.cpp
 	Private/Grace/CommandGroup.cpp
+	Private/Grace/Config.cpp
 	Private/Grace/Context.cpp
 	Private/Grace/DebugReporter.cpp
 	Private/Grace/DeletionQueue.cpp
@@ -127,6 +136,8 @@ target_link_libraries(
 	Grace
 	PUBLIC
 	${Vulkan_LIBRARIES}
+	PRIVATE
+	yaml-cpp
 )
 
 include(${PROJECT_SOURCE_DIR}/CMake/ShaderCompilation.cmake)

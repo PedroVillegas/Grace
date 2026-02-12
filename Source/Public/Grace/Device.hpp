@@ -17,23 +17,12 @@ class CommandPool;
 class CommandBuffer;
 class CommandGroupAllocator;
 
-struct GRACE_API DeviceDesc
-{
-    uint32_t maxImageDescriptors = 65535U;
-    uint32_t maxSamplerDescriptors = 65535U;
-    uint32_t maxBufferDescriptors = 65535U;
-    uint32_t framesInFlight = 1U;
-    std::vector<const char*> requiredExtensions = {};
-    QueryGroupDesc queryGroupDesc = {};
-    VkSurfaceKHR surfacekhr = nullptr;
-};
-
 class GRACE_API Device
 {
 public:
     ~Device();
     Device();
-    Device(VkInstance instance, const DeviceDesc& desc);
+    Device(VkInstance instance, VkSurfaceKHR surface);
 
     Device(const Device&) = delete;
     Device& operator=(const Device&) = delete;

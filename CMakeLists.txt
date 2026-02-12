@@ -8,8 +8,8 @@ option(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT "Enables runtime shader compilation 
 
 if(GRACE_COMPILE_EXAMPLES)
     # Define these in the CMakeLists.txt where Grace is included
-    set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/SPIRV)
-    set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Resources/Shaders)
+    set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Assets/SPIRV)
+    set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Assets/Shaders)
 
     # Define these if you don't want to auto recurse and compile shaders (these take precedent)
     # set(GRACE_SLANG_SHADERS shader1.slang shader2.slang)

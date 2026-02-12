@@ -5,8 +5,10 @@
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/CommandGroup.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Config.hpp>
 
 #include <cassert>
+#include <iostream>
 #include <set>
 
 namespace Grace
@@ -30,13 +32,12 @@ Device::~Device()
 
 Device::Device() = default;
 
-Device::Device(VkInstance instance, const DeviceDesc& desc)
-    : mParentInstance(instance), mFramesInFlight(desc.framesInFlight), mSurfaceKHR(desc.surfacekhr)
+Device::Device(VkInstance instance, VkSurfaceKHR surface)
+    : mParentInstance(instance), mFramesInFlight(gConfig.FramesInFlight), mSurfaceKHR(surface)
 {
-    assert(desc.framesInFlight > 0);
+    assert(mFramesInFlight > 0);
 
     LogicalDeviceDesc ldd = {};
-    ldd.requiredExt = std::move(desc.requiredExtensions);
 
     // Look for and select a graphics card in the system that supports the features we need
     uint32_t deviceCount = 0;
@@ -112,11 +113,10 @@ Device::Device(VkInstance instance, const DeviceDesc& desc)
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &mAllocator);
 
-    mQueryMgr = std::make_unique<QueryManager>(this, desc.framesInFlight, desc.queryGroupDesc);
+    mQueryMgr = std::make_unique<QueryManager>(this);
     mCmdGroupAllocator = std::make_unique<CommandGroupAllocator>(this);
-    mResourceMgr = std::make_unique<ResourceManager>(desc.framesInFlight);
-    mResourceTable = std::make_unique<GpuResourceTable>(
-        this, desc.maxImageDescriptors, desc.maxSamplerDescriptors, desc.maxBufferDescriptors);
+    mResourceMgr = std::make_unique<ResourceManager>();
+    mResourceTable = std::make_unique<GpuResourceTable>(this);
 
     mSingleTimeCmdsPool = GetCommandPool(QueueFamily::Graphics, "Grace::CommandPool::SingleTimeCommands");
     mSingleTimeCmdsBuffer = std::make_unique<CommandBuffer>(mSingleTimeCmdsPool->GetOrAllocateCommandBuffer());
@@ -629,10 +629,6 @@ void Device::ConfigurePhysicalDevice(VkInstance instance, const std::vector<cons
 
 void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
 {
-    // Specify device features to be used
-    VkPhysicalDeviceFeatures deviceFeatures = {};
-    deviceFeatures.samplerAnisotropy = true;
-
     // Vulkan 1.3 features
     VkPhysicalDeviceVulkan13Features features13 = {};
     features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -670,9 +666,22 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &compShaderDerivativesFeatures;
-    features2.features = deviceFeatures;
 
     vkGetPhysicalDeviceFeatures2(mPhysicalDevice, &features2);
+
+    ScratchVector<const char*> deviceExtensions = {};
+    deviceExtensions.reserve(gConfig.DeviceExtensions.size());
+    for (const std::string& ext : gConfig.DeviceExtensions)
+    {
+        deviceExtensions.push_back(ext.c_str());
+    }
+
+    ScratchVector<const char*> deviceLayers = {};
+    deviceLayers.reserve(gConfig.DeviceLayers.size());
+    for (const std::string& layer : gConfig.DeviceLayers)
+    {
+        deviceLayers.push_back(layer.c_str());
+    }
 
     // Set up a logical device to interface with the physical device
     // Can create multiple logical devices from the same physical device if there are varying requirements
@@ -682,10 +691,10 @@ void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
         .flags = 0,
         .queueCreateInfoCount = static_cast<uint32_t>(desc.queueCreateInfos.size()),
         .pQueueCreateInfos = desc.queueCreateInfos.data(),
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = nullptr,
-        .enabledExtensionCount = static_cast<uint32_t>(desc.requiredExt.size()),
-        .ppEnabledExtensionNames = desc.requiredExt.data(),
+        .enabledLayerCount = static_cast<uint32_t>(deviceLayers.size()),
+        .ppEnabledLayerNames = deviceLayers.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+        .ppEnabledExtensionNames = deviceExtensions.data(),
         .pEnabledFeatures = nullptr,
     };
 

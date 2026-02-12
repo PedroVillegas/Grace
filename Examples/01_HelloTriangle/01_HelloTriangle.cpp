@@ -27,22 +27,10 @@ int main()
         self = true;
     });
 
-    uint32_t glfwInstanceExtCount = 0;
-    const char** glfwInstanceExt = glfwGetRequiredInstanceExtensions(&glfwInstanceExtCount);
-    Grace::Context gpuContext({ .extensions = std::vector(glfwInstanceExt, glfwInstanceExt + glfwInstanceExtCount) });
-
     VkSurfaceKHR surfaceKHR = nullptr;
-    glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
-    Grace::Device* pDevice = gpuContext.DevicePtr({
-        .maxImageDescriptors = 65535,
-        .maxSamplerDescriptors = 65535,
-        .maxBufferDescriptors = 65535,
-        .framesInFlight = 1,
-        .requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-        .queryGroupDesc = { .pipelineStatisticsFlags = Grace::QueryStats::VertexShaderInvocations
-                                                     | Grace::QueryStats::FragmentShaderInvocations },
-        .surfacekhr = surfaceKHR,
-    });
+    Grace::Context gpuContext(CONFIG_PATH);
+    Grace::DebugReporter::Check(glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR));
+    Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
@@ -51,7 +39,7 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example01::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
+    const Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
         .flags = 0,
         .setLayouts = {},
         .pushConstantRanges = {},

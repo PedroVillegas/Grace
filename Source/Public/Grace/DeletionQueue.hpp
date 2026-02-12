@@ -11,8 +11,7 @@ class DeletionQueue
 {
 public:
     ~DeletionQueue() = default;
-    DeletionQueue() = default;
-    explicit DeletionQueue(uint32_t framesInFlight);
+    DeletionQueue();
 
     DeletionQueue(const DeletionQueue&) = delete;
     DeletionQueue& operator=(const DeletionQueue&) = delete;

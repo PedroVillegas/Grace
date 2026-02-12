@@ -3,9 +3,9 @@
 namespace Grace
 {
 
-ResourceManager::ResourceManager(uint32_t framesInFlight)
+ResourceManager::ResourceManager()
 {
-    mDeletionQueue = std::make_unique<DeletionQueue>(framesInFlight);
+    mDeletionQueue = std::make_unique<DeletionQueue>();
 }
 
 void ResourceManager::FlushDeletionQueue(uint32_t frameIndex)

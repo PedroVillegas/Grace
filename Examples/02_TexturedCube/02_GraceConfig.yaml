@@ -1,0 +1,31 @@
+---
+General:
+  FramesInFlight: 2
+
+Instance:
+  Extensions: [VK_KHR_surface, VK_KHR_win32_surface, VK_EXT_debug_utils]
+  Layers: null
+
+Device:
+  Extensions: [VK_KHR_swapchain]
+  Layers: null
+
+Queries:
+  Timestamp:
+    Count: 8
+
+  PipelineStatistics:
+    Count: 64
+    Stages: [FragmentShaderInvocations]
+
+Swapchain:
+  Surface:
+    ColourFormat: RGBA8_SRGB
+    ColourSpace: SRGB_NonLinear
+
+  PresentMode: FIFO
+
+BindlessResourceTable:
+  MaxImageSlots: 65535
+  MaxSamplerSlots: 65535
+  MaxBufferSlots: 65535

@@ -17,6 +17,16 @@ constexpr auto operator|(const T lhs, const T rhs)
 #define GRACE_ENUM_ENABLE_BITMASK_OR_OP(Enum) consteval void EnableBitmaskOrOp(Enum)
 
 template <typename T>
+    requires(std::is_enum_v<T> and requires(T e) { EnableBitmaskOrEqOp(e); })
+constexpr auto& operator|=(T& lhs, const T rhs)
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+#define GRACE_ENUM_ENABLE_BITMASK_OR_EQ_OP(Enum) consteval void EnableBitmaskOrEqOp(Enum)
+
+template <typename T>
     requires(std::is_enum_v<T> and requires(T e) { EnableBitmaskAndOp(e); })
 constexpr auto operator&(const T lhs, const T rhs)
 {
@@ -25,6 +35,33 @@ constexpr auto operator&(const T lhs, const T rhs)
 }
 
 #define GRACE_ENUM_ENABLE_BITMASK_AND_OP(Enum) consteval void EnableBitmaskAndOp(Enum)
+
+template <typename T>
+    requires(std::is_enum_v<T> and requires(T e) { EnableBitmaskAndEqOp(e); })
+constexpr auto& operator&=(T& lhs, const T rhs)
+{
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+#define GRACE_ENUM_ENABLE_BITMASK_AND_EQ_OP(Enum) consteval void EnableBitmaskAndEqOp(Enum)
+
+template <typename T>
+    requires(std::is_enum_v<T> and requires(T e) { EnableBitmaskNotOp(e); })
+constexpr auto operator~(const T rhs)
+{
+    using underlying = std::underlying_type_t<T>;
+    return static_cast<T>(~static_cast<underlying>(rhs));
+}
+
+#define GRACE_ENUM_ENABLE_BITMASK_NOT_OP(Enum) consteval void EnableBitmaskNotOp(Enum)
+
+#define GRACE_ENUM_DECLARE_BITMASK_TYPE(Enum)  \
+    GRACE_ENUM_ENABLE_BITMASK_OR_OP(Enum);     \
+    GRACE_ENUM_ENABLE_BITMASK_OR_EQ_OP(Enum);  \
+    GRACE_ENUM_ENABLE_BITMASK_AND_OP(Enum);    \
+    GRACE_ENUM_ENABLE_BITMASK_AND_EQ_OP(Enum); \
+    GRACE_ENUM_ENABLE_BITMASK_NOT_OP(Enum);
 
 /// Returns `true` if `enumBitmask` has `bit` set, `false` otherwise
 template <typename T>
@@ -224,8 +261,7 @@ enum class ShaderStage : uint32_t
     /// including all additional stages which are introduced by extensions
     All = VK_SHADER_STAGE_ALL
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(ShaderStage);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(ShaderStage);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(ShaderStage);
 
 // Specifies how triangles are culled once the orientation is determined
 enum class CullMode : uint32_t
@@ -417,8 +453,7 @@ enum class ColorComponent : uint32_t
     /// Otherwise, the value in memory is unmodified
     Alpha = VK_COLOR_COMPONENT_A_BIT
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(ColorComponent);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(ColorComponent);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(ColorComponent);
 
 enum class ColorBlendMode : uint32_t
 {
@@ -506,8 +541,7 @@ enum class ImageUsage : uint32_t
     /// and be used as an input attachment in a framebuffer
     InputAttachment = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(ImageUsage);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(ImageUsage);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(ImageUsage);
 
 /// Specifies the aspect of an image for purposes such as identifying a subresource
 enum class ImageAspect : uint32_t
@@ -523,8 +557,7 @@ enum class ImageAspect : uint32_t
     /// Specifies the metadata aspect used for sparse resource operations
     Metadata = VK_IMAGE_ASPECT_METADATA_BIT
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(ImageAspect);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(ImageAspect);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(ImageAspect);
 
 /// Specifies the intended buffer usage
 enum class BufferUsage : uint32_t
@@ -551,8 +584,7 @@ enum class BufferUsage : uint32_t
     // and use that address to access the buffer’s memory from a shader
     DeviceAddress = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(BufferUsage);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(BufferUsage);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(BufferUsage);
 
 /// Specifies the load operation applied to the contents of an attachment at the start of a render pass
 enum class AttachmentLoadOp : uint32_t
@@ -711,8 +743,7 @@ enum class PipelineStage : uint32_t
     /// Specifies all transfer stages
     AllTransfer = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT,
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(PipelineStage);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(PipelineStage);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(PipelineStage);
 
 /// Specifies the format that data can be stored in inside buffers and images
 enum class Format : int
@@ -932,6 +963,11 @@ enum class Format : int
     D32_SFloat_S8_UInt = VK_FORMAT_D32_SFLOAT_S8_UINT,
 };
 
+enum class ColourSpace : int
+{
+    SRGB_NonLinear = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+};
+
 enum class FenceFlags : uint32_t
 {
     CreateSignalled = VK_FENCE_CREATE_SIGNALED_BIT,
@@ -969,8 +1005,7 @@ enum class QueryStats : uint32_t
     // Queries the number of mesh shader invocations
     MeshShaderInvocations = VK_QUERY_PIPELINE_STATISTIC_MESH_SHADER_INVOCATIONS_BIT_EXT,
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(QueryStats);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(QueryStats);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(QueryStats);
 
 /// Specifies how and when query results are returned
 enum class QueryResult : uint32_t
@@ -990,7 +1025,6 @@ enum class QueryResult : uint32_t
     // after the results of each query and interpreted as an unsigned integer
     WithStatus = VK_QUERY_RESULT_WITH_STATUS_BIT_KHR,
 };
-GRACE_ENUM_ENABLE_BITMASK_OR_OP(QueryResult);
-GRACE_ENUM_ENABLE_BITMASK_AND_OP(QueryResult);
+GRACE_ENUM_DECLARE_BITMASK_TYPE(QueryResult);
 
 } // namespace Grace

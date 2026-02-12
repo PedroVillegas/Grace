@@ -26,23 +26,10 @@ int main()
         self = true;
     });
 
-    uint32_t glfwInstanceExtCount = 0;
-    const char** glfwInstanceExt = glfwGetRequiredInstanceExtensions(&glfwInstanceExtCount);
-    Grace::Context gpuContext({ .extensions = std::vector(glfwInstanceExt, glfwInstanceExt + glfwInstanceExtCount) });
-
     VkSurfaceKHR surfaceKHR = nullptr;
+    Grace::Context gpuContext(CONFIG_PATH);
     glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
-    Grace::Device* pDevice = gpuContext.DevicePtr({
-        .maxImageDescriptors = 65535,
-        .maxSamplerDescriptors = 65535,
-        .maxBufferDescriptors = 65535,
-        .framesInFlight = 1,
-        .requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-        .queryGroupDesc = {
-            .pipelineStatisticsFlags = Grace::QueryStats::ComputeShaderInvocations,
-        },
-        .surfacekhr = surfaceKHR,
-    });
+    Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
@@ -64,7 +51,7 @@ int main()
 
     Grace::ImageHandle renderImage = pDevice->CreateImage({
         .name = "Example03::renderImage",
-        .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
+        .dimensions = { windowWidth, windowHeight, 1 },
         .format = Grace::Format::RGBA8_UNorm,
         .usage = Grace::ImageUsage::StorageImage | Grace::ImageUsage::TransferSrc,
         .access = Grace::AccessType::General,

@@ -109,7 +109,7 @@ private:
 class ResourceManager
 {
 public:
-    explicit ResourceManager(uint32_t framesInFlight);
+    ResourceManager();
 
     void FlushDeletionQueue(uint32_t frameIndex);
 

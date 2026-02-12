@@ -66,24 +66,10 @@ int main()
         self = true;
     });
 
-    uint32_t glfwInstanceExtCount = 0;
-    const char** glfwInstanceExt = glfwGetRequiredInstanceExtensions(&glfwInstanceExtCount);
-    Grace::Context gpuContext({ .extensions = std::vector(glfwInstanceExt, glfwInstanceExt + glfwInstanceExtCount) });
-
     VkSurfaceKHR surfaceKHR = nullptr;
+    Grace::Context gpuContext(CONFIG_PATH);
     glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
-    Grace::Device* pDevice = gpuContext.DevicePtr({
-        .maxImageDescriptors = 65535,
-        .maxSamplerDescriptors = 65535,
-        .maxBufferDescriptors = 65535,
-        .framesInFlight = FRAMES_IN_FLIGHT,
-        .requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-        .queryGroupDesc = {
-            .timestampQueriesCount = 8,
-            .pipelineStatisticsFlags = Grace::QueryStats::FragmentShaderInvocations,
-        },
-        .surfacekhr = surfaceKHR,
-    });
+    Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);

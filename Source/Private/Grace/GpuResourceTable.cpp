@@ -6,6 +6,7 @@
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Config.hpp>
 
 #include <cassert>
 
@@ -42,27 +43,26 @@ GpuResourceTable::~GpuResourceTable()
     vkDestroyDescriptorSetLayout(mDevice->GetVkHandle(), bindlessDescriptorSetLayout, nullptr);
 }
 
-GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers)
-    : mDevice(pDevice)
+GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
 {
-    assert(maxImages > 0);
-    assert(maxBuffers > 0);
-    assert(maxSamplers > 0);
+    assert(gConfig.BindlessResourceTableMaxImageSlots > 0);
+    assert(gConfig.BindlessResourceTableMaxBufferSlots > 0);
+    assert(gConfig.BindlessResourceTableMaxSamplerSlots > 0);
 
-    mStorageImageSlots.SetPoolSize(maxImages);
-    mSampledImageSlots.SetPoolSize(maxImages);
-    mUniformBufferSlots.SetPoolSize(maxBuffers);
-    mSamplerSlots.SetPoolSize(maxSamplers);
+    mStorageImageSlots.SetPoolSize(gConfig.BindlessResourceTableMaxImageSlots);
+    mSampledImageSlots.SetPoolSize(gConfig.BindlessResourceTableMaxImageSlots);
+    mUniformBufferSlots.SetPoolSize(gConfig.BindlessResourceTableMaxBufferSlots);
+    mSamplerSlots.SetPoolSize(gConfig.BindlessResourceTableMaxSamplerSlots);
 
     mWriter.SetDevice(mDevice->GetVkHandle());
 
     // Pool Sizes, identical order to bindings
-    ScratchVector poolSizes = {
-        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxImages),
-        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxImages),
-        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxImages),
-        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_SAMPLER, maxSamplers),
-        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, maxBuffers),
+    ScratchVector<VkDescriptorPoolSize> poolSizes = {
+        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, gConfig.BindlessResourceTableMaxImageSlots),
+        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, gConfig.BindlessResourceTableMaxImageSlots),
+        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, gConfig.BindlessResourceTableMaxImageSlots),
+        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_SAMPLER, gConfig.BindlessResourceTableMaxSamplerSlots),
+        VkDescriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, gConfig.BindlessResourceTableMaxBufferSlots),
     };
 
     // Create global descriptor pool
@@ -97,10 +97,10 @@ GpuResourceTable::GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t
 
     // Create global descriptor set layout
     DescriptorLayoutBuilder builder(mDevice->GetVkHandle());
-    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::StorageImage), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxImages);
-    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::SampledImage), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxImages);
-    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::CombinedImageSampler), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxImages);
-    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::Sampler), VK_DESCRIPTOR_TYPE_SAMPLER, maxSamplers);
+    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::StorageImage), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, gConfig.BindlessResourceTableMaxImageSlots);
+    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::SampledImage), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, gConfig.BindlessResourceTableMaxImageSlots);
+    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::CombinedImageSampler), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, gConfig.BindlessResourceTableMaxImageSlots);
+    builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::Sampler), VK_DESCRIPTOR_TYPE_SAMPLER, gConfig.BindlessResourceTableMaxSamplerSlots);
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::UniformBuffer), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     bindlessDescriptorSetLayout = builder.Build(VK_SHADER_STAGE_ALL, &bindingFlagsInfo, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     AssignDebugName(mDevice->GetVkHandle(), bindlessDescriptorSetLayout, "Grace::Bindless::DescriptorSetLayout");

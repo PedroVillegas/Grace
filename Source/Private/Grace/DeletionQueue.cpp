@@ -1,8 +1,10 @@
 #include <Grace/DeletionQueue.hpp>
 
-Grace::DeletionQueue::DeletionQueue(uint32_t framesInFlight)
+#include <Private/Grace/Config.hpp>
+
+Grace::DeletionQueue::DeletionQueue()
 {
-    mDeleters.resize(framesInFlight);
+    mDeleters.resize(gConfig.FramesInFlight);
 }
 
 void Grace::DeletionQueue::PushDeleter(std::function<void()>&& deleter, uint32_t frameIndex)

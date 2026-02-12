@@ -1,0 +1,24 @@
+---
+Instance:
+  Extensions: [VK_EXT_debug_utils]
+  Layers: null
+
+Device:
+  Extensions: null
+  Layers: null
+
+Queries:
+  Timestamp:
+    Count: 256
+
+  Occlusion:
+    Count: 256
+
+  PipelineStatistics:
+    Count: 64
+    Stages: [ComputeShaderInvocations]
+
+BindlessResourceTable:
+  MaxImageSlots: 65535
+  MaxSamplerSlots: 65535
+  MaxBufferSlots: 65535

@@ -6,6 +6,6 @@
 .venv/
 
 Build/
-Examples/Resources/SPIRV/
+Examples/Assets/SPIRV/
 Examples/Bin/
 Notes.md

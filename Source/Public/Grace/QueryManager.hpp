@@ -23,14 +23,6 @@ enum class QueryWriteFlags : uint32_t
     WriteIfPreviousResultIsAvailable,
 };
 
-struct GRACE_API QueryGroupDesc
-{
-    uint32_t timestampQueriesCount = 256U;
-    uint32_t occlusionQueriesCount = 256U;
-    uint32_t pipelineStatisticsCount = 32U;
-    QueryStats pipelineStatisticsFlags;
-};
-
 namespace TimestampUnits
 {
 
@@ -214,7 +206,7 @@ class QueryManager
 public:
     ~QueryManager();
     QueryManager() = default;
-    QueryManager(Device* pDevice, uint32_t framesInFlight, const QueryGroupDesc& qgDesc);
+    QueryManager(Device* pDevice);
 
     QueryManager(const QueryManager&) = delete;
     QueryManager& operator=(const QueryManager&) = delete;

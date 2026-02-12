@@ -69,7 +69,7 @@ class ShaderCompilationManager:
 
             filename, extension = os.path.splitext(sh)
             basename = os.path.basename(sh)
-            outputfile = f'{self.spirv_dir}{basename}.spv'
+            outputfile = f'{self.spirv_dir}/{basename}.spv'
 
             if not DependenciesModified(outputfile, extension):
                 continue

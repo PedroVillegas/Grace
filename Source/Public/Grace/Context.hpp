@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include <vulkan/vulkan.h>
 #include <Grace/Device.hpp>
 #include <Grace/GraceApi.hpp>
@@ -9,16 +7,11 @@
 namespace Grace
 {
 
-struct ContextDesc
-{
-    std::vector<const char*> extensions;
-};
-
 class GRACE_API Context
 {
 public:
     ~Context();
-    explicit Context(const ContextDesc& desc = {});
+    explicit Context(const std::string& yaml);
 
     Context(const Context&) = delete;
     Context& operator=(const Context&) = delete;
@@ -26,7 +19,7 @@ public:
     Context(Context&&) noexcept = delete;
     Context& operator=(Context&&) noexcept = delete;
 
-    GRACE_NODISCARD Device* DevicePtr(const DeviceDesc& deviceConfig);
+    GRACE_NODISCARD Device* DevicePtr(VkSurfaceKHR surface);
 
     GRACE_NODISCARD VkInstance GetInstance();
 

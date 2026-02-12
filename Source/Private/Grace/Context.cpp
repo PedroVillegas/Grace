@@ -3,32 +3,12 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Config.hpp>
 
 #include <cstring>
 
 namespace Grace
 {
-
-GRACE_NODISCARD static ScratchVector<const char*> GetRequiredExtensions()
-{
-    // Checking for supported extensions
-    uint32_t extensionsCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
-
-    ScratchVector<VkExtensionProperties> availableInstanceExtensions(extensionsCount);
-
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, availableInstanceExtensions.data());
-
-    ScratchVector<const char*> extensions;
-
-    for (auto& availableExt : availableInstanceExtensions)
-    {
-        if (strcmp(availableExt.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    }
-
-    return extensions;
-}
 
 VkInstance Context::GetInstance()
 {
@@ -42,8 +22,10 @@ Context::~Context()
     vkDestroyInstance(mInstance, nullptr);
 }
 
-Context::Context(const ContextDesc& desc)
+Context::Context(const std::string& yaml)
 {
+    ProcessYamlConfig(yaml);
+
     vkSetDebugUtilsObjectNameEXT_Meta = nullptr;
     vkCmdBeginDebugUtilsLabelEXT_Meta = nullptr;
     vkCmdEndDebugUtilsLabelEXT_Meta = nullptr;
@@ -68,21 +50,30 @@ Context::Context(const ContextDesc& desc)
     assert(apiVersion >= VK_API_VERSION_1_3);
 #endif
 
-    VkInstanceCreateInfo ici = {
+    ScratchVector<const char*> instanceExtensions = {};
+    instanceExtensions.reserve(gConfig.InstanceExtensions.size());
+    for (const std::string& ext : gConfig.InstanceExtensions)
+    {
+        instanceExtensions.push_back(ext.c_str());
+    }
+
+    ScratchVector<const char*> instanceLayers = {};
+    instanceLayers.reserve(gConfig.InstanceLayers.size());
+    for (const std::string& layer : gConfig.InstanceLayers)
+    {
+        instanceLayers.push_back(layer.c_str());
+    }
+
+    const VkInstanceCreateInfo ici = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = nullptr,
-        .enabledExtensionCount = 0,
-        .ppEnabledExtensionNames = nullptr,
+        .enabledLayerCount = static_cast<uint32_t>(instanceLayers.size()),
+        .ppEnabledLayerNames = instanceLayers.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size()),
+        .ppEnabledExtensionNames = instanceExtensions.data(),
     };
-
-    ScratchVector<const char*> extensions = GetRequiredExtensions();
-    extensions.insert(extensions.end(), desc.extensions.begin(), desc.extensions.end());
-    ici.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    ici.ppEnabledExtensionNames = extensions.data();
 
     DebugReporter::Check(vkCreateInstance(&ici, nullptr, &mInstance));
 
@@ -92,9 +83,9 @@ Context::Context(const ContextDesc& desc)
     vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdInsertDebugUtilsLabelEXT);
 }
 
-Device* Context::DevicePtr(const DeviceDesc& deviceConfig)
+Device* Context::DevicePtr(VkSurfaceKHR surface)
 {
-    mDevice = std::make_unique<Device>(mInstance, deviceConfig);
+    mDevice = std::make_unique<Device>(mInstance, surface);
 
     AssignDebugName<VkInstance>(mDevice->GetVkHandle(), mInstance, "Grace::Instance");
     AssignDebugName<VkDevice>(mDevice->GetVkHandle(), mDevice->GetVkHandle(), "Grace::Device");

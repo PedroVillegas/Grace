@@ -54,7 +54,7 @@ class GpuResourceTable
 public:
     ~GpuResourceTable();
     GpuResourceTable() = default;
-    GpuResourceTable(Device* pDevice, uint32_t maxImages, uint32_t maxSamplers, uint32_t maxBuffers);
+    GpuResourceTable(Device* pDevice);
 
     GpuResourceTable(const GpuResourceTable&) = delete;
     GpuResourceTable& operator=(const GpuResourceTable&) = delete;
