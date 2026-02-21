@@ -48,8 +48,8 @@ public:
         {
             Handle<Res> newHandle = mFreeSlots.front();
             mFreeSlots.pop();
-            mRegistry[newHandle.handle].validator = newHandle.validator;
-            mRegistry[newHandle.handle].resource = Res(std::forward<Args>(args)...);
+            mRegistry[newHandle.GetHandle()].validator = newHandle.GetValidator();
+            mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
             return newHandle;
         }
 
@@ -57,39 +57,38 @@ public:
         mRegistry.emplace_back(newValidator, std::forward<Args>(args)...);
 
         const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
-        return Handle<Res>(index, newValidator);
+        return Handle<Res>(index, newValidator << 1);
     }
 
     Res& Get(const Handle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
-        const bool handleInRange = resourceHandle.handle < mRegistry.size();
+        const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
         assert(handleInRange && "Handle is not in range.");
-        const bool isValidSlot = mRegistry[resourceHandle.handle].validator == resourceHandle.validator;
+        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
         assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
 
-        return mRegistry[resourceHandle.handle].resource;
+        return mRegistry[resourceHandle.GetHandle()].resource;
     }
 
     void Free(Handle<Res>& resourceHandle, bool deferred)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
-        const bool handleInRange = resourceHandle.handle < mRegistry.size();
+        const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
         assert(handleInRange && "Handle is not in range.");
-        const bool isValidSlot = mRegistry[resourceHandle.handle].validator == resourceHandle.validator;
+        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
         assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
 
-        mRegistry[resourceHandle.handle].resource = Res();
-        mRegistry[resourceHandle.handle].validator = INVALID_VALIDATOR;
+        mRegistry[resourceHandle.GetHandle()].resource = Res();
+        mRegistry[resourceHandle.GetHandle()].validator = INVALID_VALIDATOR;
 
         // Slot is freed up and can be reused for the next resource created
-        mFreeSlots.emplace(resourceHandle.handle, ++mValidator);
+        mFreeSlots.emplace(resourceHandle.GetHandle(), ++mValidator);
 
         // Invalidate resourceHandle
         if (!deferred)
         {
-            resourceHandle.handle = INVALID_HANDLE;
-            resourceHandle.validator = INVALID_VALIDATOR;
+            resourceHandle = Handle<Res>();
         }
     }
 
@@ -100,8 +99,6 @@ private:
 };
 
 /// Handles all graphics resources through registry containers.
-///
-/// Should call `FreeAllResources` on shutdown to automate cleanup.
 ///
 /// Each `RegistryEntry` of the registry containers has an assigned `validator` which is used
 /// to validate the slot against the `ResourceHandle` that points to it. If the validation

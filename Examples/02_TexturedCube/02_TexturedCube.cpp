@@ -71,6 +71,14 @@ int main()
     glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
     Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
+    Grace::SamplerHandle test1 = pDevice->CreateSampler({});
+    Grace::SamplerHandle test2 = pDevice->CreateSampler({});
+
+    test1 = test2;
+
+    const Grace::SamplerHandle test3 = test1;
+
+
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
@@ -366,7 +374,6 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
-            pDevice->FreeImage(depthImg);
             depthImg = pDevice->CreateImage({
                 .name = "Example02::depthImg",
                 .dimensions = Grace::UInt3(windowWidth, windowHeight, 1),

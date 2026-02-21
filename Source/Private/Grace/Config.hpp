@@ -16,7 +16,7 @@ inline struct Config
 {
     uint32_t FramesInFlight = 1U;
 
-    std::vector<std::string> InstanceExtensions = {};
+    std::vector<std::string> InstanceExtensions = { "VK_EXT_debug_utils" };
     std::vector<std::string> InstanceLayers = {};
     std::vector<std::string> DeviceExtensions = {};
     std::vector<std::string> DeviceLayers = {};

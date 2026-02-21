@@ -1,21 +1,23 @@
 #include <Private/Grace/ScratchVector.hpp>
 
-struct Foo
-{
-    uint32_t a;
-    uint64_t b;
-};
+#include <gtest/gtest.h>
 
-struct Bar
+TEST(ScratchVector, Test)
 {
-    uint32_t a[7];
-    uint64_t b;
-};
+    struct Foo
+    {
+        uint32_t a;
+        uint64_t b;
+    };
 
-int main()
-{
+    struct Bar
+    {
+        uint32_t a[7];
+        uint64_t b;
+    };
+
     const Grace::ScratchVector<Foo> foos(5);
     const Grace::ScratchVector<Bar> bars(300);
 
-    return 0;
+    EXPECT_EQ(foos.size(), 5);
 }

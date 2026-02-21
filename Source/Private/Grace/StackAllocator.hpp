@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Grace/GraceApi.hpp>
-
 #include <cstdint>
 
 namespace std
@@ -14,7 +12,7 @@ namespace Grace
 
 constexpr uint32_t kStackAllocatorInitialSize = 64U * 1024U; // 64 KiB
 
-class GRACE_API_TESTBED StackAllocatorState
+class StackAllocatorState
 {
 public:
     static StackAllocatorState& Instance();
@@ -42,7 +40,7 @@ private:
 };
 
 template <typename T>
-class GRACE_API_TESTBED StackAllocator
+class StackAllocator
 {
 public:
     using value_type = T;

@@ -11,6 +11,7 @@ class GRACE_API Context
 {
 public:
     ~Context();
+    Context();
     explicit Context(const std::string& yaml);
 
     Context(const Context&) = delete;
@@ -22,6 +23,9 @@ public:
     GRACE_NODISCARD Device* DevicePtr(VkSurfaceKHR surface);
 
     GRACE_NODISCARD VkInstance GetInstance();
+
+private:
+    void Startup();
 
 private:
     VkInstance mInstance = nullptr;

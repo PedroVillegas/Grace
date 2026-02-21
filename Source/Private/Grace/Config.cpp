@@ -6,10 +6,10 @@
 namespace Grace
 {
 
-#define SET_IF_IN_CONFIG(dest, node, type)  \
-    if (node)                               \
-    {                                       \
-        gConfig.##dest = node.as<##type>(); \
+#define SET_IF_IN_CONFIG(dest, node, type) \
+    if (node)                              \
+    {                                      \
+        gConfig.dest = node.as<type>();    \
     }
 
 void ProcessYamlConfig(const std::string& yaml)
@@ -69,7 +69,8 @@ void ProcessYamlConfig(const std::string& yaml)
     SET_IF_IN_CONFIG(SwapchainPresentMode, config["Swapchain"]["PresentMode"], PresentMode);
 
     SET_IF_IN_CONFIG(BindlessResourceTableMaxImageSlots, config["BindlessResourceTable"]["MaxImageSlots"], uint32_t);
-    SET_IF_IN_CONFIG(BindlessResourceTableMaxSamplerSlots, config["BindlessResourceTable"]["MaxSamplerSlots"], uint32_t);
+    SET_IF_IN_CONFIG(
+        BindlessResourceTableMaxSamplerSlots, config["BindlessResourceTable"]["MaxSamplerSlots"], uint32_t);
     SET_IF_IN_CONFIG(BindlessResourceTableMaxBufferSlots, config["BindlessResourceTable"]["MaxBufferSlots"], uint32_t);
 }
 

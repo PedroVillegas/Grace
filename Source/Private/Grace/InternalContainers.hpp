@@ -1,10 +1,45 @@
 #pragma once
 
+#include <Grace/TypesHandle.hpp>
+#include <Private/Grace/ScratchVector.hpp>
+
+#include <vulkan/vulkan_core.h>
 #include <array>
 #include <cstdint>
+#include <memory>
 
 namespace Grace
 {
+
+struct AbandonedResources
+{
+    std::vector<BufferHandle> buffers = {};
+    std::vector<ImageHandle> images = {};
+    std::vector<SamplerHandle> samplers = {};
+    std::vector<PipelineHandle> pipelines = {};
+    std::vector<PipelineLayoutHandle> pipelineLayouts = {};
+    std::vector<FenceHandle> fences = {};
+    std::vector<BinarySemaphoreHandle> binarySemaphores = {};
+    std::vector<TimelineSemaphoreHandle> timelineSemaphores = {};
+    bool any = false;
+};
+
+extern std::unique_ptr<AbandonedResources> gAbandonedResources;
+
+// TODO: Reduce dynamic memory allocs
+struct ResourceHandleRefCounters
+{
+    std::vector<uint32_t> buffers = {};
+    std::vector<uint32_t> images = {};
+    std::vector<uint32_t> samplers = {};
+    std::vector<uint32_t> pipelines = {};
+    std::vector<uint32_t> pipelineLayouts = {};
+    std::vector<uint32_t> fences = {};
+    std::vector<uint32_t> binarySemaphores = {};
+    std::vector<uint32_t> timelineSemaphores = {};
+};
+
+extern std::unique_ptr<ResourceHandleRefCounters> gResHandleRefCounters;
 
 enum class ImageLayout : uint8_t
 {

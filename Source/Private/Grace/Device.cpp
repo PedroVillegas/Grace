@@ -6,6 +6,7 @@
 #include <Grace/CommandGroup.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
+#include <Private/Grace/InternalContainers.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -149,6 +150,21 @@ uint32_t Device::GetCurrentFrameInFlightIndex() const
 
 void Device::AdvanceToNextFrame()
 {
+    if (gAbandonedResources->any)
+    {
+        for (auto& image : gAbandonedResources->images)
+        {
+            FreeImageDeferred(image);
+        }
+        for (auto& sampler : gAbandonedResources->samplers)
+        {
+            FreeSamplerDeferred(sampler);
+        }
+        gAbandonedResources->images.clear();
+        gAbandonedResources->samplers.clear();
+        gAbandonedResources->any = false;
+    }
+
     mFrameInFlightIndex = (mFrameInFlightIndex + 1) % mFramesInFlight;
 }
 

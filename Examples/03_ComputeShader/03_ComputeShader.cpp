@@ -73,7 +73,6 @@ int main()
         {
             compiling = true;
             pDevice->WaitIdle();
-            pDevice->FreePipeline(simpleComputeShaderPipeline);
 
             Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
 
@@ -229,7 +228,6 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
-            pDevice->FreeImage(renderImage);
 
             renderImage = pDevice->CreateImage({
                 .name = "Example03::renderImage",

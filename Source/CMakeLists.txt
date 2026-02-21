@@ -69,6 +69,7 @@ target_sources(
 	Private/Grace/Semaphore.cpp
 	Private/Grace/Swapchain.cpp
 	Private/Grace/SyncGroup.cpp
+	Private/Grace/TypesHandle.cpp
 	Private/Grace/VmaUsage.cpp
 	Private/Grace/StackAllocator.cpp
 )
@@ -92,27 +93,6 @@ set_target_properties(
 )
 
 include(GenerateExportHeader)
-set(content [[
-
-#ifdef GRACE_STATIC_DEFINE
-#  define GRACE_API_TESTBED
-#else
-#  ifndef GRACE_API_TESTBED
-#    ifdef Grace_EXPORTS
-        /* We are building this library */
-#      define GRACE_API_TESTBED __declspec(dllexport)
-#    else
-        /* We are using this library */
-#      define GRACE_API_TESTBED __declspec(dllimport)
-#    endif
-#  endif
-
-#  ifndef GRACE_NO_API
-#    define GRACE_NO_API
-#  endif
-#endif
-
-]])
 generate_export_header(
 	Grace
 	EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/Grace/GraceApi.hpp"

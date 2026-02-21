@@ -4,6 +4,7 @@
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
+#include <Private/Grace/InternalContainers.hpp>
 
 #include <cstring>
 
@@ -15,16 +16,10 @@ VkInstance Context::GetInstance()
     return mInstance;
 }
 
-Context::~Context()
+void Context::Startup()
 {
-    mDevice->WaitIdle();
-    mDevice.reset();
-    vkDestroyInstance(mInstance, nullptr);
-}
-
-Context::Context(const std::string& yaml)
-{
-    ProcessYamlConfig(yaml);
+    gAbandonedResources = std::make_unique<AbandonedResources>();
+    gResHandleRefCounters = std::make_unique<ResourceHandleRefCounters>();
 
     vkSetDebugUtilsObjectNameEXT_Meta = nullptr;
     vkCmdBeginDebugUtilsLabelEXT_Meta = nullptr;
@@ -81,6 +76,26 @@ Context::Context(const std::string& yaml)
     vkCmdBeginDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdBeginDebugUtilsLabelEXT);
     vkCmdEndDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdEndDebugUtilsLabelEXT);
     vkCmdInsertDebugUtilsLabelEXT_Meta = GRACE_LOAD_INSTANCE_PFN(mInstance, vkCmdInsertDebugUtilsLabelEXT);
+}
+
+Context::~Context()
+{
+    mDevice->WaitIdle();
+    mDevice.reset();
+    vkDestroyInstance(mInstance, nullptr);
+    gAbandonedResources.reset();
+    gResHandleRefCounters.reset();
+}
+
+Context::Context()
+{
+    Startup();
+}
+
+Context::Context(const std::string& yaml)
+{
+    ProcessYamlConfig(yaml);
+    Startup();
 }
 
 Device* Context::DevicePtr(VkSurfaceKHR surface)

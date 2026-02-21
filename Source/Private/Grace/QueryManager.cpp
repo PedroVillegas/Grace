@@ -40,10 +40,14 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
         .pipelineStatistics = 0,
     };
 
-    DebugReporter::Check(vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mTimestampQueryGroup.mQueryPool));
+    if (pci.queryCount > 0)
+    {
+        DebugReporter::Check(
+            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mTimestampQueryGroup.mQueryPool));
 
-    AssignDebugName<VkQueryPool>(
-        pDevice->GetVkHandle(), mTimestampQueryGroup.mQueryPool, "Grace::QueryPool::Timestamp");
+        AssignDebugName<VkQueryPool>(
+            pDevice->GetVkHandle(), mTimestampQueryGroup.mQueryPool, "Grace::QueryPool::Timestamp");
+    }
 
     // Initialise Occlusion Query Group
     mOcclusionQueryGroup.mQueries.resize(gConfig.QueriesOcclusionCount * gConfig.FramesInFlight);
@@ -52,10 +56,15 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
 
     pci.queryType = VK_QUERY_TYPE_OCCLUSION;
     pci.queryCount = mOcclusionQueryGroup.mValuesPerQuery * mOcclusionQueryGroup.mQueries.size();
-    DebugReporter::Check(vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mOcclusionQueryGroup.mQueryPool));
 
-    AssignDebugName<VkQueryPool>(
-        pDevice->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, "Grace::QueryPool::Occlusion");
+    if (pci.queryCount > 0)
+    {
+        DebugReporter::Check(
+            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mOcclusionQueryGroup.mQueryPool));
+
+        AssignDebugName<VkQueryPool>(
+            pDevice->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, "Grace::QueryPool::Occlusion");
+    }
 
     // Need to find the number of pipelineStatistics bits that have been set
     uint32_t bitsSet = std::popcount(static_cast<uint32_t>(gConfig.QueriesPipelineStatsStages));
@@ -69,11 +78,15 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
     pci.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
     pci.queryCount = mPipelineStatsQueryGroup.mValuesPerQuery * mPipelineStatsQueryGroup.mQueries.size();
     pci.pipelineStatistics = static_cast<VkQueryPipelineStatisticFlags>(gConfig.QueriesPipelineStatsStages);
-    DebugReporter::Check(
-        vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mPipelineStatsQueryGroup.mQueryPool));
 
-    AssignDebugName<VkQueryPool>(
-        pDevice->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, "Grace::QueryPool::PipelineStatistics");
+    if (pci.queryCount > 0)
+    {
+        DebugReporter::Check(
+            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mPipelineStatsQueryGroup.mQueryPool));
+
+        AssignDebugName<VkQueryPool>(
+            pDevice->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, "Grace::QueryPool::PipelineStatistics");
+    }
 }
 
 } // namespace Grace
