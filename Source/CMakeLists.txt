@@ -14,11 +14,17 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+	spdlog
+	GIT_REPOSITORY 	https://github.com/gabime/spdlog.git
+	GIT_TAG			v1.17.0
+)
+
+FetchContent_Declare(
 	vma
 	URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.zip
 )
 
-FetchContent_MakeAvailable(vma pybind yaml-cpp)
+FetchContent_MakeAvailable(vma pybind yaml-cpp spdlog)
 
 if (NOT DEFINED GRACE_TARGET_VULKAN_API_VERSION)
 	message(STATUS "[GRACE_WARN] GRACE_TARGET_VULKAN_API_VERSION was not defined - default is 1.3!")
@@ -118,6 +124,7 @@ target_link_libraries(
 	${Vulkan_LIBRARIES}
 	PRIVATE
 	yaml-cpp
+	spdlog
 )
 
 include(${PROJECT_SOURCE_DIR}/CMake/ShaderCompilation.cmake)

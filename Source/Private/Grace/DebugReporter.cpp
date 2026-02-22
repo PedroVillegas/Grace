@@ -1,5 +1,7 @@
 #include <Grace/DebugReporter.hpp>
 
+#include <Private/Grace/Logging.hpp>
+
 #include <string>
 #include <iostream>
 
@@ -118,7 +120,7 @@ void DebugReporter::Check(VkResult result)
 
     if (result < VK_SUCCESS)
     {
-        std::cout << "\033[1;31m[ERROR]\033[0m " + errorMessage << std::endl;
+        GRACE_ERROR(errorMessage);
         //abort();
     }
 }

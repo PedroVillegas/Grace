@@ -1,4 +1,5 @@
 #include <Private/Grace/StackAllocator.hpp>
+#include <Private/Grace/Logging.hpp>
 
 #include <memory>
 #include <iostream>
@@ -27,13 +28,12 @@ void* StackAllocatorState::Allocate(uint32_t size, uint32_t alignment)
 
     if (alignedptr == nullptr || static_cast<std::byte*>(alignedptr) + size > mBuffer + mCapacity)
     {
-        std::cout << std::format("Attempting to allocate {} bytes when {}/{} bytes are actively allocated "
-                                 " ({} bytes free)",
-                                 size,
-                                 mHead,
-                                 mCapacity,
-                                 mCapacity - mHead)
-                  << std::endl;
+        GRACE_ERROR("[StackAllocatorState::Allocate] Attempting to allocate {} bytes when {}/{} bytes are actively "
+                    "allocated ({} bytes free)",
+                    size,
+                    mHead,
+                    mCapacity,
+                    mCapacity - mHead);
         throw std::bad_alloc();
     }
 

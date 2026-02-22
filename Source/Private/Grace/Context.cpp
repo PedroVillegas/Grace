@@ -5,8 +5,10 @@
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
 #include <Private/Grace/InternalContainers.hpp>
+#include <Private/Grace/Logging.hpp>
 
-#include <cstring>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace Grace
 {
@@ -18,6 +20,9 @@ VkInstance Context::GetInstance()
 
 void Context::Startup()
 {
+    auto logger = spdlog::stdout_color_mt(kLoggerName);
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S, GRACE-%L] %v");
+
     gAbandonedResources = std::make_unique<AbandonedResources>();
     gResHandleRefCounters = std::make_unique<ResourceHandleRefCounters>();
 
