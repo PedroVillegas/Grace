@@ -22,9 +22,9 @@
 
 #define GRACE_DEFINE_RESOURCE_HANDLE(ResourceType) \
     class ResourceType;                            \
-    using ResourceType##Handle = Handle<ResourceType>;
+    using ResourceType##Handle = RefCountedHandle<ResourceType>;
 
 #define GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(ResourceType, TemplateType, Alias) \
     template <typename T>                                                         \
     class ResourceType;                                                           \
-    using Alias##Handle = Handle<ResourceType<TemplateType>>;
+    using Alias##Handle = RefCountedHandle<ResourceType<TemplateType>>;

@@ -1,11 +1,9 @@
 #include <Grace/PipelineGroup.hpp>
-
-#include <cassert>
-
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -20,7 +18,7 @@ PipelineLayout::~PipelineLayout()
 
 PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) : mDevice(pDevice)
 {
-    assert(!mDevice->IsNull());
+    GRACE_ASSERT(!mDevice->IsNull());
 
     VkPipelineLayoutCreateInfo plcInfo = {};
     plcInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -76,7 +74,7 @@ Pipeline::~Pipeline()
 Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipelineDesc&& desc)
     : mDevice(device), mType(PipelineType::Graphics)
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
 
     ScratchVector<VkPipelineShaderStageCreateInfo> shaderStages = {};
     shaderStages.reserve(desc.shaders.size());
@@ -88,8 +86,8 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipe
     {
         const std::filesystem::path filepath = GRACE_SPIRV_DIR "/" + shader.name;
 
-        assert(std::filesystem::exists(filepath));
-        assert(shader.name.ends_with(".spv"));
+        GRACE_ASSERT(std::filesystem::exists(filepath));
+        GRACE_ASSERT(shader.name.ends_with(".spv"));
 
         VkShaderModule shaderModule = nullptr;
         CreateShaderModule(device, filepath, shaderModule);
@@ -302,14 +300,14 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipe
 Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const ComputePipelineDesc& desc)
     : mDevice(device), mType(PipelineType::Compute)
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
 
     const ShaderDesc& shader = desc.shader;
 
     const std::filesystem::path filepath = GRACE_SPIRV_DIR "/" + shader.name;
 
-    assert(std::filesystem::exists(filepath));
-    assert(shader.name.ends_with(".spv"));
+    GRACE_ASSERT(std::filesystem::exists(filepath));
+    GRACE_ASSERT(shader.name.ends_with(".spv"));
 
     VkShaderModule shaderModule = nullptr;
     CreateShaderModule(mDevice, filepath, shaderModule);
@@ -379,7 +377,7 @@ VkPipelineBindPoint Pipeline::BindPoint() const
     case PipelineType::Graphics:
         return VK_PIPELINE_BIND_POINT_GRAPHICS;
     default:
-        assert(false);
+        GRACE_ASSERT(false);
         return VK_PIPELINE_BIND_POINT_MAX_ENUM;
     }
 }

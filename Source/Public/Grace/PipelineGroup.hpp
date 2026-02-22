@@ -8,7 +8,7 @@
 
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Enums.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>

@@ -18,7 +18,7 @@ constexpr uint32_t INVALID_HANDLE = ~0U;
 constexpr uint32_t INVALID_VALIDATOR = ~0U;
 
 template <typename ResourceType>
-class Handle;
+class RefCountedHandle;
 
 GRACE_DEFINE_RESOURCE_HANDLE(Buffer);
 GRACE_DEFINE_RESOURCE_HANDLE(Image);
@@ -30,20 +30,20 @@ GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(Semaphore, SemaphoreType::Binary, BinaryS
 GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(Semaphore, SemaphoreType::Timeline, TimelineSemaphore);
 
 template <typename ResourceType>
-class GRACE_API Handle
+class GRACE_API RefCountedHandle
 {
 public:
-    Handle() = default;
+    RefCountedHandle() = default;
 
-    Handle(uint32_t UUID, uint32_t Validator);
+    RefCountedHandle(uint32_t UUID, uint32_t Validator);
 
-    ~Handle();
+    ~RefCountedHandle();
 
-    Handle& operator=(const Handle& rhs);
-    Handle(const Handle& rhs);
+    RefCountedHandle& operator=(const RefCountedHandle& rhs);
+    RefCountedHandle(const RefCountedHandle& rhs);
 
-    Handle& operator=(Handle&& rhs) noexcept;
-    Handle(Handle&& rhs) noexcept;
+    RefCountedHandle& operator=(RefCountedHandle&& rhs) noexcept;
+    RefCountedHandle(RefCountedHandle&& rhs) noexcept;
 
     GRACE_NODISCARD bool HasValidHandle() const
     {
@@ -71,6 +71,7 @@ private:
     uint32_t AdjustRefCounter(int count) const;
 
 private:
+    // ResourceType* mNonOwningPtr = nullptr;
     uint32_t mHandle = INVALID_HANDLE;
     uint32_t mValidator31Alive1 = INVALID_VALIDATOR;
 };

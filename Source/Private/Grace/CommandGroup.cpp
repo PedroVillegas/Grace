@@ -1,12 +1,9 @@
 #include <Grace/CommandGroup.hpp>
-
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
 #include <Grace/HelperFunctions.hpp>
-
 #include <Private/Grace/SyncGroup.hpp>
-
-#include <cassert>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -35,7 +32,7 @@ CommandGroupAllocator& CommandGroupAllocator::operator=(CommandGroupAllocator&& 
 
 CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFamily, const char* name)
 {
-    assert(static_cast<uint32_t>(queueFamily) <= static_cast<uint32_t>(QueueFamily::Graphics));
+    GRACE_ASSERT(static_cast<uint32_t>(queueFamily) <= static_cast<uint32_t>(QueueFamily::Graphics));
 
     // If no pools are free, allocate new pool
     std::deque<CommandPool>& allocatedPoolsOfQueueFamily =
@@ -56,7 +53,7 @@ CommandPool* CommandGroupAllocator::GetOrAllocateCommandPool(QueueFamily queueFa
         mFreeCommandPools.push(&allocatedPoolsOfQueueFamily.back());
     }
 
-    assert(!mFreeCommandPools.empty());
+    GRACE_ASSERT(!mFreeCommandPools.empty());
     CommandPool* ret = mFreeCommandPools.front();
     mFreeCommandPools.pop();
 
@@ -184,7 +181,7 @@ void CommandBuffer::EndRecording() const
 void CommandBuffer::BindPipeline(PipelineHandle pipeline) const
 {
     const Pipeline& p = mDevicePtr->GetPipeline(pipeline);
-    assert(!p.IsNull());
+    GRACE_ASSERT(!p.IsNull());
 
     vkCmdBindPipeline(mCmdBuffer, p.BindPoint(), p.GetVkHandle());
 }
@@ -194,7 +191,7 @@ void CommandBuffer::BindDescriptorSets(PipelineBindPoint bindpoint,
                                        const std::initializer_list<VkDescriptorSet>&& descriptorSets) const
 {
     const PipelineLayout& pl = mDevicePtr->GetPipelineLayout(layout);
-    assert(!pl.IsNull());
+    GRACE_ASSERT(!pl.IsNull());
     vkCmdBindDescriptorSets(mCmdBuffer,
                             static_cast<VkPipelineBindPoint>(bindpoint),
                             pl.GetVkPipelineLayout(),
@@ -208,8 +205,8 @@ void CommandBuffer::BindDescriptorSets(PipelineBindPoint bindpoint,
 void CommandBuffer::PushConstants(PipelineLayoutHandle layout, uint32_t size, const void* data) const
 {
     const PipelineLayout& pl = mDevicePtr->GetPipelineLayout(layout);
-    assert(!pl.IsNull());
-    assert(size <= 128);
+    GRACE_ASSERT(!pl.IsNull());
+    GRACE_ASSERT(size <= 128);
     vkCmdPushConstants(mCmdBuffer, pl.GetVkPipelineLayout(), VK_SHADER_STAGE_ALL, 0, size, data);
 }
 
@@ -270,8 +267,8 @@ void CommandBuffer::PipelineBarrier()
 
 void CommandBuffer::BeginDynamicRendering(const DynamicRenderingDesc&& desc) const
 {
-    assert(desc.colorAttachments.size() > 0);
-    assert(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
+    GRACE_ASSERT(desc.colorAttachments.size() > 0);
+    GRACE_ASSERT(desc.renderArea.extent.width > 0 && desc.renderArea.extent.height > 0);
 
     const VkRenderingInfo renderInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -307,7 +304,7 @@ void CommandBuffer::SetScissor(const std::initializer_list<VkRect2D>&& scissors)
 void CommandBuffer::BindIndexBuffer(BufferHandle buffer, VkDeviceSize offset, IndexType indexType) const
 {
     const Buffer& buf = mDevicePtr->GetBuffer(buffer);
-    assert(!buf.IsNull());
+    GRACE_ASSERT(!buf.IsNull());
     vkCmdBindIndexBuffer(mCmdBuffer, buf.GetVkHandle(), offset, static_cast<VkIndexType>(indexType));
 }
 
@@ -334,7 +331,7 @@ void CommandBuffer::DrawIndexedIndirect(BufferHandle buffer,
                                         uint32_t stride) const
 {
     const Buffer& buf = mDevicePtr->GetBuffer(buffer);
-    assert(!buf.IsNull());
+    GRACE_ASSERT(!buf.IsNull());
     vkCmdDrawIndexedIndirect(mCmdBuffer, buf.GetVkHandle(), offset, drawCount, stride);
 }
 
@@ -346,7 +343,7 @@ void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) const
 void CommandBuffer::DispatchIndirect(BufferHandle buffer, uint64_t offset) const
 {
     const Buffer& buf = mDevicePtr->GetBuffer(buffer);
-    assert(!buf.IsNull());
+    GRACE_ASSERT(!buf.IsNull());
     vkCmdDispatchIndirect(mCmdBuffer, buf.GetVkHandle(), offset);
 }
 
@@ -358,7 +355,7 @@ void CommandBuffer::BlitImage(const VkBlitImageInfo2& blitInfo) const
 void CommandBuffer::ClearColorImage(ImageHandle image, const ClearColourValue& color) const
 {
     const Image& img = mDevicePtr->GetImage(image);
-    assert(!img.IsNull());
+    GRACE_ASSERT(!img.IsNull());
 
     const VkImageSubresourceRange subresourceRange = {
         .aspectMask = static_cast<VkImageAspectFlags>(img.InferAspect()),
@@ -377,7 +374,7 @@ void CommandBuffer::ClearColorImageRanges(ImageHandle image,
                                           const std::initializer_list<VkImageSubresourceRange>&& ranges) const
 {
     const Image& img = mDevicePtr->GetImage(image);
-    assert(!img.IsNull());
+    GRACE_ASSERT(!img.IsNull());
     vkCmdClearColorImage(mCmdBuffer,
                          img.GetImage(),
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -390,8 +387,8 @@ void CommandBuffer::CopyBufferToImage(BufferHandle buffer, ImageHandle image, Vk
 {
     const Buffer& buf = mDevicePtr->GetBuffer(buffer);
     const Image& img = mDevicePtr->GetImage(image);
-    assert(!buf.IsNull());
-    assert(!img.IsNull());
+    GRACE_ASSERT(!buf.IsNull());
+    GRACE_ASSERT(!img.IsNull());
 
     const UInt3& imgext = img.GetExtent3D();
     const VkBufferImageCopy region = {
@@ -418,8 +415,8 @@ void CommandBuffer::CopyBufferToImageRegions(BufferHandle buffer,
 {
     const Buffer& buf = mDevicePtr->GetBuffer(buffer);
     const Image& img = mDevicePtr->GetImage(image);
-    assert(!buf.IsNull());
-    assert(!img.IsNull());
+    GRACE_ASSERT(!buf.IsNull());
+    GRACE_ASSERT(!img.IsNull());
     vkCmdCopyBufferToImage(mCmdBuffer,
                            buf.GetVkHandle(),
                            img.GetImage(),
@@ -433,9 +430,9 @@ void CommandBuffer::CopyBuffer(BufferHandle srcBuffer, BufferHandle dstBuffer) c
     const Buffer& srcbuf = mDevicePtr->GetBuffer(srcBuffer);
     const Buffer& dstbuf = mDevicePtr->GetBuffer(dstBuffer);
 
-    assert(!srcbuf.IsNull());
-    assert(!dstbuf.IsNull());
-    assert(srcbuf.GetAllocationInfo().allocationInfo.size == dstbuf.GetAllocationInfo().allocationInfo.size);
+    GRACE_ASSERT(!srcbuf.IsNull());
+    GRACE_ASSERT(!dstbuf.IsNull());
+    GRACE_ASSERT(srcbuf.GetAllocationInfo().allocationInfo.size == dstbuf.GetAllocationInfo().allocationInfo.size);
 
     const VkBufferCopy region = {
         .srcOffset = 0,
@@ -452,8 +449,8 @@ void CommandBuffer::CopyBufferRanges(BufferHandle srcBuffer,
 {
     const Buffer& srcbuf = mDevicePtr->GetBuffer(srcBuffer);
     const Buffer& dstbuf = mDevicePtr->GetBuffer(dstBuffer);
-    assert(!srcbuf.IsNull());
-    assert(!dstbuf.IsNull());
+    GRACE_ASSERT(!srcbuf.IsNull());
+    GRACE_ASSERT(!dstbuf.IsNull());
     vkCmdCopyBuffer(
         mCmdBuffer, srcbuf.GetVkHandle(), dstbuf.GetVkHandle(), static_cast<uint32_t>(regions.size()), regions.begin());
 }

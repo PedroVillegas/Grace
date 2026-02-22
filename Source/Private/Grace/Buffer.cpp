@@ -1,10 +1,8 @@
 #include <Grace/Buffer.hpp>
-
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
-
-#include <cassert>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -21,7 +19,7 @@ VkBuffer Buffer::GetVkHandle() const
 
 VkDeviceAddress Buffer::GetBDA() const
 {
-    assert(mDeviceAddress != 0);
+    GRACE_ASSERT(mDeviceAddress != 0);
     return mDeviceAddress;
 }
 
@@ -39,7 +37,7 @@ VmaAllocationInfo2 Buffer::GetAllocationInfo() const
 
 Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 {
-    assert(!mDevice->IsNull());
+    GRACE_ASSERT(!mDevice->IsNull());
 
     const VkBufferCreateInfo bufferInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -65,7 +63,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
 
     DebugReporter::Check(
         vmaCreateBuffer(mDevice->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &mBuffer, &mAllocation, nullptr));
-    assert(mBuffer != nullptr);
+    GRACE_ASSERT(mBuffer != nullptr);
     AssignDebugName<VkBuffer>(mDevice->GetVkHandle(), mBuffer, desc.name);
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::DeviceAddress))

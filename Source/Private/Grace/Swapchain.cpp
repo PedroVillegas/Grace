@@ -4,10 +4,10 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Assert.hpp>
 
 #include <algorithm>
 #include <string>
-#include <cassert>
 #include <limits>
 
 namespace Grace
@@ -32,7 +32,7 @@ const Format& Swapchain::GetFormat() const
 ImageHandle Swapchain::GetRecentAcquiredImage() const
 {
     const FrameSyncGroup& sync = GetRecentFrameSyncGroup();
-    assert(sync.imageIndex != ~0U);
+    GRACE_ASSERT(sync.imageIndex != ~0U);
     return mImages[sync.imageIndex];
 }
 
@@ -105,7 +105,7 @@ void Swapchain::Create(VkExtent2D imageExtent)
 
     VkSwapchainKHR tempSwapchain = nullptr;
     DebugReporter::Check(vkCreateSwapchainKHR(mDevice->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
-    assert(tempSwapchain != nullptr);
+    GRACE_ASSERT(tempSwapchain != nullptr);
 
     if (mSwapchain != nullptr)
     {
@@ -164,7 +164,7 @@ Swapchain::~Swapchain()
 
 Swapchain::Swapchain(Device* pDevice, VkExtent2D imageExtent, bool vsync) : mDevice(pDevice), mVSyncOn(vsync)
 {
-    assert(!mDevice->IsNull());
+    GRACE_ASSERT(!mDevice->IsNull());
 
     Create(imageExtent);
 }
@@ -190,7 +190,7 @@ FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         mSwapchainStatus = SwapchainStatus::Failure;
-        assert("Failed to acquire swap chain image!");
+        GRACE_ASSERT("Failed to acquire swap chain image!");
     }
 
     mSwapchainStatus = SwapchainStatus::Success;
@@ -204,7 +204,7 @@ const FrameSyncGroup& Swapchain::GetRecentFrameSyncGroup() const
 
 VkSurfaceFormatKHR Swapchain::SelectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
-    assert(availableFormats.size() > 0);
+    GRACE_ASSERT(availableFormats.size() > 0);
 
     for (const auto& availableFormat : availableFormats)
     {

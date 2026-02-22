@@ -1,12 +1,11 @@
 #include <Grace/DescriptorGroup.hpp>
 
-#include <cassert>
-
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Private/Grace/ScratchVector.hpp>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -17,7 +16,7 @@ namespace Grace
 
 void DescriptorAllocator::SetDevice(VkDevice device)
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
     mDevice = device;
 }
 
@@ -39,7 +38,7 @@ void DescriptorAllocator::Initialise(uint32_t maxSets, std::span<PoolSizeRatio> 
 
 void DescriptorAllocator::ClearPools()
 {
-    assert(mDevice != nullptr);
+    GRACE_ASSERT(mDevice != nullptr);
 
     for (auto p : mReadyPools)
     {
@@ -56,7 +55,7 @@ void DescriptorAllocator::ClearPools()
 
 void DescriptorAllocator::CleanupPools()
 {
-    assert(mDevice != nullptr);
+    GRACE_ASSERT(mDevice != nullptr);
 
     for (auto p : mReadyPools)
     {
@@ -73,7 +72,7 @@ void DescriptorAllocator::CleanupPools()
 
 VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, void* pNext)
 {
-    assert(layout != nullptr);
+    GRACE_ASSERT(layout != nullptr);
 
     // Get or create a pool to allocate from
     VkDescriptorPool poolToUse = GetPool();
@@ -129,7 +128,7 @@ VkDescriptorPool DescriptorAllocator::GetPool()
 
 VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios)
 {
-    assert(mDevice != nullptr);
+    GRACE_ASSERT(mDevice != nullptr);
 
     ScratchVector<VkDescriptorPoolSize> poolSizes;
     for (const PoolSizeRatio ratio : poolRatios)
@@ -158,21 +157,21 @@ VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<Po
 
 void DescriptorWriter::SetDevice(VkDevice device)
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
     mDevice = device;
 }
 
 void DescriptorWriter::WriteImage(
     int binding, const Image& image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
     WriteImage(binding, image.GetDefaultView().GetVkHandle(), sampler, layout, type);
 }
 
 void DescriptorWriter::WriteImage(
     int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 {
-    assert(image != nullptr);
+    GRACE_ASSERT(image != nullptr);
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
         .sampler = sampler, 
@@ -194,13 +193,13 @@ void DescriptorWriter::WriteImage(
 
 void DescriptorWriter::WriteBuffer(int binding, const Buffer& buffer, size_t size, size_t offset, VkDescriptorType type)
 {
-    assert(!buffer.IsNull());
+    GRACE_ASSERT(!buffer.IsNull());
     WriteBuffer(binding, buffer.GetVkHandle(), size, offset, type);
 }
 
 void DescriptorWriter::WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type)
 {
-    assert(buffer != nullptr);
+    GRACE_ASSERT(buffer != nullptr);
     // clang-format off
     VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
         .buffer = buffer,
@@ -232,7 +231,7 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
                                           VkImageLayout layout,
                                           VkDescriptorType type)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
         .sampler = sampler, 
@@ -259,7 +258,7 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
 
 void DescriptorWriter::WriteSamplerBindless(const uint32_t resourceId, int binding, const Sampler& sampler)
 {
-    assert(sampler.GetVkHandle() != nullptr);
+    GRACE_ASSERT(sampler.GetVkHandle() != nullptr);
 
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
@@ -315,7 +314,7 @@ void DescriptorWriter::WriteImageBindless(
 void DescriptorWriter::WriteBufferBindless(
     uint32_t resourceId, int binding, const Buffer& buffer, size_t size, size_t offset, VkDescriptorType type)
 {
-    assert(!buffer.IsNull());
+    GRACE_ASSERT(!buffer.IsNull());
 
     // clang-format off
     VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
@@ -350,7 +349,7 @@ void DescriptorWriter::Clear()
 
 void DescriptorWriter::UpdateSet(VkDescriptorSet set)
 {
-    assert(set != nullptr);
+    GRACE_ASSERT(set != nullptr);
 
     for (VkWriteDescriptorSet& write : writes)
     {

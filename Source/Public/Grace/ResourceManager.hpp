@@ -11,7 +11,7 @@
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
 #include <Grace/Semaphore.hpp>
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Macros.hpp>
 
 namespace Grace
@@ -41,12 +41,12 @@ public:
     }
 
     template <typename... Args>
-    Handle<Res> Register(Args&&... args)
+    RefCountedHandle<Res> Register(Args&&... args)
     {
         // Use free slots if any available
         if (!mFreeSlots.empty())
         {
-            Handle<Res> newHandle = mFreeSlots.front();
+            RefCountedHandle<Res> newHandle = mFreeSlots.front();
             mFreeSlots.pop();
             mRegistry[newHandle.GetHandle()].validator = newHandle.GetValidator();
             mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
@@ -57,10 +57,10 @@ public:
         mRegistry.emplace_back(newValidator, std::forward<Args>(args)...);
 
         const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
-        return Handle<Res>(index, newValidator << 1);
+        return RefCountedHandle<Res>(index, newValidator << 1);
     }
 
-    Res& Get(const Handle<Res>& resourceHandle)
+    Res& Get(const RefCountedHandle<Res>& resourceHandle)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
@@ -71,7 +71,7 @@ public:
         return mRegistry[resourceHandle.GetHandle()].resource;
     }
 
-    void Free(Handle<Res>& resourceHandle, bool deferred)
+    void Free(RefCountedHandle<Res>& resourceHandle, bool deferred)
     {
         assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
@@ -88,13 +88,13 @@ public:
         // Invalidate resourceHandle
         if (!deferred)
         {
-            resourceHandle = Handle<Res>();
+            resourceHandle = RefCountedHandle<Res>();
         }
     }
 
 private:
     std::vector<RegistryEntry<Res>> mRegistry = {};
-    std::queue<Handle<Res>> mFreeSlots = {};
+    std::queue<RefCountedHandle<Res>> mFreeSlots = {};
     uint32_t mValidator = 0;
 };
 
@@ -111,19 +111,19 @@ public:
     void FlushDeletionQueue(uint32_t frameIndex);
 
     template <typename Res, typename... Args>
-    GRACE_NODISCARD Handle<Res> Create(Args&&... args)
+    GRACE_NODISCARD RefCountedHandle<Res> Create(Args&&... args)
     {
         return ResourceRegistry<Res>().Register(std::forward<Args>(args)...);
     }
 
     template <typename Res>
-    GRACE_NODISCARD Res& Get(Handle<Res> handle)
+    GRACE_NODISCARD Res& Get(RefCountedHandle<Res> handle)
     {
         return ResourceRegistry<Res>().Get(handle);
     }
 
     template <typename Res>
-    void Free(Handle<Res>& handle, uint32_t frameIndex = std::numeric_limits<uint32_t>::max())
+    void Free(RefCountedHandle<Res>& handle, uint32_t frameIndex = std::numeric_limits<uint32_t>::max())
     {
         if (frameIndex != std::numeric_limits<uint32_t>::max())
         {

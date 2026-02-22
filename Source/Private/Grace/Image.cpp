@@ -1,12 +1,10 @@
 #include <Grace/Image.hpp>
-
 #include <Grace/CommandGroup.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
-
 #include <Private/Grace/InternalContainers.hpp>
+#include <Private/Grace/Assert.hpp>
 
-#include <cassert>
 #include <cmath>
 
 namespace Grace
@@ -22,7 +20,7 @@ ImageView::~ImageView()
 
 ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : mDevice(pDevice)
 {
-    assert(!mDevice->IsNull());
+    GRACE_ASSERT(!mDevice->IsNull());
 
     mParentImage = desc.image;
 
@@ -127,8 +125,8 @@ Image::~Image()
 Image::Image(Device* pDevice, const ImageDesc& desc)
     : mDevice(pDevice), mFormat(desc.format), mExtent(desc.dimensions), mUsageFlags(desc.usage)
 {
-    assert(!pDevice->IsNull());
-    assert(desc.dimensions.x > 0);
+    GRACE_ASSERT(!pDevice->IsNull());
+    GRACE_ASSERT(desc.dimensions.x > 0);
 
     const uint32_t mipLevels = desc.mipmapped ? GetMaxMipLevels() : 1;
     const ImageAspect aspectMask = InferAspect();
@@ -423,8 +421,8 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
     : mDevice(pDevice), mImage(image), mFormat(desc.format), mExtent(desc.dimensions), mUsageFlags(desc.usage),
       mIsSwapchainImage(true)
 {
-    assert(!pDevice->IsNull());
-    assert(image != nullptr);
+    GRACE_ASSERT(!pDevice->IsNull());
+    GRACE_ASSERT(image != nullptr);
 
     mDefaultView = ImageView(pDevice,
                              {
@@ -483,13 +481,13 @@ void Image::SetSampledImgId(uint32_t id)
 
 uint32_t Image::GetStorageImgId() const
 {
-    assert(HasUsage(ImageUsage::StorageImage));
+    GRACE_ASSERT(HasUsage(ImageUsage::StorageImage));
     return mStorageImgId;
 }
 
 uint32_t Image::GetSampledImgId() const
 {
-    assert(HasUsage(ImageUsage::SampledImage));
+    GRACE_ASSERT(HasUsage(ImageUsage::SampledImage));
     return mSampledImgId;
 }
 

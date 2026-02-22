@@ -1,9 +1,6 @@
-#include <Grace/TypesHandle.hpp>
-
+#include <Grace/GpuResourceHandles.hpp>
 #include <Private/Grace/InternalContainers.hpp>
-
-#include <cassert>
-#include <iostream>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -12,7 +9,8 @@ std::unique_ptr<AbandonedResources> gAbandonedResources = nullptr;
 std::unique_ptr<ResourceHandleRefCounters> gResHandleRefCounters = nullptr;
 
 template <typename ResourceType>
-Handle<ResourceType>::Handle(uint32_t UUID, uint32_t Validator) : mHandle(UUID), mValidator31Alive1(Validator)
+RefCountedHandle<ResourceType>::RefCountedHandle(uint32_t UUID, uint32_t Validator)
+    : mHandle(UUID), mValidator31Alive1(Validator)
 {
     if (IsAlive())
     {
@@ -21,7 +19,7 @@ Handle<ResourceType>::Handle(uint32_t UUID, uint32_t Validator) : mHandle(UUID),
 }
 
 template <typename ResourceType>
-Handle<ResourceType>::~Handle()
+RefCountedHandle<ResourceType>::~RefCountedHandle()
 {
     const uint32_t refcount = AdjustRefCounter(-1);
     if (refcount == 0)
@@ -31,7 +29,7 @@ Handle<ResourceType>::~Handle()
 }
 
 template <typename ResourceType>
-Handle<ResourceType>& Handle<ResourceType>::operator=(const Handle& rhs)
+RefCountedHandle<ResourceType>& RefCountedHandle<ResourceType>::operator=(const RefCountedHandle& rhs)
 {
     mHandle = rhs.mHandle;
     mValidator31Alive1 = rhs.mValidator31Alive1;
@@ -40,13 +38,14 @@ Handle<ResourceType>& Handle<ResourceType>::operator=(const Handle& rhs)
 }
 
 template <typename ResourceType>
-Handle<ResourceType>::Handle(const Handle& rhs) : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
+RefCountedHandle<ResourceType>::RefCountedHandle(const RefCountedHandle& rhs)
+    : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
 {
     [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
 }
 
 template <typename ResourceType>
-Handle<ResourceType>& Handle<ResourceType>::operator=(Handle&& rhs) noexcept
+RefCountedHandle<ResourceType>& RefCountedHandle<ResourceType>::operator=(RefCountedHandle&& rhs) noexcept
 {
     mHandle = rhs.mHandle;
     mValidator31Alive1 = rhs.mValidator31Alive1;
@@ -55,13 +54,14 @@ Handle<ResourceType>& Handle<ResourceType>::operator=(Handle&& rhs) noexcept
 }
 
 template <typename ResourceType>
-Handle<ResourceType>::Handle(Handle&& rhs) noexcept : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
+RefCountedHandle<ResourceType>::RefCountedHandle(RefCountedHandle&& rhs) noexcept
+    : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
 {
     [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
 }
 
 template <typename ResourceType>
-void Handle<ResourceType>::AbandonHandle() const
+void RefCountedHandle<ResourceType>::AbandonHandle() const
 {
     gAbandonedResources->any = true;
     uint32_t dead = mValidator31Alive1 | 0x1;
@@ -101,7 +101,7 @@ void Handle<ResourceType>::AbandonHandle() const
 }
 
 template <typename ResourceType>
-void Handle<ResourceType>::InstantiateRefCounter() const
+void RefCountedHandle<ResourceType>::InstantiateRefCounter() const
 {
     if constexpr (std::is_same_v<ResourceType, Buffer>)
     {
@@ -138,7 +138,7 @@ void Handle<ResourceType>::InstantiateRefCounter() const
 }
 
 template <typename ResourceType>
-uint32_t Handle<ResourceType>::AdjustRefCounter(int count) const
+uint32_t RefCountedHandle<ResourceType>::AdjustRefCounter(int count) const
 {
     if (!HasValidHandle() || !IsAlive())
     {
@@ -189,13 +189,13 @@ uint32_t Handle<ResourceType>::AdjustRefCounter(int count) const
     return *current;
 }
 
-template class GRACE_API Handle<Buffer>;
-template class GRACE_API Handle<Image>;
-template class GRACE_API Handle<Sampler>;
-template class GRACE_API Handle<Pipeline>;
-template class GRACE_API Handle<PipelineLayout>;
-template class GRACE_API Handle<Fence>;
-template class GRACE_API Handle<Semaphore<SemaphoreType::Binary>>;
-template class GRACE_API Handle<Semaphore<SemaphoreType::Timeline>>;
+template class GRACE_API RefCountedHandle<Buffer>;
+template class GRACE_API RefCountedHandle<Image>;
+template class GRACE_API RefCountedHandle<Sampler>;
+template class GRACE_API RefCountedHandle<Pipeline>;
+template class GRACE_API RefCountedHandle<PipelineLayout>;
+template class GRACE_API RefCountedHandle<Fence>;
+template class GRACE_API RefCountedHandle<Semaphore<SemaphoreType::Binary>>;
+template class GRACE_API RefCountedHandle<Semaphore<SemaphoreType::Timeline>>;
 
 } // namespace Grace

@@ -47,7 +47,7 @@ void Context::Startup()
     appInfo.apiVersion = VK_API_VERSION_1_4;
 #else
     vkEnumerateInstanceVersion(&apiVersion);
-    assert(apiVersion >= VK_API_VERSION_1_3);
+    GRACE_ASSERT(apiVersion >= VK_API_VERSION_1_3);
 #endif
 
     ScratchVector<const char*> instanceExtensions = {};

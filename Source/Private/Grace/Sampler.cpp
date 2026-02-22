@@ -1,9 +1,7 @@
 #include <Grace/Sampler.hpp>
-
-#include <cassert>
-
 #include <Grace/Device.hpp>
 #include <Grace/DebugReporter.hpp>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -18,7 +16,7 @@ Sampler::~Sampler()
 
 Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : mDevice(pDevice)
 {
-    assert(!mDevice->IsNull());
+    GRACE_ASSERT(!mDevice->IsNull());
 
     VkSamplerCreateInfo samplerInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,

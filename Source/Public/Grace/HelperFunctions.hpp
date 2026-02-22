@@ -3,7 +3,7 @@
 #include <vector>
 #include <filesystem>
 
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/OptionalPFN.hpp>
 #include <Grace/GraceApi.hpp>

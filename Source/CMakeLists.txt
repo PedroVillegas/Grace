@@ -66,6 +66,7 @@ target_sources(
 	Private/Grace/DescriptorGroup.cpp
 	Private/Grace/Device.cpp
 	Private/Grace/Fence.cpp
+	Private/Grace/GpuResourceHandles.cpp
 	Private/Grace/GpuResourceTable.cpp
 	Private/Grace/HelperFunctions.cpp
 	Private/Grace/Image.cpp
@@ -75,7 +76,6 @@ target_sources(
 	Private/Grace/Semaphore.cpp
 	Private/Grace/Swapchain.cpp
 	Private/Grace/SyncGroup.cpp
-	Private/Grace/TypesHandle.cpp
 	Private/Grace/VmaUsage.cpp
 	Private/Grace/StackAllocator.cpp
 )

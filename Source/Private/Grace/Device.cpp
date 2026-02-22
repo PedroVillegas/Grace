@@ -1,15 +1,12 @@
 #include <Grace/Device.hpp>
-
-#include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/CommandGroup.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
 #include <Private/Grace/InternalContainers.hpp>
+#include <Private/Grace/Assert.hpp>
 
-#include <cassert>
-#include <iostream>
 #include <set>
 
 namespace Grace
@@ -36,7 +33,7 @@ Device::Device() = default;
 Device::Device(VkInstance instance, VkSurfaceKHR surface)
     : mParentInstance(instance), mFramesInFlight(gConfig.FramesInFlight), mSurfaceKHR(surface)
 {
-    assert(mFramesInFlight > 0);
+    GRACE_ASSERT(mFramesInFlight > 0);
 
     LogicalDeviceDesc ldd = {};
 
@@ -44,7 +41,7 @@ Device::Device(VkInstance instance, VkSurfaceKHR surface)
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-    assert(deviceCount > 0 && "Failed to find GPUs with Vulkan support!");
+    GRACE_ASSERT(deviceCount > 0 && "Failed to find GPUs with Vulkan support!");
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -58,7 +55,7 @@ Device::Device(VkInstance instance, VkSurfaceKHR surface)
         }
     }
 
-    assert(mPhysicalDevice && "Failed to find a suitable GPU!");
+    GRACE_ASSERT(mPhysicalDevice && "Failed to find a suitable GPU!");
 
     ConfigureQueues(ldd.queueCreateInfos);
 
@@ -243,7 +240,7 @@ void Device::BatchSubmit(QueueFamily queue,
                          std::initializer_list<FrameSyncGroup> fsgs,
                          FenceHandle fence)
 {
-    assert(cmds.size() == fsgs.size());
+    GRACE_ASSERT(cmds.size() == fsgs.size());
 
     const uint32_t N = cmds.size();
     ScratchVector<VkSubmitInfo2> submitInfos(N);
@@ -555,17 +552,17 @@ void Device::EndAndSubmitSingleTimeCommands()
 
 uint32_t Device::GetQueueFamilyIndex(QueueFamily queueFamily)
 {
-    assert(queueFamily != QueueFamily::Undefined);
+    GRACE_ASSERT(queueFamily != QueueFamily::Undefined);
     std::optional<uint32_t> queueFamilyIndex = mQueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
-    assert(queueFamilyIndex.has_value());
+    GRACE_ASSERT(queueFamilyIndex.has_value());
     return queueFamilyIndex.value();
 }
 
 VkQueue Device::GetQueue(QueueFamily queueFamily)
 {
-    assert(queueFamily != QueueFamily::Undefined);
+    GRACE_ASSERT(queueFamily != QueueFamily::Undefined);
     std::optional<uint32_t> queueFamilyIndex = mQueueFamilyIndices[static_cast<uint32_t>(queueFamily)];
-    assert(queueFamilyIndex.has_value());
+    GRACE_ASSERT(queueFamilyIndex.has_value());
     return mQueues[static_cast<uint32_t>(queueFamily)];
 }
 
@@ -626,7 +623,7 @@ void Device::ConfigurePhysicalDevice(VkInstance instance, const std::vector<cons
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-    assert(deviceCount > 0 && "Failed to find GPUs with Vulkan support!");
+    GRACE_ASSERT(deviceCount > 0 && "Failed to find GPUs with Vulkan support!");
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -640,7 +637,7 @@ void Device::ConfigurePhysicalDevice(VkInstance instance, const std::vector<cons
         }
     }
 
-    assert(mPhysicalDevice && "Failed to find a suitable GPU!");
+    GRACE_ASSERT(mPhysicalDevice && "Failed to find a suitable GPU!");
 }
 
 void Device::ConfigureLogicalDevice(const LogicalDeviceDesc& desc)
@@ -757,7 +754,7 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
         i++;
     }
 
-    assert(minQueueFamilyFound && "Minimum queue family required (Graphics) not found!");
+    GRACE_ASSERT(minQueueFamilyFound && "Minimum queue family required (Graphics) not found!");
 
     // Create a queue for each family
     queueCreateInfos.reserve(static_cast<uint32_t>(QueueFamily::Undefined));
@@ -789,7 +786,7 @@ void Device::ConfigureQueues(std::vector<VkDeviceQueueCreateInfo>& queueCreateIn
 
 bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
 
     QueueFamilyIndices indices = FindQueueFamilies(device, mSurfaceKHR);
 
@@ -814,7 +811,7 @@ bool Device::IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const c
 
 bool Device::CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& requiredExt) const
 {
-    assert(device != nullptr);
+    GRACE_ASSERT(device != nullptr);
 
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);

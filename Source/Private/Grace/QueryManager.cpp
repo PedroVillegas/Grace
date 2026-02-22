@@ -1,11 +1,11 @@
 #include <Grace/QueryManager.hpp>
-
-#include <bit>
-
 #include <Grace/Device.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/Config.hpp>
+#include <Private/Grace/Assert.hpp>
+
+#include <bit>
 
 namespace Grace
 {
@@ -19,7 +19,7 @@ QueryManager::~QueryManager()
 
 QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
 {
-    assert(mDevicePtr != nullptr);
+    GRACE_ASSERT(mDevicePtr != nullptr);
 
     VkPhysicalDeviceProperties props;
     vkGetPhysicalDeviceProperties(mDevicePtr->GetPhysicalDevice(), &props);

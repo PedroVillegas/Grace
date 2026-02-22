@@ -3,7 +3,7 @@
 #include <Grace/Device.hpp>
 #include <Grace/Context.hpp>
 
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>

@@ -7,8 +7,7 @@
 #include <Grace/Sampler.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
-
-#include <cassert>
+#include <Private/Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -25,7 +24,7 @@ void SlotPool::AppendFreeSlot(const uint32_t slot)
 
 uint32_t SlotPool::FindAvailableSlot()
 {
-    assert(mCurrentSlot < mMaxSlots);
+    GRACE_ASSERT_MSG(mCurrentSlot < mMaxSlots, "Too many slots, spilling SlotPool!");
 
     if (!mFreeSlots.empty())
     {
@@ -45,10 +44,6 @@ GpuResourceTable::~GpuResourceTable()
 
 GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
 {
-    assert(gConfig.BindlessResourceTableMaxImageSlots > 0);
-    assert(gConfig.BindlessResourceTableMaxBufferSlots > 0);
-    assert(gConfig.BindlessResourceTableMaxSamplerSlots > 0);
-
     mStorageImageSlots.SetPoolSize(gConfig.BindlessResourceTableMaxImageSlots);
     mSampledImageSlots.SetPoolSize(gConfig.BindlessResourceTableMaxImageSlots);
     mUniformBufferSlots.SetPoolSize(gConfig.BindlessResourceTableMaxBufferSlots);
@@ -135,7 +130,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
 
 void GpuResourceTable::SubmitImage(Image& image)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
 
     uint32_t sampledImgId = 0;
     uint32_t storageImgId = 0;

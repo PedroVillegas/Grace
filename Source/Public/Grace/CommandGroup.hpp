@@ -6,7 +6,7 @@
 
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/QueryManager.hpp>
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/TypesVector.hpp>
 #include <Grace/Types.hpp>
 #include <Grace/GraceApi.hpp>

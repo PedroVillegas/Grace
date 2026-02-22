@@ -1,8 +1,5 @@
 #include <Private/Grace/Config.hpp>
 
-#include <iostream>
-#include <cassert>
-
 namespace Grace
 {
 

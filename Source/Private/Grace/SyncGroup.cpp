@@ -1,7 +1,5 @@
 #include <Private/Grace/SyncGroup.hpp>
-
-#include <cassert>
-
+#include <Private/Grace/Assert.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -81,7 +79,7 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
                                                 std::vector<AccessType>&& accessesBefore,
                                                 std::vector<AccessType>&& accessesAfter)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
 
     mImageBarriers.emplace_back(image.GetImage(),
                                 EntireImageSubresourceRange(image.InferAspect()),
@@ -100,7 +98,7 @@ BarrierBuilder& BarrierBuilder::AddBufferBarrier(const Buffer& buffer,
                                                  std::vector<AccessType>&& accessesBefore,
                                                  std::vector<AccessType>&& accessesAfter)
 {
-    assert(!buffer.IsNull());
+    GRACE_ASSERT(!buffer.IsNull());
 
     mBufferBarriers.emplace_back(buffer.GetVkHandle(),
                                  0,
@@ -129,12 +127,12 @@ void BarrierBuilder::GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemo
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the previous access index is a valid range for the lookup
-        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+        GRACE_ASSERT(prevAccess < THSVS_NUM_ACCESS_TYPES);
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+        GRACE_ASSERT(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
 #endif
 
         vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
@@ -148,12 +146,12 @@ void BarrierBuilder::GetVulkanMemoryBarrier(const MemoryBarrier& barrier, VkMemo
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the next access index is a valid range for the lookup
-        assert(static_cast<uint32_t>(nextAccess) < static_cast<uint32_t>(AccessType::NumOfAccessTypes));
+        GRACE_ASSERT(static_cast<uint32_t>(nextAccess) < static_cast<uint32_t>(AccessType::NumOfAccessTypes));
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+        GRACE_ASSERT(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
 #endif
         vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
         vkBarrierOut.dstAccessMask |= accessAfterInfo.accessMask;
@@ -173,7 +171,7 @@ void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, 
     vkBarrierOut.size = barrier.size;
 
 #ifdef THSVS_ERROR_CHECK_COULD_USE_GLOBAL_BARRIER
-    assert(barrier.srcQueueFamilyIndex != barrier.dstQueueFamilyIndex);
+    GRACE_ASSERT(barrier.srcQueueFamilyIndex != barrier.dstQueueFamilyIndex);
 #endif
 
     for (uint32_t i = 0; i < barrier.accessesBefore.size(); ++i)
@@ -183,12 +181,12 @@ void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, 
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the previous access index is a valid range for the lookup
-        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+        GRACE_ASSERT(prevAccess < THSVS_NUM_ACCESS_TYPES);
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+        GRACE_ASSERT(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
 #endif
 
         vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
@@ -202,12 +200,12 @@ void BarrierBuilder::GetVulkanBufferMemoryBarrier(const BufferBarrier& barrier, 
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the next access index is a valid range for the lookup
-        assert(nextAccess < THSVS_NUM_ACCESS_TYPES);
+        GRACE_ASSERT(nextAccess < THSVS_NUM_ACCESS_TYPES);
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+        GRACE_ASSERT(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
 #endif
 
         vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
@@ -235,12 +233,12 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the previous access index is a valid range for the lookup
-        assert(prevAccess < THSVS_NUM_ACCESS_TYPES);
+        GRACE_ASSERT(prevAccess < THSVS_NUM_ACCESS_TYPES);
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
+        GRACE_ASSERT(prevAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesBefore.size() == 1);
 #endif
 
         vkBarrierOut.srcStageMask |= accessBeforeInfo.stageMask;
@@ -271,7 +269,7 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
             }
 
 #ifdef THSVS_ERROR_CHECK_MIXED_IMAGE_LAYOUT
-            assert(vkBarrierOut.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.oldLayout == layout);
+            GRACE_ASSERT(vkBarrierOut.oldLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.oldLayout == layout);
 #endif
             vkBarrierOut.oldLayout = layout;
         }
@@ -284,12 +282,12 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
 
 #ifdef THSVS_ERROR_CHECK_ACCESS_TYPE_IN_RANGE
         // Asserts that the next access index is a valid range for the lookup
-        assert(nextAccess < THSVS_NUM_ACCESS_TYPES);
+        GRACE_ASSERT(nextAccess < THSVS_NUM_ACCESS_TYPES);
 #endif
 
 #ifdef THSVS_ERROR_CHECK_POTENTIAL_HAZARD
         // Asserts that the access is a read, else it's a write and it should appear on its own.
-        assert(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
+        GRACE_ASSERT(nextAccess < THSVS_END_OF_READ_ACCESS || barrier.accessesAfter.size() == 1);
 #endif
 
         vkBarrierOut.dstStageMask |= accessAfterInfo.stageMask;
@@ -313,13 +311,13 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
         }
 
 #ifdef THSVS_ERROR_CHECK_MIXED_IMAGE_LAYOUT
-        assert(vkBarrierOut.newLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.newLayout == layout);
+        GRACE_ASSERT(vkBarrierOut.newLayout == VK_IMAGE_LAYOUT_UNDEFINED || vkBarrierOut.newLayout == layout);
 #endif
         vkBarrierOut.newLayout = layout;
     }
 
 #ifdef THSVS_ERROR_CHECK_COULD_USE_GLOBAL_BARRIER
-    assert(vkBarrierOut.newLayout != vkBarrierOut.oldLayout
+    GRACE_ASSERT(vkBarrierOut.newLayout != vkBarrierOut.oldLayout
            || vkBarrierOut.srcQueueFamilyIndex != vkBarrierOut.dstQueueFamilyIndex);
 #endif
 }

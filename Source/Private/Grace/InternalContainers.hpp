@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Grace/TypesHandle.hpp>
+#include <Grace/GpuResourceHandles.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 
 #include <vulkan/vulkan_core.h>

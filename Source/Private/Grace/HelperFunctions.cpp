@@ -1,10 +1,9 @@
 #include <Grace/HelperFunctions.hpp>
+#include <Grace/DebugReporter.hpp>
+#include <Private/Grace/Assert.hpp>
 
-#include <cassert>
 #include <fstream>
 #include <iostream>
-
-#include <Grace/DebugReporter.hpp>
 
 namespace Grace
 {
@@ -45,7 +44,7 @@ VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format)
 
 VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue* clear, VkImageLayout imageLayout)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
 
     VkClearValue cl = {};
     if (clear)
@@ -71,7 +70,7 @@ VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue*
 
 VkRenderingAttachmentInfo DepthAttachmentInfo(const Image& image, VkImageLayout imageLayout)
 {
-    assert(!image.IsNull());
+    GRACE_ASSERT(!image.IsNull());
 
     VkRenderingAttachmentInfo depthAttachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -109,7 +108,7 @@ VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
                          VkSemaphoreSubmitInfo* signalSemaphoreInfo,
                          VkSemaphoreSubmitInfo* waitSemaphoreInfo)
 {
-    assert(cmdInfo != nullptr);
+    GRACE_ASSERT(cmdInfo != nullptr);
 
     VkSubmitInfo2 submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
@@ -128,7 +127,7 @@ VkSubmitInfo2 SubmitInfo(VkCommandBufferSubmitInfo* cmdInfo,
 
 VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module)
 {
-    assert(module != nullptr);
+    GRACE_ASSERT(module != nullptr);
 
     return VkPipelineShaderStageCreateInfo({ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                              .pNext = nullptr,
@@ -139,8 +138,8 @@ VkPipelineShaderStageCreateInfo ShaderStageCreateInfo(VkShaderStageFlagBits stag
 
 void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, VkShaderModule& shaderModule)
 {
-    assert(device != nullptr);
-    assert(std::filesystem::exists(filename));
+    GRACE_ASSERT(device != nullptr);
+    GRACE_ASSERT(std::filesystem::exists(filename));
 
     auto shaderCode = ReadSpvFile(filename);
 
@@ -159,7 +158,7 @@ void CreateShaderModule(VkDevice device, const std::filesystem::path& filename, 
 
 std::vector<char> ReadSpvFile(const std::filesystem::path& filename)
 {
-    assert(std::filesystem::exists(filename));
+    GRACE_ASSERT(std::filesystem::exists(filename));
 
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -180,7 +179,7 @@ std::vector<char> ReadSpvFile(const std::filesystem::path& filename)
 
 QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR)
 {
-    assert(physicalDevice != nullptr);
+    GRACE_ASSERT(physicalDevice != nullptr);
 
     QueueFamilyIndices indices;
 
@@ -216,7 +215,7 @@ QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice physicalDevice, VkSurfaceK
 
 SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surfaceKHR)
 {
-    assert(physicalDevice != nullptr);
+    GRACE_ASSERT(physicalDevice != nullptr);
 
     SwapChainSupportDetails details;
 
