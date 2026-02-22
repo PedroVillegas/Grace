@@ -249,7 +249,8 @@ void BarrierBuilder::GetVulkanImageMemoryBarrier(const ImageBarrier& barrier, Vk
         if (barrier.discardContents == VK_TRUE)
         {
             vkBarrierOut.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        } else
+        }
+        else
         {
             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 

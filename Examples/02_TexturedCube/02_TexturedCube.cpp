@@ -78,7 +78,6 @@ int main()
 
     const Grace::SamplerHandle test3 = test1;
 
-
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
@@ -384,7 +383,8 @@ int main()
                 .data = nullptr,
                 .mipmapped = false,
             });
-        } else if (ss == Grace::SwapchainStatus::Failure)
+        }
+        else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }

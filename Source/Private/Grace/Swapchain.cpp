@@ -95,7 +95,8 @@ void Swapchain::Create(VkExtent2D imageExtent)
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-    } else
+    }
+    else
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         createInfo.queueFamilyIndexCount = 0;     // Optional
@@ -185,7 +186,8 @@ FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
     {
         Create(imageExtent);
         mSwapchainStatus = SwapchainStatus::ShouldResize;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         mSwapchainStatus = SwapchainStatus::Failure;
         assert("Failed to acquire swap chain image!");

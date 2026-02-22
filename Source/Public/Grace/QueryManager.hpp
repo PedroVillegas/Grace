@@ -223,10 +223,12 @@ public:
         if constexpr (std::is_same_v<T, QueryType::Timestamp>)
         {
             return mTimestampQueryGroup;
-        } else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
+        }
+        else if constexpr (std::is_same_v<T, QueryType::Occlusion>)
         {
             return mOcclusionQueryGroup;
-        } else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
+        }
+        else if constexpr (std::is_same_v<T, QueryType::PipelineStatistics>)
         {
             return mPipelineStatsQueryGroup;
         }

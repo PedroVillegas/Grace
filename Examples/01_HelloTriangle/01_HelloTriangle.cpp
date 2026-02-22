@@ -232,7 +232,8 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
-        } else if (ss == Grace::SwapchainStatus::Failure)
+        }
+        else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }

@@ -239,7 +239,8 @@ int main()
                 .data = nullptr,
                 .mipmapped = false,
             });
-        } else if (ss == Grace::SwapchainStatus::Failure)
+        }
+        else if (ss == Grace::SwapchainStatus::Failure)
         {
             break;
         }

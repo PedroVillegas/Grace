@@ -111,7 +111,8 @@ VkDescriptorPool DescriptorAllocator::GetPool()
     {
         newPool = mReadyPools.back();
         mReadyPools.pop_back();
-    } else
+    }
+    else
     {
         // Need to create a new pool
         newPool = CreatePool(mSetsPerPool, mRatios);
