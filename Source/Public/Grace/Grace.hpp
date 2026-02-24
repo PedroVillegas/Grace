@@ -8,8 +8,6 @@
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
-#include <Grace/ResourceManager.hpp>
-#include <Grace/GpuResourceTable.hpp>
 
 #include <Grace/CommandGroup.hpp>
 #include <Grace/DescriptorGroup.hpp>

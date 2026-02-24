@@ -2,9 +2,13 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <Grace/Buffer.hpp>
+#include <Grace/Image.hpp>
+#include <Grace/Sampler.hpp>
+#include <Grace/PipelineGroup.hpp>
+#include <Grace/Fence.hpp>
+#include <Grace/Semaphore.hpp>
 #include <Grace/QueryManager.hpp>
-#include <Grace/ResourceManager.hpp>
-#include <Grace/GpuResourceTable.hpp>
 #include <Grace/Swapchain.hpp>
 #include <Grace/GraceApi.hpp>
 #include <Grace/DebugReporter.hpp>
@@ -16,6 +20,9 @@ namespace Grace
 class CommandPool;
 class CommandBuffer;
 class CommandGroupAllocator;
+
+class ResourceManager;
+class GpuResourceTable;
 
 class GRACE_API Device
 {
@@ -81,8 +88,6 @@ public:
     GRACE_NODISCARD ImageHandle CreateSwapchainImage(VkImage image, const ImageDesc& desc);
 
     GRACE_NODISCARD Image& GetImage(const ImageHandle& handle);
-
-    GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
     void FreeImage(ImageHandle& handle);
 

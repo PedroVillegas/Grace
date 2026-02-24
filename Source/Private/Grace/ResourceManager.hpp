@@ -4,7 +4,7 @@
 #include <queue>
 #include <cassert>
 
-#include <Grace/DeletionQueue.hpp>
+#include <Private/Grace/DeletionQueue.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
@@ -35,11 +35,6 @@ template <typename Res>
 class Registry
 {
 public:
-    std::vector<RegistryEntry<Res>>& GetAll()
-    {
-        return mRegistry;
-    }
-
     template <typename... Args>
     Handle<Res> Register(Args&&... args)
     {
@@ -106,9 +101,15 @@ private:
 class ResourceManager
 {
 public:
-    ResourceManager();
+    ResourceManager()
+    {
+        mDeletionQueue = std::make_unique<DeletionQueue>();
+    }
 
-    void FlushDeletionQueue(uint32_t frameIndex);
+    void FlushDeletionQueue(uint32_t frameIndex)
+    {
+        mDeletionQueue->Flush(frameIndex);
+    }
 
     template <typename Res, typename... Args>
     GRACE_NODISCARD Handle<Res> Create(Args&&... args)
@@ -136,9 +137,6 @@ public:
         }
         ResourceRegistry<Res>().Free(handle, false);
     }
-
-    /// Fetches ALL Images found in the Image's Registry
-    GRACE_NODISCARD std::vector<RegistryEntry<Image>>& GetAllImages();
 
 private:
     std::unique_ptr<DeletionQueue> mDeletionQueue = nullptr;

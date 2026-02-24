@@ -1,9 +1,10 @@
 #include <Grace/Device.hpp>
 
-#include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/CommandGroup.hpp>
+#include <Private/Grace/ResourceManager.hpp>
+#include <Private/Grace/GpuResourceTable.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
 #include <Private/Grace/InternalContainers.hpp>
@@ -402,11 +403,6 @@ ImageHandle Device::CreateSwapchainImage(VkImage image, const ImageDesc& desc)
 Image& Device::GetImage(const ImageHandle& handle)
 {
     return mResourceMgr->Get<Image>(handle);
-}
-
-std::vector<RegistryEntry<Image>>& Device::GetAllImages()
-{
-    return mResourceMgr->GetAllImages();
 }
 
 void Device::FreeImage(ImageHandle& handle)
