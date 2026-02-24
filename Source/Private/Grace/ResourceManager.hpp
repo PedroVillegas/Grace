@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <queue>
-#include <cassert>
 
 #include <Private/Grace/DeletionQueue.hpp>
+#include <Private/Grace/Assert.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
@@ -57,22 +57,22 @@ public:
 
     Res& Get(const RefCountedHandle<Res>& resourceHandle)
     {
-        assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
+        GRACE_ASSERT_MSG(resourceHandle.HasValidHandle(), "Handle is invalid!");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
-        assert(handleInRange && "Handle is not in range.");
+        GRACE_ASSERT_MSG(handleInRange, "Handle is out of bounds!");
         const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
-        assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
+        GRACE_ASSERT_MSG(isValidSlot, "Handle validator does not match validator of the slot it's in!");
 
         return mRegistry[resourceHandle.GetHandle()].resource;
     }
 
     void Free(RefCountedHandle<Res>& resourceHandle, bool deferred)
     {
-        assert(resourceHandle.HasValidHandle() && "Handle is invalid.");
+        GRACE_ASSERT_MSG(resourceHandle.HasValidHandle(), "Handle is invalid!");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
-        assert(handleInRange && "Handle is not in range.");
+        GRACE_ASSERT_MSG(handleInRange, "Handle is out of bounds!");
         const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
-        assert(isValidSlot && "Handle validator does not match validator of the slot it's in.");
+        GRACE_ASSERT_MSG(isValidSlot, "Handle validator does not match validator of the slot it's in!");
 
         mRegistry[resourceHandle.GetHandle()].resource = Res();
         mRegistry[resourceHandle.GetHandle()].validator = INVALID_VALIDATOR;

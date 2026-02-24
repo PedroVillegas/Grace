@@ -1,16 +1,12 @@
 #pragma once
 
-#include <vector>
 #include <string>
 #include <filesystem>
-#include <cassert>
-#include <array>
 
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
 #include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Enums.hpp>
-#include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 
 namespace Grace

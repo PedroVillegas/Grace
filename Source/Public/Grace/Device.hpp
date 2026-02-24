@@ -14,6 +14,8 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Macros.hpp>
 
+#include <array>
+
 namespace Grace
 {
 
