@@ -71,7 +71,6 @@ target_sources(
 	Private/Grace/HelperFunctions.cpp
 	Private/Grace/Image.cpp
 	Private/Grace/QueryManager.cpp
-	Private/Grace/ResourceManager.cpp
 	Private/Grace/Sampler.cpp
 	Private/Grace/Semaphore.cpp
 	Private/Grace/Swapchain.cpp

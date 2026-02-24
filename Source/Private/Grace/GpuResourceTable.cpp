@@ -1,4 +1,4 @@
-#include <Grace/GpuResourceTable.hpp>
+#include <Private/Grace/GpuResourceTable.hpp>
 
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
