@@ -36,6 +36,10 @@ class ShaderCompilationManager:
 
         receivedAtleastOneCompiler = False
 
+        if len(shaders) == 0 or spirv_dir is None:
+            print("No shaders received or no SPIR-V output directory received!")
+            return
+
         if slangc is not None:
             self.slangc = slangc
             receivedAtleastOneCompiler = True
@@ -51,8 +55,6 @@ class ShaderCompilationManager:
         if not receivedAtleastOneCompiler:
             print("Expected at least one of --slangc, --hlslc, --glslc. Received none!")
             exit()
-
-        assert (len(shaders) > 0 and len(spirv_dir) > 0)
 
         self.slangc_args = slangc_args
         self.hlslc_args = hlslc_args
@@ -172,10 +174,8 @@ def StripEscapeChar(string: str) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to compile Slang/HLSL/GLSL shaders to SPIR-V')
-    parser.add_argument('--shaders', type=str, nargs='+', help='Path to shaders to compile. Required: 1',
-                        required=True)
-    parser.add_argument('--spirv-dir', type=str, help='Path to SPIR-V output directory',
-                        required=True)
+    parser.add_argument('--shaders', type=str, nargs='*', help='Path to shaders to compile')
+    parser.add_argument('--spirv-dir', type=str, help='Path to SPIR-V output directory')
     parser.add_argument('--slangc', type=str, help='Path to Slang compiler executable')
     parser.add_argument('--slangc-args', type=str, nargs='*', help='Extra Slang compiler arguments')
     parser.add_argument('--hlslc', type=str, help='Path to HLSL compiler executable')
