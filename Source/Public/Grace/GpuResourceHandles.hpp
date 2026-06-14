@@ -65,6 +65,16 @@ public:
         return mHandle;
     }
 
+    bool operator==(const RefCountedHandle& rhs) const
+    {
+        return mHandle == rhs.mHandle;
+    }
+
+    bool operator!=(const RefCountedHandle& rhs) const
+    {
+        return !(*this == rhs);
+    }
+
 private:
     void AbandonHandle() const;
     void InstantiateRefCounter() const;

@@ -63,27 +63,54 @@ class ShaderCompilationManager:
         self.spirv_dir = spirv_dir
 
     def Compile(self):
+        entries = []
+        outputFiles = []
         for sh in self.shaders:
             begin = timer()
-            with open(sh, 'rb') as f:
-                if f.read(PRAGMA_DO_NOT_COMPILE_CHAR_COUNT) == b"// GRACE_DO_NOT_COMPILE":
-                    return
+
+            entries.clear()
+            outputFiles.clear()
 
             filename, extension = os.path.splitext(sh)
             basename = os.path.basename(sh)
-            outputfile = f'{self.spirv_dir}/{basename}.spv'
 
-            if not DependenciesModified(outputfile, extension):
-                continue
+            with open(sh, 'r') as f:
+                s = f.readlines(100)
+                shouldCompile = True
 
-            if extension in SLANG_EXTENSIONS:
-                CompileSlang(self.slangc, self.slangc_args, sh, outputfile)
-            elif extension in HLSL_EXTENSIONS:
-                CompileHlsl(self.hlslc, self.hlslc_args, sh, outputfile)
-            elif extension in GLSL_EXTENSIONS:
-                CompileGlsl(self.glslc, self.glslc_args, sh, outputfile)
-            else:
-                print(f"Unknown shader extension -- '{sh}'")
+                for l in s:
+                    if l[:8].lower() != "// grace":
+                        continue
+
+                    directive = l.strip(' \n')
+
+                    if directive == "// grace no_compile" or directive == "// GRACE_DO_NOT_COMPILE":
+                        shouldCompile = False
+
+                    if "// grace entry " in directive:
+                        entry = directive[15:]
+                        entries.append(entry)
+                        outputFiles.append(f'{self.spirv_dir}/{basename}.{entry}.spv')
+
+                if not shouldCompile:
+                    continue
+
+            if not entries:
+                entries.append("main")
+                outputFiles.append(f'{self.spirv_dir}/{basename}.spv')
+
+            for i in range(len(entries)):
+                if not DependenciesModified(outputFiles[i], extension):
+                    continue
+
+                if extension in SLANG_EXTENSIONS:
+                    CompileSlang(self.slangc, self.slangc_args, entries[i], sh, outputFiles[i])
+                elif extension in GLSL_EXTENSIONS:
+                    CompileGlsl(self.glslc, self.glslc_args, entries[i], sh, outputFiles[i])
+                # elif extension in HLSL_EXTENSIONS:
+                #     CompileHlsl(self.hlslc, self.hlslc_args, sh, outputfile)
+                else:
+                    print(f"Unknown shader extension -- '{sh}'")
 
             end = timer()
             print(f"Compiled '{basename}' in {format((end - begin) * 1000.0, '.1f')}ms")
@@ -123,6 +150,7 @@ def DependenciesModified(spv: str, ext: str) -> bool:
 
 def CompileSlang(slangc: str,
                  slangc_args: str | None,
+                 entry: str,
                  filepath: str,
                  outputfile: str):
     cmd: list[str] = [
@@ -131,7 +159,7 @@ def CompileSlang(slangc: str,
         '-profile', 'spirv_1_6',
         '-g0',
         '-o', f'{outputfile}',
-        '-entry', 'main',
+        '-entry', f'{entry}',
         '-depfile', f'{outputfile}.d'
     ]
 
@@ -140,16 +168,9 @@ def CompileSlang(slangc: str,
 
     subprocess.run(cmd)
 
-
-def CompileHlsl(hlslc: str,
-                hlslc_args: str | None,
-                filepath: str,
-                outputfile: str):
-    pass
-
-
 def CompileGlsl(glslc: str,
                 glslc_args: str | None,
+                entry: str,
                 filepath: str,
                 outputfile: str):
     cmd: list[str] = [
@@ -157,6 +178,7 @@ def CompileGlsl(glslc: str,
         '-g',
         '-o', f'{outputfile}',
         '--target-env=vulkan1.3',
+        '-e', f'{entry}',
         '-MD'
     ]
 
@@ -164,6 +186,12 @@ def CompileGlsl(glslc: str,
         cmd += glslc_args[0].split()
 
     subprocess.run(cmd)
+
+def CompileHlsl(hlslc: str,
+                hlslc_args: str | None,
+                filepath: str,
+                outputfile: str):
+    pass
 
 def StripEscapeChar(string: str) -> str:
     stripped = ""
