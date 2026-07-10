@@ -9,10 +9,15 @@ std::unique_ptr<AbandonedResources> gAbandonedResources = nullptr;
 std::unique_ptr<ResourceHandleRefCounters> gResHandleRefCounters = nullptr;
 
 template <typename ResourceType>
-RefCountedHandle<ResourceType>::RefCountedHandle(uint32_t UUID, uint32_t Validator)
-    : mHandle(UUID), mValidator31Alive1(Validator)
+RefCountedHandle<ResourceType>::RefCountedHandle(uint32_t UUID, uint32_t Validator, bool RefCounted)
+    : mHandle(UUID), mGeneration(Validator)
 {
-    if (IsAlive())
+    if (RefCounted)
+    {
+        mGeneration |= (1u << 31u);
+    }
+
+    if (IsAlive() && RefCounted)
     {
         InstantiateRefCounter();
     }
@@ -21,6 +26,11 @@ RefCountedHandle<ResourceType>::RefCountedHandle(uint32_t UUID, uint32_t Validat
 template <typename ResourceType>
 RefCountedHandle<ResourceType>::~RefCountedHandle()
 {
+    if (!RefCounted())
+    {
+        return;
+    }
+
     const uint32_t refcount = AdjustRefCounter(-1);
     if (refcount == 0)
     {
@@ -32,71 +42,85 @@ template <typename ResourceType>
 RefCountedHandle<ResourceType>& RefCountedHandle<ResourceType>::operator=(const RefCountedHandle& rhs)
 {
     mHandle = rhs.mHandle;
-    mValidator31Alive1 = rhs.mValidator31Alive1;
-    [[maybe_unused]] const uint32_t refcountNew = AdjustRefCounter(1);
+    mGeneration = rhs.mGeneration;
+
+    if (RefCounted())
+    {
+        [[maybe_unused]] const uint32_t refcountNew = AdjustRefCounter(1);
+    }
     return *this;
 }
 
 template <typename ResourceType>
 RefCountedHandle<ResourceType>::RefCountedHandle(const RefCountedHandle& rhs)
-    : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
+    : mHandle(rhs.mHandle), mGeneration(rhs.mGeneration)
 {
-    [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
+    if (RefCounted())
+    {
+        [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
+    }
 }
 
 template <typename ResourceType>
 RefCountedHandle<ResourceType>& RefCountedHandle<ResourceType>::operator=(RefCountedHandle&& rhs) noexcept
 {
     mHandle = rhs.mHandle;
-    mValidator31Alive1 = rhs.mValidator31Alive1;
-    [[maybe_unused]] const uint32_t refcountNew = AdjustRefCounter(1);
+    mGeneration = rhs.mGeneration;
+
+    if (RefCounted())
+    {
+        [[maybe_unused]] const uint32_t refcountNew = AdjustRefCounter(1);
+    }
     return *this;
 }
 
 template <typename ResourceType>
 RefCountedHandle<ResourceType>::RefCountedHandle(RefCountedHandle&& rhs) noexcept
-    : mHandle(rhs.mHandle), mValidator31Alive1(rhs.mValidator31Alive1)
+    : mHandle(rhs.mHandle), mGeneration(rhs.mGeneration)
 {
-    [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
+    if (RefCounted())
+    {
+        [[maybe_unused]] const uint32_t refcount = AdjustRefCounter(1);
+    }
 }
 
 template <typename ResourceType>
 void RefCountedHandle<ResourceType>::AbandonHandle() const
 {
     gAbandonedResources->any = true;
-    uint32_t dead = mValidator31Alive1 | 0x1;
+    uint32_t dead = mGeneration | (1u << 30u);
 
     if constexpr (std::is_same_v<ResourceType, Buffer>)
     {
-        gAbandonedResources->buffers.emplace_back(mHandle, dead);
+        gAbandonedResources->buffers.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Image>)
     {
-        gAbandonedResources->images.emplace_back(mHandle, dead);
+        gAbandonedResources->images.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Sampler>)
     {
-        gAbandonedResources->samplers.emplace_back(mHandle, dead);
+        gAbandonedResources->samplers.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Pipeline>)
     {
-        gAbandonedResources->pipelines.emplace_back(mHandle, dead);
+        gAbandonedResources->pipelines.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, PipelineLayout>)
     {
-        gAbandonedResources->pipelineLayouts.emplace_back(mHandle, dead);
+        gAbandonedResources->pipelineLayouts.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Fence>)
     {
-        gAbandonedResources->fences.emplace_back(mHandle, dead);
+        gAbandonedResources->fences.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Semaphore<SemaphoreType::Binary>>)
     {
-        gAbandonedResources->binarySemaphores.emplace_back(mHandle, dead);
+        gAbandonedResources->binarySemaphores.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, Semaphore<SemaphoreType::Timeline>>)
     {
-        gAbandonedResources->timelineSemaphores.emplace_back(mHandle, dead);
+        gAbandonedResources->timelineSemaphores.emplace_back(mHandle, dead, true);
     }
 }
 

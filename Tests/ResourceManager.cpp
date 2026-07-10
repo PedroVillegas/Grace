@@ -11,7 +11,7 @@ TEST(ResourceManagement, ResHandleStdConstruction)
     const Grace::SamplerHandle sampler(0, 0);
     EXPECT_EQ(sampler.HasValidHandle(), true);
     EXPECT_EQ(sampler.GetHandle(), 0);
-    EXPECT_EQ(sampler.GetValidator(), 0);
+    EXPECT_EQ(sampler.GetGeneration(), 0);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.at(sampler.GetHandle()), 1);
 }
@@ -24,7 +24,7 @@ TEST(ResourceManagement, ResHandleCopyConstruction)
     const Grace::SamplerHandle sampler = devicePtr->CreateSampler({});
     Grace::SamplerHandle copyConstruct = sampler;
     EXPECT_EQ(copyConstruct.GetHandle(), sampler.GetHandle());
-    EXPECT_EQ(copyConstruct.GetValidator(), sampler.GetHandle());
+    EXPECT_EQ(copyConstruct.GetGeneration(), sampler.GetHandle());
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.at(sampler.GetHandle()), 2);
 }
@@ -38,7 +38,7 @@ TEST(ResourceManagement, ResHandleCopyAssignment)
     Grace::SamplerHandle copyAssign = {};
     copyAssign = sampler;
     EXPECT_EQ(copyAssign.GetHandle(), sampler.GetHandle());
-    EXPECT_EQ(copyAssign.GetValidator(), sampler.GetHandle());
+    EXPECT_EQ(copyAssign.GetGeneration(), sampler.GetHandle());
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.at(sampler.GetHandle()), 2);
 }
@@ -50,7 +50,7 @@ TEST(ResourceManagement, ResHandleMoveConstruction)
 
     const Grace::SamplerHandle moveConstruct = devicePtr->CreateSampler({});
     EXPECT_EQ(moveConstruct.GetHandle(), moveConstruct.GetHandle());
-    EXPECT_EQ(moveConstruct.GetValidator(), moveConstruct.GetHandle());
+    EXPECT_EQ(moveConstruct.GetGeneration(), moveConstruct.GetHandle());
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.at(moveConstruct.GetHandle()), 1);
 }
@@ -63,7 +63,7 @@ TEST(ResourceManagement, ResHandleMoveAssignment)
     Grace::SamplerHandle moveAssign;
     moveAssign = devicePtr->CreateSampler({});
     EXPECT_EQ(moveAssign.GetHandle(), moveAssign.GetHandle());
-    EXPECT_EQ(moveAssign.GetValidator(), moveAssign.GetHandle());
+    EXPECT_EQ(moveAssign.GetGeneration(), moveAssign.GetHandle());
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.at(moveAssign.GetHandle()), 1);
 }

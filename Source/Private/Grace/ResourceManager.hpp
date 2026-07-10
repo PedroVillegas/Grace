@@ -36,23 +36,37 @@ class Registry
 {
 public:
     template <typename... Args>
-    RefCountedHandle<Res> Register(Args&&... args)
+    RefCountedHandle<Res> Register(bool refCounted, Args&&... args)
     {
         // Use free slots if any available
-        if (!mFreeSlots.empty())
+        if (refCounted)
         {
-            RefCountedHandle<Res> newHandle = mFreeSlots.front();
-            mFreeSlots.pop();
-            mRegistry[newHandle.GetHandle()].validator = newHandle.GetValidator();
-            mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
-            return newHandle;
+            if (!mFreeSlots.empty())
+            {
+                RefCountedHandle<Res> newHandle = mFreeSlots.front();
+                mFreeSlots.pop();
+                mRegistry[newHandle.GetHandle()].validator = newHandle.GetGeneration();
+                mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
+                return newHandle;
+            }
+        }
+        else
+        {
+            if (!mFreeSlotsNonRefCounted.empty())
+            {
+                RefCountedHandle<Res> newHandle = mFreeSlotsNonRefCounted.front();
+                mFreeSlotsNonRefCounted.pop();
+                mRegistry[newHandle.GetHandle()].validator = newHandle.GetGeneration();
+                mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
+                return newHandle;
+            }
         }
 
         uint32_t newValidator = mValidator++;
         mRegistry.emplace_back(newValidator, std::forward<Args>(args)...);
 
         const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
-        return RefCountedHandle<Res>(index, newValidator << 1);
+        return RefCountedHandle<Res>(index, newValidator, refCounted);
     }
 
     Res& Get(const RefCountedHandle<Res>& resourceHandle)
@@ -60,7 +74,7 @@ public:
         GRACE_ASSERT_MSG(resourceHandle.HasValidHandle(), "Handle is invalid!");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
         GRACE_ASSERT_MSG(handleInRange, "Handle is out of bounds!");
-        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
+        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetGeneration();
         GRACE_ASSERT_MSG(isValidSlot, "Handle validator does not match validator of the slot it's in!");
 
         return mRegistry[resourceHandle.GetHandle()].resource;
@@ -71,14 +85,21 @@ public:
         GRACE_ASSERT_MSG(resourceHandle.HasValidHandle(), "Handle is invalid!");
         const bool handleInRange = resourceHandle.GetHandle() < mRegistry.size();
         GRACE_ASSERT_MSG(handleInRange, "Handle is out of bounds!");
-        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetValidator();
+        const bool isValidSlot = mRegistry[resourceHandle.GetHandle()].validator == resourceHandle.GetGeneration();
         GRACE_ASSERT_MSG(isValidSlot, "Handle validator does not match validator of the slot it's in!");
 
         mRegistry[resourceHandle.GetHandle()].resource = Res();
-        mRegistry[resourceHandle.GetHandle()].validator = INVALID_VALIDATOR;
+        mRegistry[resourceHandle.GetHandle()].validator = INVALID_GENERATION;
 
         // Slot is freed up and can be reused for the next resource created
-        mFreeSlots.emplace(resourceHandle.GetHandle(), ++mValidator);
+        if (resourceHandle.RefCounted())
+        {
+            mFreeSlots.emplace(resourceHandle.GetHandle(), ++mValidator, true);
+        }
+        else
+        {
+            mFreeSlotsNonRefCounted.emplace(resourceHandle.GetHandle(), ++mValidator, false);
+        }
 
         // Invalidate resourceHandle
         if (!deferred)
@@ -90,6 +111,7 @@ public:
 private:
     std::vector<RegistryEntry<Res>> mRegistry = {};
     std::queue<RefCountedHandle<Res>> mFreeSlots = {};
+    std::queue<RefCountedHandle<Res>> mFreeSlotsNonRefCounted = {};
     uint32_t mValidator = 0;
 };
 
@@ -112,9 +134,9 @@ public:
     }
 
     template <typename Res, typename... Args>
-    GRACE_NODISCARD RefCountedHandle<Res> Create(Args&&... args)
+    GRACE_NODISCARD RefCountedHandle<Res> Create(bool refCounted, Args&&... args)
     {
-        return ResourceRegistry<Res>().Register(std::forward<Args>(args)...);
+        return ResourceRegistry<Res>().Register(refCounted, std::forward<Args>(args)...);
     }
 
     template <typename Res>

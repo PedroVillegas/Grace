@@ -358,7 +358,7 @@ void Device::SubmitImageView(ImageView& view)
 
 BufferHandle Device::CreateBuffer(const BufferDesc& desc)
 {
-    BufferHandle newHandle = mResourceMgr->Create<Buffer>(this, desc);
+    BufferHandle newHandle = mResourceMgr->Create<Buffer>(true, this, desc);
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::UniformBuffer))
     {
@@ -386,7 +386,7 @@ void Device::FreeBufferDeferred(BufferHandle& handle)
 
 ImageHandle Device::CreateImage(const ImageDesc& desc)
 {
-    ImageHandle newHandle = mResourceMgr->Create<Image>(this, desc);
+    ImageHandle newHandle = mResourceMgr->Create<Image>(true, this, desc);
 
     Image& t = mResourceMgr->Get<Image>(newHandle);
     mResourceTable->SubmitImage(t);
@@ -396,7 +396,7 @@ ImageHandle Device::CreateImage(const ImageDesc& desc)
 
 ImageHandle Device::CreateSwapchainImage(VkImage image, const ImageDesc& desc)
 {
-    return mResourceMgr->Create<Image>(this, image, desc);
+    return mResourceMgr->Create<Image>(true, this, image, desc);
 }
 
 Image& Device::GetImage(const ImageHandle& handle)
@@ -418,7 +418,7 @@ void Device::FreeImageDeferred(ImageHandle& handle)
 
 SamplerHandle Device::CreateSampler(const SamplerDesc& desc)
 {
-    SamplerHandle newHandle = mResourceMgr->Create<Sampler>(this, desc);
+    SamplerHandle newHandle = mResourceMgr->Create<Sampler>(true, this, desc);
 
     Sampler& s = mResourceMgr->Get<Sampler>(newHandle);
     mResourceTable->SubmitSampler(s);
@@ -446,13 +446,13 @@ void Device::FreeSamplerDeferred(SamplerHandle& handle)
 PipelineHandle Device::CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc)
 {
     const PipelineLayout& pl = mResourceMgr->Get<PipelineLayout>(desc.layout);
-    return mResourceMgr->Create<Pipeline>(mDevice, pl, std::move(desc));
+    return mResourceMgr->Create<Pipeline>(true, mDevice, pl, std::move(desc));
 }
 
 PipelineHandle Device::CreateComputePipeline(const ComputePipelineDesc& desc)
 {
     const PipelineLayout& pl = mResourceMgr->Get<PipelineLayout>(desc.layout);
-    return mResourceMgr->Create<Pipeline>(mDevice, pl, desc);
+    return mResourceMgr->Create<Pipeline>(true, mDevice, pl, desc);
 }
 
 Pipeline& Device::GetPipeline(const PipelineHandle& handle)
@@ -467,7 +467,7 @@ void Device::FreePipeline(PipelineHandle& handle)
 
 PipelineLayoutHandle Device::CreatePipelineLayout(const PipelineLayoutDesc& desc)
 {
-    return mResourceMgr->Create<PipelineLayout>(this, desc);
+    return mResourceMgr->Create<PipelineLayout>(true, this, desc);
 }
 
 PipelineLayout& Device::GetPipelineLayout(const PipelineLayoutHandle& handle)
@@ -482,7 +482,7 @@ void Device::FreePipelineLayout(PipelineLayoutHandle& handle)
 
 FenceHandle Device::CreateFence(const FenceDesc& desc)
 {
-    return mResourceMgr->Create<Fence>(this, desc);
+    return mResourceMgr->Create<Fence>(true, this, desc);
 }
 
 Fence& Device::GetFence(const FenceHandle& handle)
@@ -497,7 +497,7 @@ void Device::FreeFence(FenceHandle& handle)
 
 BinarySemaphoreHandle Device::CreateBinarySemaphore(const SemaphoreDesc& desc)
 {
-    return mResourceMgr->Create<BinarySemaphore>(this, desc);
+    return mResourceMgr->Create<BinarySemaphore>(true, this, desc);
 }
 
 BinarySemaphore& Device::GetBinarySemaphore(const BinarySemaphoreHandle& handle)
@@ -512,7 +512,7 @@ void Device::FreeBinarySemaphore(BinarySemaphoreHandle& handle)
 
 TimelineSemaphoreHandle Device::CreateTimelineSemaphore(const SemaphoreDesc& desc)
 {
-    return mResourceMgr->Create<TimelineSemaphore>(this, desc);
+    return mResourceMgr->Create<TimelineSemaphore>(true, this, desc);
 }
 
 TimelineSemaphore& Device::GetTimelineSemaphore(const TimelineSemaphoreHandle& handle)

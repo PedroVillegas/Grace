@@ -15,7 +15,7 @@ struct Timeline;
 } // namespace SemaphoreType
 
 constexpr uint32_t INVALID_HANDLE = ~0U;
-constexpr uint32_t INVALID_VALIDATOR = ~0U;
+constexpr uint32_t INVALID_GENERATION = ~0U;
 
 template <typename ResourceType>
 class RefCountedHandle;
@@ -35,7 +35,7 @@ class GRACE_API RefCountedHandle
 public:
     RefCountedHandle() = default;
 
-    RefCountedHandle(uint32_t UUID, uint32_t Validator);
+    RefCountedHandle(uint32_t UUID, uint32_t Validator, bool RefCounted);
 
     ~RefCountedHandle();
 
@@ -52,12 +52,17 @@ public:
 
     GRACE_NODISCARD bool IsAlive() const
     {
-        return (mValidator31Alive1 & 0x1) == 0;
+        return ((mGeneration >> 30u) & 0x1) == 0;
     }
 
-    GRACE_NODISCARD uint32_t GetValidator() const
+    GRACE_NODISCARD bool RefCounted() const noexcept
     {
-        return mValidator31Alive1 >> 1U;
+        return (mGeneration >> 31u) == 1u;
+    }
+
+    GRACE_NODISCARD uint32_t GetGeneration() const
+    {
+        return mGeneration & 0x3fffffff;
     }
 
     GRACE_NODISCARD uint32_t GetHandle() const
@@ -81,9 +86,10 @@ private:
     uint32_t AdjustRefCounter(int count) const;
 
 private:
-    // ResourceType* mNonOwningPtr = nullptr;
     uint32_t mHandle = INVALID_HANDLE;
-    uint32_t mValidator31Alive1 = INVALID_VALIDATOR;
+
+    // 1 bit for ref counted flag, 1 bit for aliveness, 30 bits for generation
+    uint32_t mGeneration = INVALID_GENERATION;
 };
 
 } // namespace Grace
