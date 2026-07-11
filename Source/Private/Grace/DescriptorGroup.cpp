@@ -5,7 +5,7 @@
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Private/Grace/ScratchVector.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -164,8 +164,8 @@ void DescriptorWriter::SetDevice(VkDevice device)
 void DescriptorWriter::WriteImage(
     int binding, const Image& image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 {
-    GRACE_ASSERT(!image.IsNull());
-    WriteImage(binding, image.GetDefaultView().GetVkHandle(), sampler, layout, type);
+    GRACE_ASSERT(!image.Exists());
+    WriteImage(binding, image.GetDefaultView().VkHandle(), sampler, layout, type);
 }
 
 void DescriptorWriter::WriteImage(
@@ -193,8 +193,8 @@ void DescriptorWriter::WriteImage(
 
 void DescriptorWriter::WriteBuffer(int binding, const Buffer& buffer, size_t size, size_t offset, VkDescriptorType type)
 {
-    GRACE_ASSERT(!buffer.IsNull());
-    WriteBuffer(binding, buffer.GetVkHandle(), size, offset, type);
+    GRACE_ASSERT(!buffer.Exists());
+    WriteBuffer(binding, buffer.VkHandle(), size, offset, type);
 }
 
 void DescriptorWriter::WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type)
@@ -231,11 +231,11 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
                                           VkImageLayout layout,
                                           VkDescriptorType type)
 {
-    GRACE_ASSERT(!image.IsNull());
+    GRACE_ASSERT(!image.Exists());
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
         .sampler = sampler, 
-        .imageView = image.GetDefaultView().GetVkHandle(),
+        .imageView = image.GetDefaultView().VkHandle(),
         .imageLayout = layout
     });
     // clang-format on
@@ -258,11 +258,11 @@ void DescriptorWriter::WriteImageBindless(uint32_t resourceId,
 
 void DescriptorWriter::WriteSamplerBindless(const uint32_t resourceId, int binding, const Sampler& sampler)
 {
-    GRACE_ASSERT(sampler.GetVkHandle() != nullptr);
+    GRACE_ASSERT(sampler.VkHandle() != nullptr);
 
     // clang-format off
     VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
-        .sampler = sampler.GetVkHandle(), 
+        .sampler = sampler.VkHandle(),
         .imageView = nullptr,
         .imageLayout = VK_IMAGE_LAYOUT_UNDEFINED
     });
@@ -314,11 +314,11 @@ void DescriptorWriter::WriteImageBindless(
 void DescriptorWriter::WriteBufferBindless(
     uint32_t resourceId, int binding, const Buffer& buffer, size_t size, size_t offset, VkDescriptorType type)
 {
-    GRACE_ASSERT(!buffer.IsNull());
+    GRACE_ASSERT(!buffer.Exists());
 
     // clang-format off
     VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
-        .buffer = buffer.GetVkHandle(),
+        .buffer = buffer.VkHandle(),
         .offset = offset,
         .range = size
     });

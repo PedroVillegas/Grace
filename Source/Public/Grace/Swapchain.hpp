@@ -49,7 +49,7 @@ public:
 
     GRACE_NODISCARD const FrameSyncGroup& GetRecentFrameSyncGroup() const;
 
-    GRACE_NODISCARD const VkSwapchainKHR& GetVkHandle() const;
+    GRACE_NODISCARD const VkSwapchainKHR& VkHandle() const;
 
     GRACE_NODISCARD SwapchainStatus GetStatus() const;
 

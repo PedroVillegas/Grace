@@ -1,7 +1,7 @@
 #include <Grace/Sampler.hpp>
 #include <Grace/Device.hpp>
 #include <Grace/DebugReporter.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -10,11 +10,11 @@ Sampler::~Sampler()
 {
     if (mSampler != nullptr)
     {
-        vkDestroySampler(mDevice->GetVkHandle(), mSampler, nullptr);
+        vkDestroySampler(mDevice->VkHandle(), mSampler, nullptr);
     }
 }
 
-Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : mDevice(pDevice)
+Sampler::Sampler(Device* pDevice, const GpuSamplerDesc& desc) : mDevice(pDevice)
 {
     GRACE_ASSERT(!mDevice->IsNull());
 
@@ -39,7 +39,7 @@ Sampler::Sampler(Device* pDevice, const SamplerDesc& desc) : mDevice(pDevice)
         .unnormalizedCoordinates = false,
     };
 
-    DebugReporter::Check(vkCreateSampler(mDevice->GetVkHandle(), &samplerInfo, nullptr, &mSampler));
+    DebugReporter::Check(vkCreateSampler(mDevice->VkHandle(), &samplerInfo, nullptr, &mSampler));
 }
 
 Sampler::Sampler(Sampler&& other) noexcept : mDevice(other.mDevice), mSampler(other.mSampler)
@@ -51,7 +51,7 @@ Sampler& Sampler::operator=(Sampler&& other) noexcept
 {
     if (mSampler != nullptr)
     {
-        vkDestroySampler(mDevice->GetVkHandle(), mSampler, nullptr);
+        vkDestroySampler(mDevice->VkHandle(), mSampler, nullptr);
     }
 
     mDevice = other.mDevice;
@@ -61,12 +61,12 @@ Sampler& Sampler::operator=(Sampler&& other) noexcept
     return *this;
 }
 
-bool Sampler::IsNull() const
+bool Sampler::Exists() const
 {
     return mSampler == nullptr;
 }
 
-VkSampler Sampler::GetVkHandle() const
+VkSampler Sampler::VkHandle() const
 {
     return mSampler;
 }

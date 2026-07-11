@@ -1,6 +1,6 @@
 #include <Grace/HelperFunctions.hpp>
 #include <Grace/DebugReporter.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -44,7 +44,7 @@ VkImageAspectFlags DetermineImageAspectFlagsFromFormat(VkFormat format)
 
 VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue* clear, VkImageLayout imageLayout)
 {
-    GRACE_ASSERT(!image.IsNull());
+    GRACE_ASSERT(!image.Exists());
 
     VkClearValue cl = {};
     if (clear)
@@ -55,7 +55,7 @@ VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue*
     VkRenderingAttachmentInfo colourAttachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
-        .imageView = image.GetDefaultView().GetVkHandle(),
+        .imageView = image.GetDefaultView().VkHandle(),
         .imageLayout = imageLayout,
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .resolveImageView = nullptr,
@@ -70,12 +70,12 @@ VkRenderingAttachmentInfo ColourAttachmentInfo(const Image& image, VkClearValue*
 
 VkRenderingAttachmentInfo DepthAttachmentInfo(const Image& image, VkImageLayout imageLayout)
 {
-    GRACE_ASSERT(!image.IsNull());
+    GRACE_ASSERT(!image.Exists());
 
     VkRenderingAttachmentInfo depthAttachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
-        .imageView = image.GetDefaultView().GetVkHandle(),
+        .imageView = image.GetDefaultView().VkHandle(),
         .imageLayout = imageLayout,
         .resolveMode = VK_RESOLVE_MODE_NONE,
         .resolveImageView = nullptr,

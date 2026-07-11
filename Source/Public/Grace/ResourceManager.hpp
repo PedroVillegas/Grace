@@ -3,16 +3,17 @@
 #include <vector>
 #include <queue>
 
-#include <Private/Grace/DeletionQueue.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/DeletionQueue.hpp>
+#include <Grace/Assert.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
 #include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
 #include <Grace/Semaphore.hpp>
-#include <Grace/GpuResourceHandles.hpp>
 #include <Grace/Macros.hpp>
+#include <Grace/GpuResourceHandles.hpp>
+#include <Grace/GpuResourceTraits.hpp>
 
 namespace Grace
 {
@@ -31,12 +32,29 @@ struct RegistryEntry
     uint32_t validator = 0U;
 };
 
-template <typename Res>
+template <GpuManaged Res>
 class Registry
 {
 public:
-    template <typename... Args>
-    RefCountedHandle<Res> Register(bool refCounted, Args&&... args)
+    ImageHandle Register(Device* device, VkImage image, const GpuImageDesc& desc)
+    {
+        if (!mFreeSlots.empty())
+        {
+            RefCountedHandle<Res> newHandle = mFreeSlots.front();
+            mFreeSlots.pop();
+            mRegistry[newHandle.GetHandle()].validator = newHandle.GetGeneration();
+            mRegistry[newHandle.GetHandle()].resource = Res(device, image, desc);
+            return newHandle;
+        }
+
+        uint32_t newValidator = mValidator++;
+        mRegistry.emplace_back(newValidator, device, image, desc);
+
+        const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
+        return RefCountedHandle<Res>(index, newValidator, true);
+    }
+
+    RefCountedHandle<Res> Register(Device* device, const GpuResourceDesc<Res>& desc, bool refCounted)
     {
         // Use free slots if any available
         if (refCounted)
@@ -46,7 +64,7 @@ public:
                 RefCountedHandle<Res> newHandle = mFreeSlots.front();
                 mFreeSlots.pop();
                 mRegistry[newHandle.GetHandle()].validator = newHandle.GetGeneration();
-                mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
+                mRegistry[newHandle.GetHandle()].resource = Res(device, desc);
                 return newHandle;
             }
         }
@@ -57,13 +75,13 @@ public:
                 RefCountedHandle<Res> newHandle = mFreeSlotsNonRefCounted.front();
                 mFreeSlotsNonRefCounted.pop();
                 mRegistry[newHandle.GetHandle()].validator = newHandle.GetGeneration();
-                mRegistry[newHandle.GetHandle()].resource = Res(std::forward<Args>(args)...);
+                mRegistry[newHandle.GetHandle()].resource = Res(device, desc);
                 return newHandle;
             }
         }
 
         uint32_t newValidator = mValidator++;
-        mRegistry.emplace_back(newValidator, std::forward<Args>(args)...);
+        mRegistry.emplace_back(newValidator, device, desc);
 
         const uint32_t index = static_cast<uint32_t>(mRegistry.size() - 1);
         return RefCountedHandle<Res>(index, newValidator, refCounted);
@@ -133,19 +151,21 @@ public:
         mDeletionQueue->Flush(frameIndex);
     }
 
-    template <typename Res, typename... Args>
-    GRACE_NODISCARD RefCountedHandle<Res> Create(bool refCounted, Args&&... args)
+    template <GpuManaged Res>
+    GRACE_NODISCARD RefCountedHandle<Res> Create(Device* device, const GpuResourceDesc<Res>& desc, bool refCounted)
     {
-        return ResourceRegistry<Res>().Register(refCounted, std::forward<Args>(args)...);
+        return ResourceRegistry<Res>().Register(device, desc, refCounted);
     }
 
-    template <typename Res>
+    GRACE_NODISCARD ImageHandle CreateSwapchainImage(Device* device, VkImage image, const GpuImageDesc& desc);
+
+    template <GpuManaged Res>
     GRACE_NODISCARD Res& Get(RefCountedHandle<Res> handle)
     {
         return ResourceRegistry<Res>().Get(handle);
     }
 
-    template <typename Res>
+    template <GpuManaged Res>
     void Free(RefCountedHandle<Res>& handle, uint32_t frameIndex = std::numeric_limits<uint32_t>::max())
     {
         if (frameIndex != std::numeric_limits<uint32_t>::max())
@@ -166,14 +186,20 @@ private:
     template <typename Res>
     auto& ResourceRegistry();
 
-    GRACE_DEFINE_RESOURCE_REGISTRY(Image, mImagesRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(Buffer, mBuffersRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(Image, mImagesRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(Sampler, mSamplersRegistry);
-    GRACE_DEFINE_RESOURCE_REGISTRY(Pipeline, mPipelinesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(GraphicsPipeline, mGraphicsPipelinesRegistry);
+    GRACE_DEFINE_RESOURCE_REGISTRY(ComputePipeline, mComputePipelinesRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(PipelineLayout, mPipelineLayoutsRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(Fence, mFencesRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(BinarySemaphore, mBinarySemaphoresRegistry);
     GRACE_DEFINE_RESOURCE_REGISTRY(TimelineSemaphore, mTimelineSemaphoresRegistry);
 };
+
+inline ImageHandle ResourceManager::CreateSwapchainImage(Device* device, VkImage image, const GpuImageDesc& desc)
+{
+    return ResourceRegistry<Image>().Register(device, image, desc);
+}
 
 } // namespace Grace

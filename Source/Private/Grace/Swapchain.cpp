@@ -4,7 +4,7 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 #include <algorithm>
 #include <string>
@@ -13,7 +13,7 @@
 namespace Grace
 {
 
-const VkSwapchainKHR& Swapchain::GetVkHandle() const
+const VkSwapchainKHR& Swapchain::VkHandle() const
 {
     return mSwapchain;
 }
@@ -26,7 +26,7 @@ SwapchainStatus Swapchain::GetStatus() const
 const Format& Swapchain::GetFormat() const
 {
     // All images have the same format
-    return mDevice->GetImage(mImages[0]).GetFormat();
+    return mDevice->Get<Image>(mImages[0]).GetFormat();
 }
 
 ImageHandle Swapchain::GetRecentAcquiredImage() const
@@ -104,7 +104,7 @@ void Swapchain::Create(VkExtent2D imageExtent)
     }
 
     VkSwapchainKHR tempSwapchain = nullptr;
-    DebugReporter::Check(vkCreateSwapchainKHR(mDevice->GetVkHandle(), &createInfo, nullptr, &tempSwapchain));
+    DebugReporter::Check(vkCreateSwapchainKHR(mDevice->VkHandle(), &createInfo, nullptr, &tempSwapchain));
     GRACE_ASSERT(tempSwapchain != nullptr);
 
     if (mSwapchain != nullptr)
@@ -113,13 +113,13 @@ void Swapchain::Create(VkExtent2D imageExtent)
     }
 
     mSwapchain = tempSwapchain;
-    AssignDebugName<VkSwapchainKHR>(mDevice->GetVkHandle(), mSwapchain, "Grace::SwapchainKHR");
+    AssignDebugName<VkSwapchainKHR>(mDevice->VkHandle(), mSwapchain, "Grace::SwapchainKHR");
 
     ScratchVector<VkImage> tempImages = {};
-    vkGetSwapchainImagesKHR(mDevice->GetVkHandle(), mSwapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(mDevice->VkHandle(), mSwapchain, &imageCount, nullptr);
     tempImages.resize(imageCount);
     mImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(mDevice->GetVkHandle(), mSwapchain, &imageCount, tempImages.data());
+    vkGetSwapchainImagesKHR(mDevice->VkHandle(), mSwapchain, &imageCount, tempImages.data());
 
     for (size_t i = 0; i < tempImages.size(); ++i)
     {
@@ -139,21 +139,21 @@ void Swapchain::Create(VkExtent2D imageExtent)
         FrameSyncGroup& sync = mImageAcquiredSyncStructs[i];
 
         const std::string acquireSemaphoreDebugName = "Grace::Semaphore::Acquire::" + std::to_string(i);
-        sync.acquireSemaphore = mDevice->CreateBinarySemaphore({ .name = acquireSemaphoreDebugName.c_str() });
+        sync.acquireSemaphore = mDevice->Create<BinarySemaphore>({ .name = acquireSemaphoreDebugName.c_str() });
 
         const std::string presentSemaphoreDebugName = "Grace::Semaphore::Present::" + std::to_string(i);
-        sync.presentSemaphore = mDevice->CreateBinarySemaphore({ .name = presentSemaphoreDebugName.c_str() });
+        sync.presentSemaphore = mDevice->Create<BinarySemaphore>({ .name = presentSemaphoreDebugName.c_str() });
     }
 }
 
 void Swapchain::Cleanup()
 {
     // Destroys VkSwapchain and VkImages
-    vkDestroySwapchainKHR(mDevice->GetVkHandle(), mSwapchain, nullptr);
+    vkDestroySwapchainKHR(mDevice->VkHandle(), mSwapchain, nullptr);
 
     for (ImageHandle& imageHandle : mImages)
     {
-        mDevice->FreeImage(imageHandle);
+        mDevice->Free<Image>(imageHandle);
     }
 }
 
@@ -175,11 +175,11 @@ FrameSyncGroup& Swapchain::AcquireNextImage(VkExtent2D imageExtent)
     mImageAcquiredCycleIndex = (mImageAcquiredCycleIndex + 1) % (mImageAcquiredSyncStructs.size() - 1);
     // Get FrameSyncGroup instance, that is not currently in use, from the cycle
     FrameSyncGroup& frameSync = mImageAcquiredSyncStructs[mImageAcquiredCycleIndex];
-    const BinarySemaphore& acqSem = mDevice->GetBinarySemaphore(frameSync.acquireSemaphore);
+    const BinarySemaphore& acqSem = mDevice->Get<BinarySemaphore>(frameSync.acquireSemaphore);
 
     // Acquire an image from the swap chain
     VkResult result = vkAcquireNextImageKHR(
-        mDevice->GetVkHandle(), mSwapchain, UINT64_MAX, acqSem.GetVkSemaphore(), nullptr, &frameSync.imageIndex);
+        mDevice->VkHandle(), mSwapchain, UINT64_MAX, acqSem.VkHandle(), nullptr, &frameSync.imageIndex);
 
     // Check if swap chain is still adequate to present
     if (result == VK_ERROR_OUT_OF_DATE_KHR)

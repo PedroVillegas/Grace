@@ -71,8 +71,8 @@ int main()
     glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
     Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
-    Grace::SamplerHandle test1 = pDevice->CreateSampler({});
-    Grace::SamplerHandle test2 = pDevice->CreateSampler({});
+    Grace::SamplerHandle test1 = pDevice->Create<Grace::Sampler>({});
+    Grace::SamplerHandle test2 = pDevice->Create<Grace::Sampler>({});
 
     test1 = test2;
 
@@ -92,20 +92,20 @@ int main()
         };
 
         const std::string fenceDebugName = "Example02::inFlightFence::" + std::to_string(i);
-        frame[i].inFlightFence = pDevice->CreateFence({
+        frame[i].inFlightFence = pDevice->Create<Grace::Fence>({
             .name = fenceDebugName.c_str(),
             .flags = Grace::FenceFlags::CreateSignalled,
         });
     }
 
-    const Grace::SamplerHandle linearWrapSampler = pDevice->CreateSampler({
+    const Grace::SamplerHandle linearWrapSampler = pDevice->Create<Grace::Sampler>({
         .minFilter = Grace::Filter::Linear,
         .magFilter = Grace::Filter::Linear,
         .addressMode = Grace::SamplerAddressMode::ClampToEdge,
         .mipmapMode = Grace::SamplerMipmapMode::Linear,
     });
 
-    Grace::ImageHandle depthImg = pDevice->CreateImage({
+    Grace::ImageHandle depthImg = pDevice->Create<Grace::Image>({
         .name = "Example02::depthImg",
         .dimensions = Grace::UInt3(windowWidth, windowHeight, 1),
         .format = Grace::Format::D32_SFloat,
@@ -116,7 +116,7 @@ int main()
         .mipmapped = false,
     });
 
-    const Grace::PipelineHandle texturedCubePipeline = pDevice->CreateGraphicsPipeline({
+    const Grace::GraphicsPipelineHandle texturedCubePipeline = pDevice->Create<Grace::GraphicsPipeline>({
         .name = "Example02::texturedCubePipeline",
         .shaders = {
             Grace::ShaderDesc(Grace::ShaderStage::Vertex, "02_TexturedCube.vert.spv"),
@@ -182,7 +182,7 @@ int main()
     };
     // clang-format on
 
-    const Grace::BufferHandle vertexBuffer = pDevice->CreateBuffer({
+    const Grace::BufferHandle vertexBuffer = pDevice->Create<Grace::Buffer>({
         .name = "Example02::vertexBuffer",
         .usage =
             Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst,
@@ -197,7 +197,7 @@ int main()
     const uint32_t textureSizeBytes = x * y * 4 * sizeof(uint8_t);
 
     // Create an image with image file metadata
-    const Grace::ImageHandle texture = pDevice->CreateImage({
+    const Grace::ImageHandle texture = pDevice->Create<Grace::Image>({
         .name = "Example02::texture",
         .dimensions = Grace::UInt3(static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1),
         .format = Grace::Format::RGBA8_SRGB,
@@ -279,8 +279,8 @@ int main()
         cmd.BeginDebugLabel("Textured Cube Pass");
         cmd.BeginDynamicRendering({
             .renderArea = { .extent = { windowWidth, windowHeight } },
-            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->GetImage(swapchainImg), nullptr) },
-            .depthAttachments = { Grace::DepthAttachmentInfo(pDevice->GetImage(depthImg)) },
+            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->Get<Grace::Image>(swapchainImg), nullptr) },
+            .depthAttachments = { Grace::DepthAttachmentInfo(pDevice->Get<Grace::Image>(depthImg)) },
         });
 
         cmd.SetViewport({ {
@@ -310,10 +310,10 @@ int main()
             uint32_t linearWrapSamplerIndex;
         } pc;
 
-        pc.vbuffer = pDevice->GetBuffer(vertexBuffer).GetBDA();
+        pc.vbuffer = pDevice->Get<Grace::Buffer>(vertexBuffer).GetBDA();
         pc.mvp = mvp;
-        pc.textureIndex = pDevice->GetImage(texture).GetSampledImgId();
-        pc.linearWrapSamplerIndex = pDevice->GetSampler(linearWrapSampler).GetSamplerId();
+        pc.textureIndex = pDevice->Get<Grace::Image>(texture).GetSampledImgId();
+        pc.linearWrapSamplerIndex = pDevice->Get<Grace::Sampler>(linearWrapSampler).GetSamplerId();
         cmd.PushConstants(pDevice->GetSolePipelineLayout(), &pc);
 
         cmd.WriteTimestamp("TexturedCube Pass Begin", Grace::PipelineStage::VertexShader, frameIndex);
@@ -373,7 +373,7 @@ int main()
             windowHeight = height;
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
-            depthImg = pDevice->CreateImage({
+            depthImg = pDevice->Create<Grace::Image>({
                 .name = "Example02::depthImg",
                 .dimensions = Grace::UInt3(windowWidth, windowHeight, 1),
                 .format = Grace::Format::D32_SFloat,

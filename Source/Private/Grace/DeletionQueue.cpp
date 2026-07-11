@@ -1,4 +1,4 @@
-#include <Private/Grace/DeletionQueue.hpp>
+#include <Grace/DeletionQueue.hpp>
 
 #include <Private/Grace/Config.hpp>
 

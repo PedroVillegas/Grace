@@ -3,7 +3,7 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/Config.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 #include <bit>
 
@@ -12,9 +12,9 @@ namespace Grace
 
 QueryManager::~QueryManager()
 {
-    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mTimestampQueryGroup.mQueryPool, nullptr);
-    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, nullptr);
-    vkDestroyQueryPool(mDevicePtr->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->VkHandle(), mTimestampQueryGroup.mQueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->VkHandle(), mOcclusionQueryGroup.mQueryPool, nullptr);
+    vkDestroyQueryPool(mDevicePtr->VkHandle(), mPipelineStatsQueryGroup.mQueryPool, nullptr);
 }
 
 QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
@@ -43,10 +43,10 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
     if (pci.queryCount > 0)
     {
         DebugReporter::Check(
-            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mTimestampQueryGroup.mQueryPool));
+            vkCreateQueryPool(mDevicePtr->VkHandle(), &pci, nullptr, &mTimestampQueryGroup.mQueryPool));
 
         AssignDebugName<VkQueryPool>(
-            pDevice->GetVkHandle(), mTimestampQueryGroup.mQueryPool, "Grace::QueryPool::Timestamp");
+            pDevice->VkHandle(), mTimestampQueryGroup.mQueryPool, "Grace::QueryPool::Timestamp");
     }
 
     // Initialise Occlusion Query Group
@@ -60,10 +60,10 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
     if (pci.queryCount > 0)
     {
         DebugReporter::Check(
-            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mOcclusionQueryGroup.mQueryPool));
+            vkCreateQueryPool(mDevicePtr->VkHandle(), &pci, nullptr, &mOcclusionQueryGroup.mQueryPool));
 
         AssignDebugName<VkQueryPool>(
-            pDevice->GetVkHandle(), mOcclusionQueryGroup.mQueryPool, "Grace::QueryPool::Occlusion");
+            pDevice->VkHandle(), mOcclusionQueryGroup.mQueryPool, "Grace::QueryPool::Occlusion");
     }
 
     // Need to find the number of pipelineStatistics bits that have been set
@@ -82,10 +82,10 @@ QueryManager::QueryManager(Device* pDevice) : mDevicePtr(pDevice)
     if (pci.queryCount > 0)
     {
         DebugReporter::Check(
-            vkCreateQueryPool(mDevicePtr->GetVkHandle(), &pci, nullptr, &mPipelineStatsQueryGroup.mQueryPool));
+            vkCreateQueryPool(mDevicePtr->VkHandle(), &pci, nullptr, &mPipelineStatsQueryGroup.mQueryPool));
 
         AssignDebugName<VkQueryPool>(
-            pDevice->GetVkHandle(), mPipelineStatsQueryGroup.mQueryPool, "Grace::QueryPool::PipelineStatistics");
+            pDevice->VkHandle(), mPipelineStatsQueryGroup.mQueryPool, "Grace::QueryPool::PipelineStatistics");
     }
 }
 

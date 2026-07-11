@@ -15,13 +15,13 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example04::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    const Grace::PipelineHandle streamCompactionPipeline = pDevice->CreateComputePipeline({
+    const Grace::ComputePipelineHandle streamCompactionPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example04::streamCompactionPipeline",
         .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompaction.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
-    const Grace::PipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->CreateComputePipeline({
+    const Grace::ComputePipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example04::streamCompactionNonOrderPreservingPipeline",
         .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompactionNonOrderPreserving.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
@@ -43,7 +43,7 @@ int main()
     const uint32_t dispatchSize = std::ceil(sparseArray.size() / float(WorkgroupSize * 16));
 
     uint32_t compactedArraySize = 0;
-    const Grace::BufferHandle metadataBuffer = pDevice->CreateBuffer({
+    const Grace::BufferHandle metadataBuffer = pDevice->Create<Grace::Buffer>({
         .name = "Example04::metadataBuffer",
         .usage =
             Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst,
@@ -52,7 +52,7 @@ int main()
         .data = &compactedArraySize,
     });
 
-    const Grace::BufferHandle sparseArrayBuffer = pDevice->CreateBuffer({
+    const Grace::BufferHandle sparseArrayBuffer = pDevice->Create<Grace::Buffer>({
         .name = "Example04::sparseArrayBuffer",
         .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst
                | Grace::BufferUsage::TransferSrc,
@@ -61,7 +61,7 @@ int main()
         .data = sparseArray.data(),
     });
 
-    const Grace::BufferHandle compactedArrayBuffer = pDevice->CreateBuffer({
+    const Grace::BufferHandle compactedArrayBuffer = pDevice->Create<Grace::Buffer>({
         .name = "Example04::compactedArrayBuffer",
         .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::DeviceAddress | Grace::BufferUsage::TransferDst
                | Grace::BufferUsage::TransferSrc,
@@ -70,7 +70,7 @@ int main()
         .data = nullptr,
     });
 
-    const Grace::BufferHandle intermediateBuffer = pDevice->CreateBuffer({
+    const Grace::BufferHandle intermediateBuffer = pDevice->Create<Grace::Buffer>({
         .name = "Example04::intermediateBuffer",
         .usage = Grace::BufferUsage::StorageBuffer | Grace::BufferUsage::TransferDst,
         .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
@@ -99,9 +99,9 @@ int main()
         uint32_t sparseArrayBufferSize;
     } pc;
 
-    pc.sparseArrayBuffer = pDevice->GetBuffer(sparseArrayBuffer).GetBDA();
-    pc.compactedArrayBuffer = pDevice->GetBuffer(compactedArrayBuffer).GetBDA();
-    pc.metadataBuffer = pDevice->GetBuffer(metadataBuffer).GetBDA();
+    pc.sparseArrayBuffer = pDevice->Get<Grace::Buffer>(sparseArrayBuffer).GetBDA();
+    pc.compactedArrayBuffer = pDevice->Get<Grace::Buffer>(compactedArrayBuffer).GetBDA();
+    pc.metadataBuffer = pDevice->Get<Grace::Buffer>(metadataBuffer).GetBDA();
     pc.sparseArrayBufferSize = sparseArray.size();
 
     cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
@@ -140,7 +140,7 @@ int main()
     }
 
     uint32_t* intBufferPtr =
-        (uint32_t*) pDevice->GetBuffer(intermediateBuffer).GetAllocationInfo().allocationInfo.pMappedData;
+        (uint32_t*) pDevice->Get<Grace::Buffer>(intermediateBuffer).GetAllocationInfo().allocationInfo.pMappedData;
     for (uint32_t i = 0; i < refSize; i++)
     {
         gpuElCounts[*(intBufferPtr + i)]++;

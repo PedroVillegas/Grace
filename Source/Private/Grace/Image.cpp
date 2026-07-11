@@ -3,7 +3,7 @@
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
 #include <Private/Grace/InternalContainers.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 #include <cmath>
 
@@ -14,7 +14,7 @@ ImageView::~ImageView()
 {
     if (mDevice != nullptr)
     {
-        vkDestroyImageView(mDevice->GetVkHandle(), mView, nullptr);
+        vkDestroyImageView(mDevice->VkHandle(), mView, nullptr);
     }
 }
 
@@ -30,7 +30,7 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : mDevice(pDevi
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .image = mParentImage->GetImage(),
+        .image = mParentImage->VkHandle(),
         .viewType = VK_IMAGE_VIEW_TYPE_1D,
         .format = static_cast<VkFormat>(mParentImage->GetFormat()),
         .components = {
@@ -51,8 +51,8 @@ ImageView::ImageView(Device* pDevice, const ImageViewDesc& desc) : mDevice(pDevi
     info.viewType = mParentImage->GetExtent3D().y > 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_1D;
     info.viewType = mParentImage->GetExtent3D().z > 1 ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
 
-    DebugReporter::Check(vkCreateImageView(mDevice->GetVkHandle(), &info, nullptr, &mView));
-    AssignDebugName<VkImageView>(mDevice->GetVkHandle(), mView, desc.name);
+    DebugReporter::Check(vkCreateImageView(mDevice->VkHandle(), &info, nullptr, &mView));
+    AssignDebugName<VkImageView>(mDevice->VkHandle(), mView, desc.name);
 }
 
 ImageView::ImageView(ImageView&& other) noexcept
@@ -65,7 +65,7 @@ ImageView& ImageView::operator=(ImageView&& other) noexcept
 {
     if (mDevice != nullptr)
     {
-        vkDestroyImageView(mDevice->GetVkHandle(), mView, nullptr);
+        vkDestroyImageView(mDevice->VkHandle(), mView, nullptr);
     }
 
     mDevice = other.mDevice;
@@ -84,7 +84,7 @@ bool ImageView::IsNull() const
     return mView == nullptr;
 }
 
-VkImageView ImageView::GetVkHandle() const
+VkImageView ImageView::VkHandle() const
 {
     return mView;
 }
@@ -122,7 +122,7 @@ Image::~Image()
     }
 }
 
-Image::Image(Device* pDevice, const ImageDesc& desc)
+Image::Image(Device* pDevice, const GpuImageDesc& desc)
     : mDevice(pDevice), mFormat(desc.format), mExtent(desc.dimensions), mUsageFlags(desc.usage)
 {
     GRACE_ASSERT(!pDevice->IsNull());
@@ -170,7 +170,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
     DebugReporter::Check(
         vmaCreateImage(mDevice->GetVmaHandle(), &imgcinfo, &allocInfo, &mImage, &mAllocation, nullptr));
-    AssignDebugName<VkImage>(mDevice->GetVkHandle(), mImage, desc.name);
+    AssignDebugName<VkImage>(mDevice->VkHandle(), mImage, desc.name);
 
     mDefaultView = ImageView(mDevice,
                              {
@@ -190,7 +190,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
         if (desc.data != nullptr)
         {
-            stagingBuffer = mDevice->CreateBuffer({
+            stagingBuffer = mDevice->Create<Buffer>({
                 .name = "Staging Buffer",
                 .usage = BufferUsage::TransferSrc,
                 .allocFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
@@ -259,7 +259,7 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
             const VkCopyBufferToImageInfo2 copyInfo = {
                 .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2,
                 .pNext = nullptr,
-                .srcBuffer = mDevice->GetBuffer(stagingBuffer).GetVkHandle(),
+                .srcBuffer = mDevice->Get<Buffer>(stagingBuffer).VkHandle(),
                 .dstImage = mImage,
                 .dstImageLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .regionCount = 1,
@@ -412,12 +412,12 @@ Image::Image(Device* pDevice, const ImageDesc& desc)
 
         if (desc.data != nullptr)
         {
-            mDevice->FreeBuffer(stagingBuffer);
+            mDevice->Free<Buffer>(stagingBuffer);
         }
     }
 }
 
-Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
+Image::Image(Device* pDevice, VkImage image, const GpuImageDesc& desc)
     : mDevice(pDevice), mImage(image), mFormat(desc.format), mExtent(desc.dimensions), mUsageFlags(desc.usage),
       mIsSwapchainImage(true)
 {
@@ -432,7 +432,7 @@ Image::Image(Device* pDevice, VkImage image, const ImageDesc& desc)
                                  .levelCount = 1,
                              });
 
-    AssignDebugName<VkImage>(mDevice->GetVkHandle(), mImage, desc.name);
+    AssignDebugName<VkImage>(mDevice->VkHandle(), mImage, desc.name);
 }
 
 Image::Image(Image&& other) noexcept
@@ -491,13 +491,13 @@ uint32_t Image::GetSampledImgId() const
     return mSampledImgId;
 }
 
-bool Image::IsNull() const
+bool Image::Exists() const
 {
     const bool needsAllocationCheck = mIsSwapchainImage ? false : mAllocation == nullptr;
-    return mImage == nullptr || mDefaultView.GetVkHandle() == nullptr || needsAllocationCheck;
+    return mImage == nullptr || mDefaultView.VkHandle() == nullptr || needsAllocationCheck;
 }
 
-const VkImage& Image::GetImage() const
+const VkImage& Image::VkHandle() const
 {
     return mImage;
 }

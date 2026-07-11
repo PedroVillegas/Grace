@@ -1,9 +1,9 @@
 #include <Grace/PipelineGroup.hpp>
-#include <Grace/DebugReporter.hpp>
-#include <Grace/Context.hpp>
-#include <Grace/HelperFunctions.hpp>
+// #include <Grace/DebugReporter.hpp>
+#include <Grace/Device.hpp>
+// #include <Grace/HelperFunctions.hpp>
 #include <Private/Grace/ScratchVector.hpp>
-#include <Private/Grace/Assert.hpp>
+// #include <Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -12,11 +12,11 @@ PipelineLayout::~PipelineLayout()
 {
     if (mPipelineLayout != nullptr)
     {
-        vkDestroyPipelineLayout(mDevice->GetVkHandle(), mPipelineLayout, nullptr);
+        vkDestroyPipelineLayout(mDevice->VkHandle(), mPipelineLayout, nullptr);
     }
 }
 
-PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) : mDevice(pDevice)
+PipelineLayout::PipelineLayout(Device* pDevice, const GpuPipelineLayoutDesc& desc) : mDevice(pDevice)
 {
     GRACE_ASSERT(!mDevice->IsNull());
 
@@ -29,8 +29,8 @@ PipelineLayout::PipelineLayout(Device* pDevice, const PipelineLayoutDesc& desc) 
     plcInfo.pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstantRanges.size());
     plcInfo.pPushConstantRanges = desc.pushConstantRanges.begin();
 
-    DebugReporter::Check(vkCreatePipelineLayout(mDevice->GetVkHandle(), &plcInfo, nullptr, &mPipelineLayout));
-    AssignDebugName(mDevice->GetVkHandle(), mPipelineLayout, desc.name);
+    DebugReporter::Check(vkCreatePipelineLayout(mDevice->VkHandle(), &plcInfo, nullptr, &mPipelineLayout));
+    AssignDebugName(mDevice->VkHandle(), mPipelineLayout, desc.name);
 }
 
 PipelineLayout::PipelineLayout(PipelineLayout&& other) noexcept
@@ -43,7 +43,7 @@ PipelineLayout& PipelineLayout::operator=(PipelineLayout&& other) noexcept
 {
     if (mPipelineLayout != nullptr)
     {
-        vkDestroyPipelineLayout(mDevice->GetVkHandle(), mPipelineLayout, nullptr);
+        vkDestroyPipelineLayout(mDevice->VkHandle(), mPipelineLayout, nullptr);
     }
 
     mDevice = other.mDevice;
@@ -53,26 +53,28 @@ PipelineLayout& PipelineLayout::operator=(PipelineLayout&& other) noexcept
     return *this;
 }
 
-bool PipelineLayout::IsNull() const
+bool PipelineLayout::Exists() const
 {
     return mPipelineLayout == nullptr;
 }
 
-VkPipelineLayout PipelineLayout::GetVkPipelineLayout() const
+VkPipelineLayout PipelineLayout::VkHandle() const
 {
     return mPipelineLayout;
 }
 
-Pipeline::~Pipeline()
+template <typename T>
+Pipeline<T>::~Pipeline()
 {
     if (mPipeline != nullptr)
     {
-        vkDestroyPipeline(mDevice, mPipeline, nullptr);
+        vkDestroyPipeline(mDevice->VkHandle(), mPipeline, nullptr);
     }
 }
 
-Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipelineDesc&& desc)
-    : mDevice(device), mType(PipelineType::Graphics)
+template <>
+Pipeline<PipelineType::Graphics>::Pipeline(Device* device, const GpuGraphicsPipelineDesc& desc)
+    : mDevice(device)
 {
     GRACE_ASSERT(device != nullptr);
 
@@ -90,7 +92,7 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipe
         GRACE_ASSERT(shader.name.ends_with(".spv"));
 
         VkShaderModule shaderModule = nullptr;
-        CreateShaderModule(device, filepath, shaderModule);
+        CreateShaderModule(device->VkHandle(), filepath, shaderModule);
         shaderStages.push_back(ShaderStageCreateInfo(static_cast<VkShaderStageFlagBits>(shader.stage), shaderModule));
         shaderModules.push_back(shaderModule);
     }
@@ -277,28 +279,29 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const GraphicsPipe
         .pDepthStencilState = &depthStencilState,
         .pColorBlendState = &colorBlendState,
         .pDynamicState = &dynamicState,
-        .layout = pl.GetVkPipelineLayout(),
+        .layout = device->Get<PipelineLayout>(desc.layout).VkHandle(),
         .renderPass = nullptr,
         .subpass = 0,
         .basePipelineHandle = nullptr,
         .basePipelineIndex = 0,
     };
 
-    DebugReporter::Check(vkCreateGraphicsPipelines(device, nullptr, 1, &gpci, nullptr, &mPipeline));
+    DebugReporter::Check(vkCreateGraphicsPipelines(device->VkHandle(), nullptr, 1, &gpci, nullptr, &mPipeline));
 
     for (VkShaderModule module : shaderModules)
     {
-        vkDestroyShaderModule(device, module, nullptr);
+        vkDestroyShaderModule(device->VkHandle(), module, nullptr);
     }
 
     if (mPipeline != nullptr)
     {
-        AssignDebugName<VkPipeline>(device, mPipeline, desc.name);
+        AssignDebugName<VkPipeline>(device->VkHandle(), mPipeline, desc.name);
     }
 }
 
-Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const ComputePipelineDesc& desc)
-    : mDevice(device), mType(PipelineType::Compute)
+template <>
+Pipeline<PipelineType::Compute>::Pipeline(Device* device, const GpuComputePipelineDesc& desc)
+    : mDevice(device)
 {
     GRACE_ASSERT(device != nullptr);
 
@@ -310,7 +313,7 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const ComputePipel
     GRACE_ASSERT(shader.name.ends_with(".spv"));
 
     VkShaderModule shaderModule = nullptr;
-    CreateShaderModule(mDevice, filepath, shaderModule);
+    CreateShaderModule(mDevice->VkHandle(), filepath, shaderModule);
     const VkPipelineShaderStageCreateInfo shaderStageCreateInfo =
         ShaderStageCreateInfo(static_cast<VkShaderStageFlagBits>(shader.stage), shaderModule);
 
@@ -319,67 +322,69 @@ Pipeline::Pipeline(VkDevice device, const PipelineLayout& pl, const ComputePipel
         .pNext = nullptr,
         .flags = 0,
         .stage = shaderStageCreateInfo,
-        .layout = pl.GetVkPipelineLayout(),
+        .layout = mDevice->Get<PipelineLayout>(desc.layout).VkHandle(),
         .basePipelineHandle = nullptr,
         .basePipelineIndex = 0,
     };
 
-    DebugReporter::Check(vkCreateComputePipelines(mDevice, nullptr, 1, &cpci, nullptr, &mPipeline));
+    DebugReporter::Check(vkCreateComputePipelines(mDevice->VkHandle(), nullptr, 1, &cpci, nullptr, &mPipeline));
 
-    vkDestroyShaderModule(mDevice, shaderModule, nullptr);
+    vkDestroyShaderModule(mDevice->VkHandle(), shaderModule, nullptr);
 
     if (mPipeline != nullptr)
     {
-        AssignDebugName<VkPipeline>(mDevice, mPipeline, desc.name);
+        AssignDebugName<VkPipeline>(mDevice->VkHandle(), mPipeline, desc.name);
     }
 }
 
-Pipeline::Pipeline(Pipeline&& other) noexcept : mDevice(other.mDevice), mPipeline(other.mPipeline), mType(other.mType)
+template <typename T>
+Pipeline<T>::Pipeline(Pipeline&& other) noexcept : mDevice(other.mDevice), mPipeline(other.mPipeline)
 {
     other.mDevice = nullptr;
     other.mPipeline = nullptr;
-    other.mType = PipelineType::Undefined;
 }
 
-Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
+template <typename T>
+Pipeline<T>& Pipeline<T>::operator=(Pipeline&& other) noexcept
 {
     if (mPipeline != nullptr)
     {
-        vkDestroyPipeline(mDevice, mPipeline, nullptr);
+        vkDestroyPipeline(mDevice->VkHandle(), mPipeline, nullptr);
     }
 
     mDevice = other.mDevice;
     mPipeline = other.mPipeline;
-    mType = other.mType;
     other.mDevice = nullptr;
     other.mPipeline = nullptr;
-    other.mType = PipelineType::Undefined;
 
     return *this;
 }
 
-bool Pipeline::IsNull() const
+template <typename T>
+bool Pipeline<T>::Exists() const
 {
     return mPipeline == nullptr;
 }
 
-VkPipeline Pipeline::GetVkHandle() const
+template <typename T>
+VkPipeline Pipeline<T>::VkHandle() const
 {
     return mPipeline;
 }
 
-VkPipelineBindPoint Pipeline::BindPoint() const
+template <>
+VkPipelineBindPoint Pipeline<PipelineType::Graphics>::BindPoint() const
 {
-    switch (mType)
-    {
-    case PipelineType::Compute:
-        return VK_PIPELINE_BIND_POINT_COMPUTE;
-    case PipelineType::Graphics:
-        return VK_PIPELINE_BIND_POINT_GRAPHICS;
-    default:
-        GRACE_ASSERT(false);
-        return VK_PIPELINE_BIND_POINT_MAX_ENUM;
-    }
+    return VK_PIPELINE_BIND_POINT_GRAPHICS;
 }
+
+template <>
+VkPipelineBindPoint Pipeline<PipelineType::Compute>::BindPoint() const
+{
+    return VK_PIPELINE_BIND_POINT_COMPUTE;
+}
+
+template class Pipeline<PipelineType::Graphics>;
+template class Pipeline<PipelineType::Compute>;
 
 } // namespace Grace

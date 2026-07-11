@@ -8,14 +8,14 @@ namespace Grace
 template <typename SemTy>
 Semaphore<SemTy>::~Semaphore()
 {
-    if (!IsNull())
+    if (!Exists())
     {
-        vkDestroySemaphore(mDevicePtr->GetVkHandle(), mSemaphore, nullptr);
+        vkDestroySemaphore(mDevicePtr->VkHandle(), mSemaphore, nullptr);
     }
 }
 
 template <typename SemTy>
-Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : mDevicePtr(pDevice)
+Semaphore<SemTy>::Semaphore(Device* pDevice, const GpuResourceDesc<Semaphore<SemTy>>& desc) : mDevicePtr(pDevice)
 {
     VkSemaphoreCreateInfo cinfo = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -33,8 +33,8 @@ Semaphore<SemTy>::Semaphore(Device* pDevice, const SemaphoreDesc& desc) : mDevic
         cinfo.pNext = &tcinfo;
     }
 
-    DebugReporter::Check(vkCreateSemaphore(mDevicePtr->GetVkHandle(), &cinfo, nullptr, &mSemaphore));
-    AssignDebugName<VkSemaphore>(mDevicePtr->GetVkHandle(), mSemaphore, desc.name);
+    DebugReporter::Check(vkCreateSemaphore(mDevicePtr->VkHandle(), &cinfo, nullptr, &mSemaphore));
+    AssignDebugName<VkSemaphore>(mDevicePtr->VkHandle(), mSemaphore, desc.name);
 }
 
 template <typename SemTy>
@@ -53,13 +53,13 @@ Semaphore<SemTy>& Semaphore<SemTy>::operator=(Semaphore&& other) noexcept
 }
 
 template <typename SemTy>
-bool Semaphore<SemTy>::IsNull() const
+bool Semaphore<SemTy>::Exists() const
 {
     return mSemaphore == VK_NULL_HANDLE;
 }
 
 template <typename SemTy>
-const VkSemaphore& Semaphore<SemTy>::GetVkSemaphore() const
+const VkSemaphore& Semaphore<SemTy>::VkHandle() const
 {
     return mSemaphore;
 }

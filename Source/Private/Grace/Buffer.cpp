@@ -2,17 +2,17 @@
 #include <Grace/CommandGroup.hpp>
 #include <Grace/Context.hpp>
 #include <Grace/DebugReporter.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 namespace Grace
 {
 
-bool Buffer::IsNull() const
+bool Buffer::Exists() const
 {
     return (mBuffer == nullptr || mAllocation == nullptr);
 }
 
-VkBuffer Buffer::GetVkHandle() const
+VkBuffer Buffer::VkHandle() const
 {
     return mBuffer;
 }
@@ -35,7 +35,7 @@ VmaAllocationInfo2 Buffer::GetAllocationInfo() const
     return info;
 }
 
-Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
+Buffer::Buffer(Device* pDevice, const GpuBufferDesc& desc) : mDevice(pDevice)
 {
     GRACE_ASSERT(!mDevice->IsNull());
 
@@ -64,7 +64,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
     DebugReporter::Check(
         vmaCreateBuffer(mDevice->GetVmaHandle(), &bufferInfo, &vmaAllocInfo, &mBuffer, &mAllocation, nullptr));
     GRACE_ASSERT(mBuffer != nullptr);
-    AssignDebugName<VkBuffer>(mDevice->GetVkHandle(), mBuffer, desc.name);
+    AssignDebugName<VkBuffer>(mDevice->VkHandle(), mBuffer, desc.name);
 
     if (EnumBitmaskHasBitSet(desc.usage, BufferUsage::DeviceAddress))
     {
@@ -74,7 +74,7 @@ Buffer::Buffer(Device* pDevice, const BufferDesc& desc) : mDevice(pDevice)
             .buffer = mBuffer,
         };
 
-        mDeviceAddress = vkGetBufferDeviceAddress(mDevice->GetVkHandle(), &deviceAddressInfo);
+        mDeviceAddress = vkGetBufferDeviceAddress(mDevice->VkHandle(), &deviceAddressInfo);
     }
 
     if (desc.data != nullptr)

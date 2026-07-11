@@ -1,5 +1,5 @@
 #include <Private/Grace/SyncGroup.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 #include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/HelperFunctions.hpp>
@@ -79,9 +79,9 @@ BarrierBuilder& BarrierBuilder::AddImageBarrier(const Image& image,
                                                 std::vector<AccessType>&& accessesBefore,
                                                 std::vector<AccessType>&& accessesAfter)
 {
-    GRACE_ASSERT(!image.IsNull());
+    GRACE_ASSERT(!image.Exists());
 
-    mImageBarriers.emplace_back(image.GetImage(),
+    mImageBarriers.emplace_back(image.VkHandle(),
                                 EntireImageSubresourceRange(image.InferAspect()),
                                 std::move(accessesBefore),
                                 std::move(accessesAfter),
@@ -98,9 +98,9 @@ BarrierBuilder& BarrierBuilder::AddBufferBarrier(const Buffer& buffer,
                                                  std::vector<AccessType>&& accessesBefore,
                                                  std::vector<AccessType>&& accessesAfter)
 {
-    GRACE_ASSERT(!buffer.IsNull());
+    GRACE_ASSERT(!buffer.Exists());
 
-    mBufferBarriers.emplace_back(buffer.GetVkHandle(),
+    mBufferBarriers.emplace_back(buffer.VkHandle(),
                                  0,
                                  VK_WHOLE_SIZE,
                                  std::move(accessesBefore),

@@ -6,6 +6,7 @@
 #include <Grace/Macros.hpp>
 #include <Grace/Enums.hpp>
 #include <Grace/TypesVector.hpp>
+#include <Grace/GpuResourceTraits.hpp>
 
 namespace Grace
 {
@@ -38,7 +39,7 @@ public:
 
     GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD VkImageView GetVkHandle() const;
+    GRACE_NODISCARD VkImageView VkHandle() const;
 
     void MakeNull();
 
@@ -57,34 +58,13 @@ private:
     uint32_t mStorageImgId = 0;
 };
 
-/// Description used to create an Image object
-struct GRACE_API ImageDesc
-{
-    /// Name used to identify the image, e.g. in validation errors
-    const char* name;
-    /// Specifies the image's dimensions
-    UInt3 dimensions;
-    /// Specifies the image's format
-    Format format;
-    /// Specifies how the image is allowed to be used
-    ImageUsage usage;
-    /// Specifies what access type the image should be initialised for upon creation
-    AccessType access = AccessType::None;
-    /// Size of data in bytes
-    size_t size = 0;
-    /// Pointer to data used to fill the image with upon creation
-    const void* data = nullptr;
-    /// Specifies whether mipmaps should be generated
-    bool mipmapped = false;
-};
-
-class GRACE_API Image
+class GRACE_API Image : public GpuBindlessCompatibleTag
 {
 public:
     ~Image();
     Image() = default;
-    Image(Device* pDevice, const ImageDesc& desc);
-    Image(Device* pDevice, VkImage image, const ImageDesc& desc); // Specifically for swapchain images
+    Image(Device* pDevice, const GpuImageDesc& desc);
+    Image(Device* pDevice, VkImage image, const GpuImageDesc& desc); // Specifically for swapchain images
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkImage handle more than once
@@ -107,10 +87,10 @@ public:
     GRACE_NODISCARD uint32_t GetSampledImgId() const;
 
     /// @returns `true` if associated `VkImage`, `VkImageView` or `VmaAllocation` are null.
-    GRACE_NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool Exists() const;
 
     /// @returns `VkImage` of image which holds actual data.
-    GRACE_NODISCARD const VkImage& GetImage() const;
+    GRACE_NODISCARD const VkImage& VkHandle() const;
 
     /// @returns `VkImageView` of image which tells you how the data is stored.
     GRACE_NODISCARD const ImageView& GetDefaultView() const;

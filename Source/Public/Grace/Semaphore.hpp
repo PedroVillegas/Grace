@@ -2,11 +2,10 @@
 
 #include <concepts>
 
-#include <vulkan/vulkan.h>
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
-#include <Grace/DebugReporter.hpp>
 #include <Grace/HelperFunctions.hpp>
+#include <Grace/GpuResourceDescriptions.hpp>
 
 namespace Grace
 {
@@ -37,12 +36,12 @@ template <typename SemTy>
 class GRACE_API Semaphore
 {
     static_assert(std::derived_from<SemTy, SemaphoreType::SemaphoreTypeBase>,
-                  "Semaphore type must be derived from SemaphoreType::SemaphoreTypeBase!");
+                  "Semaphore type must be one of SemaphoreType::Binary or SemaphoreType::Timeline!");
 
 public:
     ~Semaphore();
     Semaphore() = default;
-    Semaphore(Device* pDevice, const SemaphoreDesc& desc);
+    Semaphore(Device* pDevice, const GpuResourceDesc<Semaphore<SemTy>>& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkSemaphore handle more than once
@@ -50,12 +49,11 @@ public:
     Semaphore& operator=(const Semaphore&) = delete;
 
     Semaphore(Semaphore&& other) noexcept;
-
     Semaphore& operator=(Semaphore&& other) noexcept;
 
-    GRACE_NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool Exists() const;
 
-    GRACE_NODISCARD const VkSemaphore& GetVkSemaphore() const;
+    GRACE_NODISCARD const VkSemaphore& VkHandle() const;
 
 private:
     Device* mDevicePtr = nullptr;

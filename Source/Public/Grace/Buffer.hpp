@@ -5,33 +5,20 @@
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
 #include <Grace/Enums.hpp>
+#include <Grace/GpuResourceDescriptions.hpp>
+#include <Grace/GpuResourceTraits.hpp>
 
 namespace Grace
 {
 
 class Device;
 
-/// Description used to create a Buffer object
-struct GRACE_API BufferDesc
-{
-    /// Name used to identify the buffer, e.g. in validation errors
-    const char* name;
-    /// Specifies how the buffer is allowed to be used
-    BufferUsage usage;
-    /// Flags used by VMA to optimise buffer allocation
-    VmaAllocationCreateFlags allocFlags;
-    /// Allocation size in bytes
-    size_t size;
-    /// Pointer to data used to fill the buffer with upon creation
-    const void* data;
-};
-
 class GRACE_API Buffer
 {
 public:
     ~Buffer();
     Buffer() = default;
-    Buffer(Device* pDevice, const BufferDesc& desc);
+    Buffer(Device* pDevice, const GpuBufferDesc& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkBuffer handle more than once
@@ -42,10 +29,10 @@ public:
     Buffer& operator=(Buffer&& other) noexcept;
 
     /// @returns `true` if associated `VkBuffer` or `VmaAllocation` are null.
-    GRACE_NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool Exists() const;
 
     /// @returns `VkBuffer` which holds the actual data of the buffer.
-    GRACE_NODISCARD VkBuffer GetVkHandle() const;
+    GRACE_NODISCARD VkBuffer VkHandle() const;
 
     /// @returns Pointer to the memory location of the buffer on the device.
     GRACE_NODISCARD uint64_t GetBDA() const;

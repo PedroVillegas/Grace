@@ -38,18 +38,18 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example03::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    Grace::PipelineHandle simpleComputeShaderPipeline = pDevice->CreateComputePipeline({
+    Grace::ComputePipelineHandle simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example03::simpleComputeShaderPipeline",
         .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
-    const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+    const Grace::FenceHandle inFlightFence = pDevice->Create<Grace::Fence>({
         .name = "Example03::inFlightFence",
         .flags = Grace::FenceFlags::CreateSignalled,
     });
 
-    Grace::ImageHandle renderImage = pDevice->CreateImage({
+    Grace::ImageHandle renderImage = pDevice->Create<Grace::Image>({
         .name = "Example03::renderImage",
         .dimensions = { windowWidth, windowHeight, 1 },
         .format = Grace::Format::RGBA8_UNorm,
@@ -76,7 +76,7 @@ int main()
 
             Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
 
-            simpleComputeShaderPipeline = pDevice->CreateComputePipeline({
+            simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
                 .name = "Example03::simpleComputeShaderPipeline",
                 .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
                 .layout = pDevice->GetSolePipelineLayout(),
@@ -127,7 +127,7 @@ int main()
             uint32_t TextureId;
         } pc;
 
-        pc.TextureId = pDevice->GetImage(renderImage).GetStorageImgId();
+        pc.TextureId = pDevice->Get<Grace::Image>(renderImage).GetStorageImgId();
 
         cmd.PushConstants(pDevice->GetSolePipelineLayout(), sizeof(pc), &pc);
         cmd.BindDescriptorSets(
@@ -171,9 +171,9 @@ int main()
         cmd.BlitImage({
             .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
             .pNext = nullptr,
-            .srcImage = pDevice->GetImage(renderImage).GetImage(),
+            .srcImage = pDevice->Get<Grace::Image>(renderImage).VkHandle(),
             .srcImageLayout = VK_IMAGE_LAYOUT_GENERAL,
-            .dstImage = pDevice->GetImage(swapchainImg).GetImage(),
+            .dstImage = pDevice->Get<Grace::Image>(swapchainImg).VkHandle(),
             .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             .regionCount = 1,
             .pRegions = &blit,
@@ -229,7 +229,7 @@ int main()
 
             pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
-            renderImage = pDevice->CreateImage({
+            renderImage = pDevice->Create<Grace::Image>({
                 .name = "Example03::renderImage",
                 .dimensions = { static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight), 1 },
                 .format = Grace::Format::RGBA8_UNorm,

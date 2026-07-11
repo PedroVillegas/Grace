@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Grace/GraceApi.hpp>
+
 #include <functional>
 #include <deque>
 #include <vector>
@@ -7,7 +9,7 @@
 namespace Grace
 {
 
-class DeletionQueue
+class GRACE_API DeletionQueue
 {
 public:
     ~DeletionQueue() = default;

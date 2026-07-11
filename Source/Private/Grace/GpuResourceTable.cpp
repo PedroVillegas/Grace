@@ -1,4 +1,4 @@
-#include <Private/Grace/GpuResourceTable.hpp>
+#include <Grace/GpuResourceTable.hpp>
 
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Context.hpp>
@@ -7,7 +7,7 @@
 #include <Grace/Sampler.hpp>
 #include <Private/Grace/ScratchVector.hpp>
 #include <Private/Grace/Config.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -38,8 +38,8 @@ uint32_t SlotPool::FindAvailableSlot()
 
 GpuResourceTable::~GpuResourceTable()
 {
-    vkDestroyDescriptorPool(mDevice->GetVkHandle(), bindlessDescriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(mDevice->GetVkHandle(), bindlessDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(mDevice->VkHandle(), bindlessDescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(mDevice->VkHandle(), bindlessDescriptorSetLayout, nullptr);
 }
 
 GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
@@ -49,7 +49,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
     mUniformBufferSlots.SetPoolSize(gConfig.BindlessResourceTableMaxBufferSlots);
     mSamplerSlots.SetPoolSize(gConfig.BindlessResourceTableMaxSamplerSlots);
 
-    mWriter.SetDevice(mDevice->GetVkHandle());
+    mWriter.SetDevice(mDevice->VkHandle());
 
     // Pool Sizes, identical order to bindings
     ScratchVector<VkDescriptorPoolSize> poolSizes = {
@@ -70,8 +70,8 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
         .pPoolSizes = poolSizes.data(),
     };
 
-    DebugReporter::Check(vkCreateDescriptorPool(mDevice->GetVkHandle(), &poolInfo, nullptr, &bindlessDescriptorPool));
-    AssignDebugName(mDevice->GetVkHandle(), bindlessDescriptorPool, "Grace::Bindless::DescriptorPool");
+    DebugReporter::Check(vkCreateDescriptorPool(mDevice->VkHandle(), &poolInfo, nullptr, &bindlessDescriptorPool));
+    AssignDebugName(mDevice->VkHandle(), bindlessDescriptorPool, "Grace::Bindless::DescriptorPool");
 
     // Enable Update-After-Bind and Partially-Bound
     // clang-format off
@@ -91,14 +91,14 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
     };
 
     // Create global descriptor set layout
-    DescriptorLayoutBuilder builder(mDevice->GetVkHandle());
+    DescriptorLayoutBuilder builder(mDevice->VkHandle());
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::StorageImage), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, gConfig.BindlessResourceTableMaxImageSlots);
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::SampledImage), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, gConfig.BindlessResourceTableMaxImageSlots);
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::CombinedImageSampler), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, gConfig.BindlessResourceTableMaxImageSlots);
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::Sampler), VK_DESCRIPTOR_TYPE_SAMPLER, gConfig.BindlessResourceTableMaxSamplerSlots);
     builder.AddBinding(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::UniformBuffer), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     bindlessDescriptorSetLayout = builder.Build(VK_SHADER_STAGE_ALL, &bindingFlagsInfo, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
-    AssignDebugName(mDevice->GetVkHandle(), bindlessDescriptorSetLayout, "Grace::Bindless::DescriptorSetLayout");
+    AssignDebugName(mDevice->VkHandle(), bindlessDescriptorSetLayout, "Grace::Bindless::DescriptorSetLayout");
     // clang-format on
 
     // Allocate global descriptor set
@@ -110,8 +110,8 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
         .pSetLayouts = &bindlessDescriptorSetLayout,
     };
 
-    DebugReporter::Check(vkAllocateDescriptorSets(mDevice->GetVkHandle(), &allocInfo, &bindlessDescriptorSet));
-    AssignDebugName(mDevice->GetVkHandle(), bindlessDescriptorSet, "Grace::Bindless::DescriptorSet");
+    DebugReporter::Check(vkAllocateDescriptorSets(mDevice->VkHandle(), &allocInfo, &bindlessDescriptorSet));
+    AssignDebugName(mDevice->VkHandle(), bindlessDescriptorSet, "Grace::Bindless::DescriptorSet");
 
     // Create global pipeline layout
     VkPushConstantRange pushConstants = {
@@ -120,7 +120,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
         .size = 128,
     };
 
-    bindlessPipelineLayout = mDevice->CreatePipelineLayout({
+    bindlessPipelineLayout = mDevice->Create<PipelineLayout>({
         .name = "Grace::Bindless::PipelineLayout",
         .flags = 0,
         .setLayouts = { bindlessDescriptorSetLayout },
@@ -130,7 +130,7 @@ GpuResourceTable::GpuResourceTable(Device* pDevice) : mDevice(pDevice)
 
 void GpuResourceTable::SubmitImage(Image& image)
 {
-    GRACE_ASSERT(!image.IsNull());
+    GRACE_ASSERT(!image.Exists());
 
     uint32_t sampledImgId = 0;
     uint32_t storageImgId = 0;
@@ -141,7 +141,7 @@ void GpuResourceTable::SubmitImage(Image& image)
         storageImgId = mStorageImageSlots.FindAvailableSlot();
         mWriter.WriteImageBindless(storageImgId,
                                    static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::StorageImage),
-                                   image.GetDefaultView().GetVkHandle(),
+                                   image.GetDefaultView().VkHandle(),
                                    nullptr,
                                    VK_IMAGE_LAYOUT_GENERAL,
                                    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -151,7 +151,7 @@ void GpuResourceTable::SubmitImage(Image& image)
         sampledImgId = mSampledImageSlots.FindAvailableSlot();
         mWriter.WriteImageBindless(sampledImgId,
                                    static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::SampledImage),
-                                   image.GetDefaultView().GetVkHandle(),
+                                   image.GetDefaultView().VkHandle(),
                                    nullptr,
                                    VK_IMAGE_LAYOUT_GENERAL,
                                    VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
@@ -184,7 +184,7 @@ void GpuResourceTable::SubmitImageView(ImageView& view)
         storageImgId = mStorageImageSlots.FindAvailableSlot();
         mWriter.WriteImageBindless(storageImgId,
                                    static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::StorageImage),
-                                   view.GetVkHandle(),
+                                   view.VkHandle(),
                                    nullptr,
                                    VK_IMAGE_LAYOUT_GENERAL,
                                    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -213,7 +213,7 @@ void GpuResourceTable::SubmitBuffer(const Buffer& buffer)
     VmaAllocationInfo2 allocInfo = buffer.GetAllocationInfo();
 
     mWriter.WriteBuffer(static_cast<uint32_t>(Bindless::DescriptorTypeBindingIndex::UniformBuffer),
-                        buffer.GetVkHandle(),
+                        buffer.VkHandle(),
                         allocInfo.allocationInfo.size,
                         0,
                         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);

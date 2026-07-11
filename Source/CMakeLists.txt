@@ -55,7 +55,7 @@ endif ()
 
 target_sources(
 	Grace
-	PRIVATE
+	PUBLIC
 	Private/Grace/PipelineGroup.cpp
 	Private/Grace/Buffer.cpp
 	Private/Grace/CommandGroup.cpp
@@ -113,7 +113,7 @@ target_include_directories(
 	${Vulkan_INCLUDE_DIRS}
 	${vma_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_BINARY_DIR}
-	PRIVATE
+#	PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -121,7 +121,7 @@ target_link_libraries(
 	Grace
 	PUBLIC
 	${Vulkan_LIBRARIES}
-	PRIVATE
+#	PRIVATE
 	yaml-cpp
 	spdlog
 )

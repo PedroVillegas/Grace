@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Private/Grace/Logging.hpp>
+// #include <Private/Grace/Logging.hpp>
 #include <source_location>
 #include <cstdlib>
 
@@ -10,11 +10,13 @@
         if (!(assertion))                                                                               \
         {                                                                                               \
             auto loc = std::source_location::current();                                                 \
+            /*
             GRACE_ERROR("Assertion {} failed!", #assertion);                                            \
             GRACE_ERROR("{:>10} {}", "File:", loc.file_name());                                         \
             GRACE_ERROR("{:>10} {}", "Func:", loc.function_name());                                     \
             GRACE_ERROR("{:>10} {}", "Line:", loc.line());                                              \
             GRACE_ERROR("{:>10} {}", "Msg: ", msg);                                                     \
+            */\
             std::abort();                                                                               \
         }                                                                                               \
     } while (0)                                                                                         \
@@ -24,10 +26,11 @@
         if (!(assertion))                                                                               \
         {                                                                                               \
             auto loc = std::source_location::current();                                                 \
+            /*
             GRACE_ERROR("Assertion {} failed!", #assertion);                                            \
             GRACE_ERROR("{:>10} {}", "File:", loc.file_name());                                         \
             GRACE_ERROR("{:>10} {}", "Func:", loc.function_name());                                     \
-            GRACE_ERROR("{:>10} {}", "Line:", loc.line());                                              \
+            GRACE_ERROR("{:>10} {}", "Line:", loc.line());*/                                              \
             std::abort();                                                                               \
         }                                                                                               \
     } while (0)                                                                                         \

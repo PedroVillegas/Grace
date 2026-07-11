@@ -39,14 +39,14 @@ int main()
     Grace::CommandPool* pCmdPool = pDevice->GetCommandPool(Grace::QueueFamily::Graphics, "Example01::pCmdPool");
     Grace::CommandBuffer cmd = pCmdPool->GetOrAllocateCommandBuffer();
 
-    const Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->CreatePipelineLayout({
+    const Grace::PipelineLayoutHandle helloTrianglePLH = pDevice->Create<Grace::PipelineLayout>({
         .flags = 0,
         .setLayouts = {},
         .pushConstantRanges = {},
     });
 
     // Create static pipeline from hello triangle shader
-    Grace::PipelineHandle helloTrianglePH = pDevice->CreateGraphicsPipeline({
+    Grace::GraphicsPipelineHandle helloTrianglePH = pDevice->Create<Grace::GraphicsPipeline>({
         .name = "Example01::helloTrianglePH",
         .shaders = {
             Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
@@ -62,7 +62,7 @@ int main()
         .layout = helloTrianglePLH,
     });
 
-    const Grace::FenceHandle inFlightFence = pDevice->CreateFence({
+    const Grace::FenceHandle inFlightFence = pDevice->Create<Grace::Fence>({
         .name = "Example01::inFlightFence",
         .flags = Grace::FenceFlags::CreateSignalled,
     });
@@ -80,11 +80,11 @@ int main()
         {
             compiling = true;
             pDevice->WaitIdle();
-            pDevice->FreePipeline(helloTrianglePH);
+            pDevice->Free<Grace::GraphicsPipeline>(helloTrianglePH);
 
             Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
 
-            helloTrianglePH = pDevice->CreateGraphicsPipeline({
+            helloTrianglePH = pDevice->Create<Grace::GraphicsPipeline>({
                 .name = "Example01::helloTrianglePH",
                 .shaders = {
                     Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
@@ -147,7 +147,7 @@ int main()
         cmd.BeginDebugLabel("Hello Triangle Pass");
         cmd.BeginDynamicRendering({
             .renderArea = { .extent = { windowWidth, windowHeight } },
-            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->GetImage(swapchainImg), nullptr) },
+            .colorAttachments = { Grace::ColourAttachmentInfo(pDevice->Get<Grace::Image>(swapchainImg), nullptr) },
         });
 
         cmd.SetViewport({ {

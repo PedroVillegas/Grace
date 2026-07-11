@@ -107,8 +107,8 @@ Device* Context::DevicePtr(VkSurfaceKHR surface)
 {
     mDevice = std::make_unique<Device>(mInstance, surface);
 
-    AssignDebugName<VkInstance>(mDevice->GetVkHandle(), mInstance, "Grace::Instance");
-    AssignDebugName<VkDevice>(mDevice->GetVkHandle(), mDevice->GetVkHandle(), "Grace::Device");
+    AssignDebugName<VkInstance>(mDevice->VkHandle(), mInstance, "Grace::Instance");
+    AssignDebugName<VkDevice>(mDevice->VkHandle(), mDevice->VkHandle(), "Grace::Device");
 
     return mDevice.get();
 }

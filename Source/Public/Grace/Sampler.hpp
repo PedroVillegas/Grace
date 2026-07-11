@@ -1,36 +1,23 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
-#include <Grace/Enums.hpp>
+#include <Grace/GpuResourceDescriptions.hpp>
+#include <Grace/GpuResourceTraits.hpp>
 
 namespace Grace
 {
 
 class Device;
 
-/// Description used to create a Sampler object
-struct GRACE_API SamplerDesc
-{
-    /// Specifies the minification filter to use when sampling an image
-    Filter minFilter;
-    /// Specifies the magnification filter to use when sampling an image
-    Filter magFilter;
-    /// Specifies the behaviour of sampling with image coordinates outside the image
-    SamplerAddressMode addressMode;
-    /// Specifies the mipmap mode to use when sampling an image
-    SamplerMipmapMode mipmapMode;
-};
-
 /// @brief `VkSampler` objects are required to read image data
 /// and apply filtering and other transformations for the shader.
-class GRACE_API Sampler
+class GRACE_API Sampler : GpuBindlessCompatibleTag
 {
 public:
     ~Sampler();
     Sampler() = default;
-    Sampler(Device* pDevice, const SamplerDesc& desc);
+    Sampler(Device* pDevice, const GpuSamplerDesc& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkSampler handle more than once
@@ -40,9 +27,9 @@ public:
     Sampler(Sampler&& other) noexcept;
     Sampler& operator=(Sampler&& other) noexcept;
 
-    GRACE_NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool Exists() const;
 
-    GRACE_NODISCARD VkSampler GetVkHandle() const;
+    GRACE_NODISCARD VkSampler VkHandle() const;
 
     /// Sets index to resource in bindless array of Samplers for access on GPU.
     void SetSamplerId(const uint32_t id);

@@ -14,6 +14,12 @@ struct Binary;
 struct Timeline;
 } // namespace SemaphoreType
 
+namespace PipelineType
+{
+struct Graphics;
+struct Compute;
+} // namespace PipelineType
+
 constexpr uint32_t INVALID_HANDLE = ~0U;
 constexpr uint32_t INVALID_GENERATION = ~0U;
 
@@ -23,7 +29,8 @@ class RefCountedHandle;
 GRACE_DEFINE_RESOURCE_HANDLE(Buffer);
 GRACE_DEFINE_RESOURCE_HANDLE(Image);
 GRACE_DEFINE_RESOURCE_HANDLE(Sampler);
-GRACE_DEFINE_RESOURCE_HANDLE(Pipeline);
+GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(Pipeline, PipelineType::Graphics, GraphicsPipeline);
+GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(Pipeline, PipelineType::Compute, ComputePipeline);
 GRACE_DEFINE_RESOURCE_HANDLE(PipelineLayout);
 GRACE_DEFINE_RESOURCE_HANDLE(Fence);
 GRACE_DEFINE_TEMPLATED_RESOURCE_HANDLE(Semaphore, SemaphoreType::Binary, BinarySemaphore);

@@ -1,6 +1,6 @@
 #include <Grace/GpuResourceHandles.hpp>
 #include <Private/Grace/InternalContainers.hpp>
-#include <Private/Grace/Assert.hpp>
+#include <Grace/Assert.hpp>
 
 namespace Grace
 {
@@ -102,9 +102,13 @@ void RefCountedHandle<ResourceType>::AbandonHandle() const
     {
         gAbandonedResources->samplers.emplace_back(mHandle, dead, true);
     }
-    else if constexpr (std::is_same_v<ResourceType, Pipeline>)
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Graphics>>)
     {
-        gAbandonedResources->pipelines.emplace_back(mHandle, dead, true);
+        gAbandonedResources->graphicsPipelines.emplace_back(mHandle, dead, true);
+    }
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Compute>>)
+    {
+        gAbandonedResources->computePipelines.emplace_back(mHandle, dead, true);
     }
     else if constexpr (std::is_same_v<ResourceType, PipelineLayout>)
     {
@@ -139,9 +143,13 @@ void RefCountedHandle<ResourceType>::InstantiateRefCounter() const
     {
         gResHandleRefCounters->samplers.emplace_back(1);
     }
-    else if constexpr (std::is_same_v<ResourceType, Pipeline>)
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Graphics>>)
     {
-        gResHandleRefCounters->pipelines.emplace_back(1);
+        gResHandleRefCounters->graphicsPipelines.emplace_back(1);
+    }
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Compute>>)
+    {
+        gResHandleRefCounters->computePipelines.emplace_back(1);
     }
     else if constexpr (std::is_same_v<ResourceType, PipelineLayout>)
     {
@@ -185,9 +193,14 @@ uint32_t RefCountedHandle<ResourceType>::AdjustRefCounter(int count) const
         current = &gResHandleRefCounters->samplers.at(mHandle);
         *current += count;
     }
-    else if constexpr (std::is_same_v<ResourceType, Pipeline>)
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Graphics>>)
     {
-        current = &gResHandleRefCounters->pipelines.at(mHandle);
+        current = &gResHandleRefCounters->graphicsPipelines.at(mHandle);
+        *current += count;
+    }
+    else if constexpr (std::is_same_v<ResourceType, Pipeline<PipelineType::Compute>>)
+    {
+        current = &gResHandleRefCounters->computePipelines.at(mHandle);
         *current += count;
     }
     else if constexpr (std::is_same_v<ResourceType, PipelineLayout>)
@@ -216,7 +229,8 @@ uint32_t RefCountedHandle<ResourceType>::AdjustRefCounter(int count) const
 template class GRACE_API RefCountedHandle<Buffer>;
 template class GRACE_API RefCountedHandle<Image>;
 template class GRACE_API RefCountedHandle<Sampler>;
-template class GRACE_API RefCountedHandle<Pipeline>;
+template class GRACE_API RefCountedHandle<Pipeline<PipelineType::Graphics>>;
+template class GRACE_API RefCountedHandle<Pipeline<PipelineType::Compute>>;
 template class GRACE_API RefCountedHandle<PipelineLayout>;
 template class GRACE_API RefCountedHandle<Fence>;
 template class GRACE_API RefCountedHandle<Semaphore<SemaphoreType::Binary>>;

@@ -37,7 +37,9 @@ public:
 
     void EndRecording() const;
 
-    void BindPipeline(PipelineHandle pipeline) const;
+    void BindPipeline(GraphicsPipelineHandle pipeline) const;
+
+    void BindPipeline(ComputePipelineHandle pipeline) const;
 
     void BindDescriptorSets(PipelineBindPoint bindpoint,
                             PipelineLayoutHandle layout,
@@ -52,10 +54,10 @@ public:
                        uint32_t offset = 0) const
     {
         static_assert(sizeof(DataStruct) <= 128, "DataStruct is too large, must not exceed 128 bytes!");
-        const PipelineLayout& pl = mDevicePtr->GetPipelineLayout(layout);
-        assert(!pl.IsNull());
+        const PipelineLayout& pl = mDevicePtr->Get<PipelineLayout>(layout);
+        assert(!pl.Exists());
         vkCmdPushConstants(mCmdBuffer,
-                           pl.GetVkPipelineLayout(),
+                           pl.VkHandle(),
                            static_cast<VkShaderStageFlags>(stage),
                            offset,
                            sizeof(DataStruct),

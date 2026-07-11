@@ -1,18 +1,17 @@
 #pragma once
 
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan.h>
-#include <Grace/Buffer.hpp>
 #include <Grace/Image.hpp>
 #include <Grace/Sampler.hpp>
-#include <Grace/PipelineGroup.hpp>
 #include <Grace/Fence.hpp>
-#include <Grace/Semaphore.hpp>
 #include <Grace/QueryManager.hpp>
 #include <Grace/Swapchain.hpp>
 #include <Grace/GraceApi.hpp>
 #include <Grace/DebugReporter.hpp>
 #include <Grace/Macros.hpp>
+#include <Grace/GpuResourceDescriptions.hpp>
+#include <Grace/ResourceManager.hpp>
+#include <Grace/GpuResourceTable.hpp>
 
 #include <array>
 
@@ -41,7 +40,7 @@ public:
 
     GRACE_NODISCARD bool IsNull() const;
 
-    GRACE_NODISCARD VkDevice GetVkHandle() const;
+    GRACE_NODISCARD VkDevice VkHandle() const;
 
     GRACE_NODISCARD VmaAllocator GetVmaHandle() const;
 
@@ -71,55 +70,23 @@ public:
                                       const void* pHostMem,
                                       VkDeviceSize hostMemBytes);
 
-    /// BUFFER OPS
+    template <GpuManaged T>
+    GRACE_NODISCARD RefCountedHandle<T> Create(const GpuResourceDesc<T>& desc);
 
-    GRACE_NODISCARD BufferHandle CreateBuffer(const BufferDesc& desc);
+    template <GpuManaged T>
+    GRACE_NODISCARD T& Get(const RefCountedHandle<T>& handle);
 
-    GRACE_NODISCARD Buffer& GetBuffer(const BufferHandle& handle);
+    template <GpuManaged T>
+    void Free(RefCountedHandle<T>& handle);
 
-    void FreeBuffer(BufferHandle& handle);
-
-    void FreeBufferDeferred(BufferHandle& handle);
+    template <GpuManaged T>
+    void FreeDeferred(RefCountedHandle<T>& handle);
 
     /// IMAGE OPS
 
     void SubmitImageView(ImageView& view);
 
-    GRACE_NODISCARD ImageHandle CreateImage(const ImageDesc& desc);
-
-    GRACE_NODISCARD ImageHandle CreateSwapchainImage(VkImage image, const ImageDesc& desc);
-
-    GRACE_NODISCARD Image& GetImage(const ImageHandle& handle);
-
-    void FreeImage(ImageHandle& handle);
-
-    void FreeImageDeferred(ImageHandle& handle);
-
-    /// SAMPLER OPS
-
-    GRACE_NODISCARD SamplerHandle CreateSampler(const SamplerDesc& desc);
-
-    GRACE_NODISCARD Sampler& GetSampler(const SamplerHandle& handle);
-
-    void FreeSampler(SamplerHandle& handle);
-
-    void FreeSamplerDeferred(SamplerHandle& handle);
-
-    /// PIPELINE OPS
-
-    GRACE_NODISCARD PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineDesc&& desc);
-
-    GRACE_NODISCARD PipelineHandle CreateComputePipeline(const ComputePipelineDesc& desc);
-
-    GRACE_NODISCARD Pipeline& GetPipeline(const PipelineHandle& handle);
-
-    void FreePipeline(PipelineHandle& handle);
-
-    GRACE_NODISCARD PipelineLayoutHandle CreatePipelineLayout(const PipelineLayoutDesc& desc);
-
-    GRACE_NODISCARD PipelineLayout& GetPipelineLayout(const PipelineLayoutHandle& handle);
-
-    void FreePipelineLayout(PipelineLayoutHandle& handle);
+    GRACE_NODISCARD ImageHandle CreateSwapchainImage(VkImage image, const GpuImageDesc& desc);
 
     /// SYNC OPS
 
@@ -132,24 +99,6 @@ public:
     void ResetFence(FenceHandle fence);
 
     void ResetFences(const std::initializer_list<VkFence>&& fences);
-
-    GRACE_NODISCARD FenceHandle CreateFence(const FenceDesc& desc);
-
-    GRACE_NODISCARD Fence& GetFence(const FenceHandle& handle);
-
-    void FreeFence(FenceHandle& handle);
-
-    GRACE_NODISCARD BinarySemaphoreHandle CreateBinarySemaphore(const SemaphoreDesc& desc);
-
-    GRACE_NODISCARD BinarySemaphore& GetBinarySemaphore(const BinarySemaphoreHandle& handle);
-
-    void FreeBinarySemaphore(BinarySemaphoreHandle& handle);
-
-    GRACE_NODISCARD TimelineSemaphoreHandle CreateTimelineSemaphore(const SemaphoreDesc& desc);
-
-    GRACE_NODISCARD TimelineSemaphore& GetTimelineSemaphore(const TimelineSemaphoreHandle& handle);
-
-    void FreeTimelineSemaphore(TimelineSemaphoreHandle& handle);
 
     /// COMMAND GROUP OPS
 
@@ -287,6 +236,45 @@ const QueryGroup<T>& Device::GetQueryPoolResults(uint32_t firstQuery, uint32_t q
     DebugReporter::Check(res);
 
     return qg;
+}
+
+template <GpuManaged T>
+GRACE_NODISCARD RefCountedHandle<T> Device::Create(const GpuResourceDesc<T>& desc)
+{
+    RefCountedHandle<T> newHandle = mResourceMgr->Create<T>(this, desc, true);
+
+    if constexpr (GpuBindlessCompatible<T>)
+    {
+        T& t = mResourceMgr->Get<T>(newHandle);
+        if constexpr (std::is_same_v<T, Image>)
+        {
+            mResourceTable->SubmitImage(t);
+        }
+        else if constexpr (std::is_same_v<T, Sampler>)
+        {
+            mResourceTable->SubmitSampler(t);
+        }
+    }
+
+    return newHandle;
+}
+
+template <GpuManaged T>
+GRACE_NODISCARD T& Device::Get(const RefCountedHandle<T>& handle)
+{
+    return mResourceMgr->Get<T>(handle);
+}
+
+template <GpuManaged T>
+void Device::Free(RefCountedHandle<T>& handle)
+{
+    mResourceMgr->Free<T>(handle);
+}
+
+template <GpuManaged T>
+void Device::FreeDeferred(RefCountedHandle<T>& handle)
+{
+    mResourceMgr->Free<T>(handle, mFrameInFlightIndex);
 }
 
 } // namespace Grace

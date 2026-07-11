@@ -16,7 +16,8 @@ struct AbandonedResources
     std::vector<BufferHandle> buffers = {};
     std::vector<ImageHandle> images = {};
     std::vector<SamplerHandle> samplers = {};
-    std::vector<PipelineHandle> pipelines = {};
+    std::vector<GraphicsPipelineHandle> graphicsPipelines = {};
+    std::vector<ComputePipelineHandle> computePipelines = {};
     std::vector<PipelineLayoutHandle> pipelineLayouts = {};
     std::vector<FenceHandle> fences = {};
     std::vector<BinarySemaphoreHandle> binarySemaphores = {};
@@ -32,7 +33,8 @@ struct ResourceHandleRefCounters
     std::vector<uint32_t> buffers = {};
     std::vector<uint32_t> images = {};
     std::vector<uint32_t> samplers = {};
-    std::vector<uint32_t> pipelines = {};
+    std::vector<uint32_t> graphicsPipelines = {};
+    std::vector<uint32_t> computePipelines = {};
     std::vector<uint32_t> pipelineLayouts = {};
     std::vector<uint32_t> fences = {};
     std::vector<uint32_t> binarySemaphores = {};

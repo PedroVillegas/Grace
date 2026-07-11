@@ -4,24 +4,19 @@
 #include <Grace/GraceApi.hpp>
 #include <Grace/Macros.hpp>
 #include <Grace/Enums.hpp>
+#include <Grace/GpuResourceDescriptions.hpp>
 
 namespace Grace
 {
 
 class Device;
 
-struct GRACE_API FenceDesc
-{
-    const char* name = "";
-    FenceFlags flags = {};
-};
-
 class GRACE_API Fence
 {
 public:
     ~Fence();
     Fence() = default;
-    Fence(Device* pDevice, const FenceDesc& desc);
+    Fence(Device* pDevice, const GpuFenceDesc& desc);
 
     // Copy constructions/assignments are prohibited to stop destructor trying to
     // destroy the same VkFence handle more than once
@@ -31,9 +26,9 @@ public:
     Fence(Fence&& other) noexcept;
     Fence& operator=(Fence&& other) noexcept;
 
-    GRACE_NODISCARD bool IsNull() const;
+    GRACE_NODISCARD bool Exists() const;
 
-    GRACE_NODISCARD const VkFence& GetVkFence() const;
+    GRACE_NODISCARD const VkFence& VkHandle() const;
 
 private:
     Device* mDevicePtr = nullptr;
