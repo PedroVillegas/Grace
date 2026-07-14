@@ -1,8 +1,0 @@
-#pragma once
-
-#include <Grace/Macros.hpp>
-
-GRACE_API inline PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT_Meta;
-GRACE_API inline PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT_Meta;
-GRACE_API inline PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT_Meta;
-GRACE_API inline PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT_Meta;

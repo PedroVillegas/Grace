@@ -9,7 +9,7 @@ TEST(ResourceManagement, ResHandleStdConstruction)
     [[maybe_unused]] const Grace::Device* devicePtr = context.DevicePtr(nullptr);
 
     const Grace::SamplerHandle sampler(0, 0);
-    EXPECT_EQ(sampler.HasValidHandle(), true);
+    EXPECT_EQ(sampler.Exists(), true);
     EXPECT_EQ(sampler.GetHandle(), 0);
     EXPECT_EQ(sampler.GetGeneration(), 0);
     EXPECT_EQ(Grace::gResHandleRefCounters->samplers.size(), 1);

@@ -48,35 +48,35 @@ set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
 set(GRACE_PY_YAML_CONFIG_PARSER_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/YamlConfigParser.py)
 
 if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
-	target_sources(Grace PRIVATE Private/Grace/ShaderCompiler.cpp)
+	target_sources(Grace PRIVATE Grace/Ext/ShaderCompiler.cpp)
 	target_link_libraries(Grace PUBLIC pybind11::embed)
 	target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
 endif ()
 
 target_sources(
 	Grace
-	PUBLIC
-	Private/Grace/PipelineGroup.cpp
-	Private/Grace/Buffer.cpp
-	Private/Grace/CommandGroup.cpp
-	Private/Grace/Config.cpp
-	Private/Grace/Context.cpp
-	Private/Grace/DebugReporter.cpp
-	Private/Grace/DeletionQueue.cpp
-	Private/Grace/DescriptorGroup.cpp
-	Private/Grace/Device.cpp
-	Private/Grace/Fence.cpp
-	Private/Grace/GpuResourceHandles.cpp
-	Private/Grace/GpuResourceTable.cpp
-	Private/Grace/HelperFunctions.cpp
-	Private/Grace/Image.cpp
-	Private/Grace/QueryManager.cpp
-	Private/Grace/Sampler.cpp
-	Private/Grace/Semaphore.cpp
-	Private/Grace/Swapchain.cpp
-	Private/Grace/SyncGroup.cpp
-	Private/Grace/VmaUsage.cpp
-	Private/Grace/StackAllocator.cpp
+	PRIVATE
+	Grace/Detail/Config.cpp
+	Grace/Detail/StackAllocator.cpp
+	Grace/Detail/SyncGroup.cpp
+	Grace/GpuBuffer.cpp
+	Grace/CommandGroup.cpp
+	Grace/Context.cpp
+	Grace/DebugReporter.cpp
+	Grace/DeletionQueue.cpp
+	Grace/DescriptorGroup.cpp
+	Grace/Device.cpp
+	Grace/GpuFence.cpp
+	Grace/GpuHandle.cpp
+	Grace/GpuBindlessTable.cpp
+	Grace/HelperFunctions.cpp
+	Grace/GpuImage.cpp
+	Grace/GpuPipelineGroup.cpp
+	Grace/QueryManager.cpp
+	Grace/GpuSampler.cpp
+	Grace/GpuSemaphore.cpp
+	Grace/Swapchain.cpp
+	Grace/VmaUsage.cpp
 )
 
 target_compile_features(
@@ -92,9 +92,9 @@ set_target_properties(
 	CXX_STANDARD_REQUIRED ON
 	C_VISIBILITY_PRESET "hidden"
 	CXX_VISIBILITY_PRESET "hidden"
-	VISIBILITY_INLINES_HIDDEN OFF
+	VISIBILITY_INLINES_HIDDEN ON
 	VERSION ${PROJECT_VERSION}
-	SOVERSION ${PROJECT_VERSION_MAJOR}
+	SOVERSION ${PROJECT_VERSION}
 )
 
 include(GenerateExportHeader)
@@ -109,11 +109,9 @@ generate_export_header(
 target_include_directories(
 	Grace
 	PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/Public/
 	${Vulkan_INCLUDE_DIRS}
 	${vma_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_BINARY_DIR}
-#	PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -121,7 +119,6 @@ target_link_libraries(
 	Grace
 	PUBLIC
 	${Vulkan_LIBRARIES}
-#	PRIVATE
 	yaml-cpp
 	spdlog
 )

@@ -71,13 +71,6 @@ int main()
     glfwCreateWindowSurface(gpuContext.GetInstance(), pWindow, nullptr, &surfaceKHR);
     Grace::Device* pDevice = gpuContext.DevicePtr(surfaceKHR);
 
-    Grace::SamplerHandle test1 = pDevice->Create<Grace::Sampler>({});
-    Grace::SamplerHandle test2 = pDevice->Create<Grace::Sampler>({});
-
-    test1 = test2;
-
-    const Grace::SamplerHandle test3 = test1;
-
     // Must first create the swapchain with desired extents
     pDevice->CreateSwapchain({ windowWidth, windowHeight }, vsync);
 
