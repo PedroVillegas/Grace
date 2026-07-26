@@ -49,6 +49,11 @@ public:
         return mHandle != INVALID_HANDLE;
     }
 
+    GRACE_NODISCARD uint64_t AsUInt64() const
+    {
+        return (static_cast<uint64_t>(mHandle) << 32u) | static_cast<uint64_t>(mGeneration);
+    }
+
     GRACE_NODISCARD bool IsAlive() const
     {
         return ((mGeneration >> 30u) & 0x1) == 0;

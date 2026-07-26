@@ -666,8 +666,8 @@ bool Device::CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vec
 template <GpuManaged T>
 GRACE_NODISCARD GpuHandle<T> Device::Create(const GpuObjectDesc<T>& desc, const GpuHandleFlags flags)
 {
-    const bool refcount = EnumBitmaskHasBitSet(flags, GpuHandleFlags::DisableRefCount);
-    GpuHandle<T> newHandle = mGpuObjManager->Create<T>(this, desc, refcount);
+    const bool disableRefCount = EnumBitmaskHasBitSet(flags, GpuHandleFlags::DisableRefCount);
+    GpuHandle<T> newHandle = mGpuObjManager->Create<T>(this, desc, !disableRefCount);
 
     if constexpr (GpuBindlessCompatible<T>)
     {
