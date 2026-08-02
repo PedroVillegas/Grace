@@ -44,3 +44,8 @@ add_executable(StreamCompaction)
 target_sources(StreamCompaction PRIVATE 04_StreamCompaction/04_StreamCompaction.cpp)
 target_link_libraries(StreamCompaction PRIVATE Grace)
 target_compile_definitions(StreamCompaction PRIVATE CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/04_StreamCompaction/04_GraceConfig.yaml")
+
+add_executable(ImGrace)
+target_sources(ImGrace PRIVATE 05_ImGrace/05_ImGrace.cpp)
+target_link_libraries(ImGrace PRIVATE Grace glfw)
+target_compile_definitions(ImGrace PRIVATE CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/05_ImGrace/05_GraceConfig.yaml")

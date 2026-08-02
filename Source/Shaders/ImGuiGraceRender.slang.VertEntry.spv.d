@@ -1,0 +1,1 @@
+..\\Source\\Shaders/ImGuiGraceRender.slang.VertEntry.spv: C\:\\Users\\Pedro\ Villegas\\Documents\\Developer\\Grace\\Source\\Shaders\\ImGuiGraceRender.slang C\:\\Users\\Pedro\ Villegas\\Documents\\Developer\\Grace\\Source\\Grace\\Shaders\\Bindless.slang

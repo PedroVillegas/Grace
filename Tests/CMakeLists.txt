@@ -10,16 +10,27 @@ FetchContent_MakeAvailable(googletest)
 get_target_property(PrivateIncludeDirs Grace INCLUDE_DIRECTORIES)
 get_target_property(PrivateLinkLibraries Grace LINK_LIBRARIES)
 get_target_property(PrivateSources Grace SOURCES)
+get_target_property(ThirdPartySources Grace THIRD_PARTY_SOURCES)
 
 foreach (Source ${PrivateSources})
-	list(APPEND GRACE_PRIVATE_SOURCES ${PROJECT_SOURCE_DIR}/Source/${Source})
+	set(f ${PROJECT_SOURCE_DIR}/Source/${Source})
+	if (EXISTS ${f})
+		list(APPEND GRACE_PRIVATE_SOURCES ${f})
+	endif()
+endforeach ()
+
+foreach (file ${ThirdPartySources})
+	set(f ${PROJECT_SOURCE_DIR}/Source/${Source})
+	if (EXISTS ${f})
+		list(APPEND GRACE_PRIVATE_SOURCES ${f})
+	endif()
 endforeach ()
 
 add_executable(TestBed)
-target_sources(TestBed
-	PRIVATE StackAllocator.cpp
-	PRIVATE ResourceManager.cpp
-	PRIVATE ${GRACE_PRIVATE_SOURCES}
+target_sources(TestBed PRIVATE
+	StackAllocator.cpp
+	ResourceManager.cpp
+	${GRACE_PRIVATE_SOURCES}
 )
 
 target_include_directories(TestBed PRIVATE ${PrivateIncludeDirs})

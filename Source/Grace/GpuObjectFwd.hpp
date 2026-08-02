@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Grace/GpuObjectTraits.hpp>
+
 namespace Grace
 {
 

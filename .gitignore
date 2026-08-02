@@ -8,4 +8,9 @@
 Build/
 Examples/Assets/SPIRV/
 Examples/Bin/
+Third-Party/imgui/docs
+Third-Party/imgui/examples
+Third-Party/imgui/misc/debuggers
+Third-Party/imgui/misc/fonts
+Third-Party/imgui/backends/vulkan
 Notes.md

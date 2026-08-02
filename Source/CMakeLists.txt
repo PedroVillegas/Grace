@@ -48,14 +48,28 @@ set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
 set(GRACE_PY_YAML_CONFIG_PARSER_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/YamlConfigParser.py)
 
 if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
-	target_sources(Grace PRIVATE Grace/Ext/ShaderCompiler.cpp)
-	target_link_libraries(Grace PUBLIC pybind11::embed)
+	define_property(TARGET PROPERTY THIRD_PARTY_SOURCES)
+	set(Third-Party ${PROJECT_SOURCE_DIR}/Third-Party)
+	set(ThirdPartySources
+		${Third-Party}/imgui/backends/imgui_impl_glfw.cpp
+		${Third-Party}/imgui/imgui.cpp
+		${Third-Party}/imgui/imgui_demo.cpp
+		${Third-Party}/imgui/imgui_draw.cpp
+		${Third-Party}/imgui/imgui_tables.cpp
+		${Third-Party}/imgui/imgui_widgets.cpp
+	)
+	set_property(TARGET Grace PROPERTY THIRD_PARTY_SOURCES "${ThirdPartySources}")
+	target_sources(Grace PRIVATE
+		Grace/Ext/ShaderCompiler.cpp
+		Grace/Ext/ImGrace.cpp
+		PUBLIC ${ThirdPartySources}
+	)
+	target_include_directories(Grace PUBLIC ${Third-Party})
+	target_link_libraries(Grace PUBLIC pybind11::embed glfw)
 	target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
-endif ()
+endif()
 
-target_sources(
-	Grace
-	PRIVATE
+target_sources(Grace PRIVATE
 	Grace/Detail/Config.cpp
 	Grace/Detail/StackAllocator.cpp
 	Grace/Detail/SyncGroup.cpp
@@ -79,15 +93,9 @@ target_sources(
 	Grace/VmaUsage.cpp
 )
 
-target_compile_features(
-	Grace
-	PUBLIC
-	cxx_std_20
-)
+target_compile_features(Grace PUBLIC cxx_std_20)
 
-set_target_properties(
-	Grace
-	PROPERTIES
+set_target_properties(Grace PROPERTIES
 	CXX_STANDARD 20
 	CXX_STANDARD_REQUIRED ON
 	C_VISIBILITY_PRESET "hidden"
@@ -98,26 +106,21 @@ set_target_properties(
 )
 
 include(GenerateExportHeader)
-generate_export_header(
-	Grace
+generate_export_header(Grace
 	EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/Grace/GraceApi.hpp"
 	EXPORT_MACRO_NAME "GRACE_API"
 	NO_EXPORT_MACRO_NAME "GRACE_NO_API"
 	CUSTOM_CONTENT_FROM_VARIABLE content
 )
 
-target_include_directories(
-	Grace
-	PUBLIC
+target_include_directories(Grace PUBLIC
 	${Vulkan_INCLUDE_DIRS}
 	${vma_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(
-	Grace
-	PUBLIC
+target_link_libraries(Grace PUBLIC
 	${Vulkan_LIBRARIES}
 	yaml-cpp
 	spdlog
@@ -125,9 +128,7 @@ target_link_libraries(
 
 include(${PROJECT_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
 
-target_compile_definitions(
-	Grace
-	PUBLIC
+target_compile_definitions(Grace PUBLIC
 	Grace_EXPORTS
 	GRACE_SHADERS_DIR="${GRACE_SHADERS_DIR}"
 	GRACE_SPIRV_DIR="${GRACE_SPIRV_DIR}"
@@ -138,4 +139,5 @@ target_compile_definitions(
 	GRACE_GLSL_COMPILER="${GLSL_COMPILER}"
 	GRACE_GLSL_COMPILER_ARGS="${GRACE_GLSL_COMPILER_ARGS}"
 	GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
+	GRACE_INTERNAL_SPV="${PROJECT_SOURCE_DIR}/Source/Shaders"
 )
