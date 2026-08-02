@@ -1,4 +1,4 @@
-include(${PROJECT_SOURCE_DIR}/CMake/ValidateShaderCompiler.cmake)
+include(ValidateShaderCompiler)
 
 if (NOT DEFINED GRACE_CUSTOM_GLSL_COMPILER)
     find_program(GLSL_COMPILER glslc HINTS Vulkan_BIN_DIR)

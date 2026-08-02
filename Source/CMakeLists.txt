@@ -40,17 +40,29 @@ if (NOT DEFINED GRACE_SPIRV_DIR)
 	set(GRACE_SPIRV_DIR ${GRACE_SHADERS_DIR}/../SPIRV)
 endif ()
 
-include(${PROJECT_SOURCE_DIR}/CMake/GraceFindVulkan.cmake)
+include(GraceFindVulkan)
 
 add_library(Grace SHARED)
+
+set(Third-Party ${PROJECT_SOURCE_DIR}/Third-Party)
+set(Third-Party-Sources "")
+define_property(TARGET PROPERTY THIRD_PARTY_SOURCES)
 
 set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
 set(GRACE_PY_YAML_CONFIG_PARSER_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/YamlConfigParser.py)
 
 if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
-	define_property(TARGET PROPERTY THIRD_PARTY_SOURCES)
-	set(Third-Party ${PROJECT_SOURCE_DIR}/Third-Party)
-	set(ThirdPartySources
+	target_sources(Grace PRIVATE
+		Grace/Ext/ShaderCompiler.cpp
+		Grace/Ext/ImGrace.cpp
+	)
+	target_include_directories(Grace PUBLIC ${Third-Party})
+	target_link_libraries(Grace PUBLIC pybind11::embed glfw)
+	target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
+endif()
+
+if (GRACE_ENABLE_IMGUI_EXT)
+	list(APPEND Third-Party-Sources
 		${Third-Party}/imgui/backends/imgui_impl_glfw.cpp
 		${Third-Party}/imgui/imgui.cpp
 		${Third-Party}/imgui/imgui_demo.cpp
@@ -58,16 +70,10 @@ if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
 		${Third-Party}/imgui/imgui_tables.cpp
 		${Third-Party}/imgui/imgui_widgets.cpp
 	)
-	set_property(TARGET Grace PROPERTY THIRD_PARTY_SOURCES "${ThirdPartySources}")
-	target_sources(Grace PRIVATE
-		Grace/Ext/ShaderCompiler.cpp
-		Grace/Ext/ImGrace.cpp
-		PUBLIC ${ThirdPartySources}
+	target_sources(Grace PUBLIC
+		${Third-Party-Sources}
 	)
-	target_include_directories(Grace PUBLIC ${Third-Party})
-	target_link_libraries(Grace PUBLIC pybind11::embed glfw)
-	target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
-endif()
+endif ()
 
 target_sources(Grace PRIVATE
 	Grace/Detail/Config.cpp
@@ -126,7 +132,7 @@ target_link_libraries(Grace PUBLIC
 	spdlog
 )
 
-include(${PROJECT_SOURCE_DIR}/CMake/ShaderCompilation.cmake)
+include(ShaderCompilation)
 
 target_compile_definitions(Grace PUBLIC
 	Grace_EXPORTS
@@ -141,3 +147,5 @@ target_compile_definitions(Grace PUBLIC
 	GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 	GRACE_INTERNAL_SPV="${PROJECT_SOURCE_DIR}/Source/Shaders"
 )
+
+set_property(TARGET Grace PROPERTY THIRD_PARTY_SOURCES "${Third-Party-Sources}")
