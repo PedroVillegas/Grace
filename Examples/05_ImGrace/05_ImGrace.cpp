@@ -94,11 +94,15 @@ int main()
             compiling = true;
             pDevice->WaitIdle();
 
-            Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
+            Grace::Ext::CompileSlang(ImGrace_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "05_ImGrace.slang",
+                                     ImGrace_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY,
+                                     ImGrace_GRACE_SHADER_PROP_SLANG_COMPILER,
+                                     { "-force-glsl-scalar-layout" });
 
             simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
                 .name = "Example05::simpleComputeShaderPipeline",
-                .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
+                .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                                            ImGrace_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "05_ImGrace.slang.spv"),
                 .layout = pDevice->GetSolePipelineLayout(),
             });
         }

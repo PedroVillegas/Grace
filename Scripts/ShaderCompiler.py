@@ -108,7 +108,7 @@ class ShaderCompilationManager:
                 if extension in SLANG_EXTENSIONS:
                     CompileSlang(self.slangc, self.slangc_args, entries[i], sh, outputFiles[i])
                 elif extension in GLSL_EXTENSIONS:
-                    CompileGlsl(self.glslc, self.glslc_args, entries[i], sh, outputFiles[i])
+                    CompileGlsl(self.glslc, self.glslc_args, sh, outputFiles[i])
                 # elif extension in HLSL_EXTENSIONS:
                 #     CompileHlsl(self.hlslc, self.hlslc_args, sh, outputfile)
                 else:
@@ -173,7 +173,6 @@ def CompileSlang(slangc: str,
 
 def CompileGlsl(glslc: str,
                 glslc_args: str | None,
-                entry: str,
                 filepath: str,
                 outputfile: str):
     cmd: list[str] = [
@@ -181,7 +180,6 @@ def CompileGlsl(glslc: str,
         '-g',
         '-o', f'{outputfile}',
         '--target-env=vulkan1.3',
-        '-e', f'{entry}',
         '-MD'
     ]
 
