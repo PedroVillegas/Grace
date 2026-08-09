@@ -82,13 +82,16 @@ int main()
             pDevice->WaitIdle();
             pDevice->Free<Grace::GraphicsPipeline>(helloTrianglePH);
 
-            Grace::Ext::CompileShaderSingle("01_HelloTriangle.vert");
+            Grace::Ext::CompileGlsl(HelloTriangle_GRACE_SHADER_PROP_BASE_DIRECTORY "01_HelloTriangle.vert",
+                                    HelloTriangle_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY,
+                                    HelloTriangle_GRACE_SHADER_PROP_GLSL_COMPILER,
+                                    {});
 
             helloTrianglePH = pDevice->Create<Grace::GraphicsPipeline>({
                 .name = "Example01::helloTrianglePH",
                 .shaders = {
-                    Grace::ShaderDesc(Grace::ShaderStage::Vertex, "01_HelloTriangle.vert.spv"),
-                    Grace::ShaderDesc(Grace::ShaderStage::Fragment, "01_HelloTriangle.frag.spv"),
+                    Grace::ShaderDesc(Grace::ShaderStage::Vertex, HelloTriangle_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "01_HelloTriangle.vert.spv"),
+            Grace::ShaderDesc(Grace::ShaderStage::Fragment, HelloTriangle_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "01_HelloTriangle.frag.spv"),
                 },
                 .graphicsState = {
                     .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },

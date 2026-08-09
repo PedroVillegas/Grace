@@ -136,6 +136,17 @@ function(grace_target_compile_glsl_shaders TARGET)
 	)
 
 	add_dependencies(${TARGET} ${TARGET}-ShaderCompilation)
+
+	if (NOT DEFINED ${TARGET}_GRACE_SHADER_PROP_GLSL_COMPILER)
+		target_compile_definitions(${TARGET} PRIVATE
+			${TARGET}_GRACE_SHADER_PROP_GLSL_COMPILER="${GRACE_PREFIX_COMPILER}"
+		)
+	else ()
+		message(
+			"Warning: ${TARGET}_GRACE_SHADER_PROP_GLSL_COMPILER is already defined as '${${TARGET}_GRACE_SHADER_PROP_GLSL_COMPILER}'. "
+			"Redefining this may break runtime compilation extension."
+		)
+	endif ()
 endfunction()
 
 function(grace_target_compile_hlsl_shaders TARGET)
@@ -186,4 +197,15 @@ function(grace_target_compile_hlsl_shaders TARGET)
 	)
 
 	add_dependencies(${TARGET} ${TARGET}-ShaderCompilation)
+
+	if (NOT DEFINED ${TARGET}_GRACE_SHADER_PROP_HLSL_COMPILER)
+		target_compile_definitions(${TARGET} PRIVATE
+			${TARGET}_GRACE_SHADER_PROP_HLSL_COMPILER="${GRACE_PREFIX_COMPILER}"
+		)
+	else ()
+		message(
+			"Warning: ${TARGET}_GRACE_SHADER_PROP_HLSL_COMPILER is already defined as '${${TARGET}_GRACE_SHADER_PROP_HLSL_COMPILER}'. "
+			"Redefining this may break runtime compilation extension."
+		)
+	endif ()
 endfunction()

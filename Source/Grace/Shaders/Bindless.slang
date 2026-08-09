@@ -1,20 +1,23 @@
 // GRACE_DO_NOT_COMPILE
 
-#ifndef COMMON_BINDLESS_H
-#define COMMON_BINDLESS_H
+#ifndef GRACE_BINDLESS_SLANG_H
+#define GRACE_BINDLESS_SLANG_H
 
-#define STORAGE_IMAGE_BINDING 0
-#define SAMPLED_IMAGE_BINDING 1
-#define COMBINED_IMAGE_SAMPLER_BINDING 2
-#define SAMPLER_BINDING 3
+#define GRACE_BINDLESS_STORAGE_IMAGE_BINDING 0
+#define GRACE_BINDLESS_SAMPLED_IMAGE_BINDING 1
+#define GRACE_BINDLESS_COMBINED_IMAGE_SAMPLER_BINDING 2
+#define GRACE_BINDLESS_SAMPLER_BINDING 3
 
-[[vk::binding(STORAGE_IMAGE_BINDING, 0)]]
-__DynamicResource uStorageTextures[];
+#define GRACE_BINDLESS_REQUEST_STORAGE_IMAGES() \
+    [[vk::binding(GRACE_BINDLESS_STORAGE_IMAGE_BINDING, 0)]]   \
+    __DynamicResource uGraceStorageImages[];
 
-[[vk::binding(SAMPLED_IMAGE_BINDING, 0)]]
-Texture2D uSampledTextures[];
+#define GRACE_BINDLESS_REQUEST_SAMPLED_IMAGES() \
+    [[vk::binding(GRACE_BINDLESS_SAMPLED_IMAGE_BINDING, 0)]]   \
+    __DynamicResource uGraceSampledImages[];
 
-[[vk::binding(SAMPLER_BINDING, 0)]]
-SamplerState uSamplers[];
+#define GRACE_BINDLESS_REQUEST_SAMPLERS() \
+    [[vk::binding(GRACE_BINDLESS_SAMPLER_BINDING, 0)]]   \
+    SamplerState uGraceSamplers[];
 
-#endif
+#endif // GRACE_BINDLESS_SLANG_H

@@ -1,0 +1,23 @@
+// GRACE_DO_NOT_COMPILE
+
+#ifndef GRACE_BINDLESS_GLSL
+#define GRACE_BINDLESS_GLSL
+
+#define GRACE_BINDLESS_STORAGE_IMAGE_BINDING 0
+#define GRACE_BINDLESS_SAMPLED_IMAGE_BINDING 1
+#define GRACE_BINDLESS_COMBINED_IMAGE_SAMPLER_BINDING 2
+#define GRACE_BINDLESS_SAMPLER_BINDING 3
+
+#define GRACE_BINDLESS_REQUEST_STORAGE_IMAGES() \
+    layout (set = 0, binding = GRACE_BINDLESS_STORAGE_IMAGE_BINDING) uniform texture2D uGraceStorageImages[];
+
+#define GRACE_BINDLESS_REQUEST_SAMPLED_IMAGES() \
+    layout (set = 0, binding = GRACE_BINDLESS_SAMPLED_IMAGE_BINDING) uniform texture2D uGraceSampledImages[];
+
+#define GRACE_BINDLESS_REQUEST_COMBINED_IMAGE_SAMPLERS() \
+    layout (set = 0, binding = GRACE_BINDLESS_SAMPLER_BINDING) uniform sampler2D uGraceCombinedImageSamplers[];
+
+#define GRACE_BINDLESS_REQUEST_SAMPLERS() \
+    layout (set = 0, binding = GRACE_BINDLESS_SAMPLER_BINDING) uniform sampler uGraceSamplers[];
+
+#endif // GRACE_BINDLESS_GLSL

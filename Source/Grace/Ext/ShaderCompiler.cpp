@@ -8,7 +8,7 @@
 namespace Grace::Ext
 {
 
-std::string SingleStringCompilerArgs(const std::initializer_list<std::string>& args)
+static std::string SingleStringCompilerArgs(const std::initializer_list<std::string>& args)
 {
     // TODO: fix potential overflow
     std::string slangcArgs;
@@ -25,7 +25,7 @@ std::string SingleStringCompilerArgs(const std::initializer_list<std::string>& a
     return slangcArgs;
 }
 
-std::string SingleStringShaders(const std::initializer_list<std::string>& shaders)
+static std::string SingleStringShaders(const std::initializer_list<std::string>& shaders)
 {
     std::string shadersStr;
     shadersStr.reserve(2048);
