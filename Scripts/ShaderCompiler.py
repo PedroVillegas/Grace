@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+import re
 from timeit import default_timer as timer
 
 SLANG_EXTENSIONS: set[str] = {'.slang'}
@@ -65,7 +66,8 @@ class ShaderCompilationManager:
     def Compile(self):
         entries = []
         outputFiles = []
-        for sh in self.shaders:
+        shadersList = self.shaders[0].strip("'").split(' ~ ')
+        for sh in shadersList:
             begin = timer()
 
             entries.clear()
@@ -126,7 +128,8 @@ def DependenciesModified(spv: str, ext: str) -> bool:
         content = f.read()
         if ext in SLANG_EXTENSIONS:
             content = StripEscapeChar(content)
-        deps = content[len(spv) + 2: -1].split()
+        m = re.search(r'\.spv\:\s*', content)
+        deps = content[m.span()[1]: -1].split()
 
     paths: list[str] = []
     newPathBeginInd = 0
@@ -160,11 +163,11 @@ def CompileSlang(slangc: str,
         '-g0',
         '-o', f'{outputfile}',
         '-entry', f'{entry}',
-        '-depfile', f'{outputfile}.d'
+        '-depfile', f'{outputfile}.d',
     ]
 
     if slangc_args is not None and len(slangc_args) > 0:
-        cmd += slangc_args[0].split()
+        cmd += slangc_args[0].rstrip("'").lstrip("'").split(' ~ ')
 
     subprocess.run(cmd)
 
@@ -183,7 +186,7 @@ def CompileGlsl(glslc: str,
     ]
 
     if glslc_args is not None and len(glslc_args) > 0:
-        cmd += glslc_args[0].split()
+        cmd += glslc_args[0].split(' ~ ')
 
     subprocess.run(cmd)
 

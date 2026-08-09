@@ -1,33 +1,63 @@
 #include <Grace/Ext/ShaderCompiler.hpp>
 
-#include <Grace/Detail/ScratchVector.hpp>
-
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
 
 #include <iostream>
 
-void Grace::Ext::CompileShaderSingle(const std::string& relativePath)
+namespace Grace::Ext
 {
-    const std::string tmp = std::string(GRACE_SHADERS_DIR "/") + relativePath;
-    const char* rp = tmp.c_str();
 
-    // clang-format off
-    // The preceding space before the extra compiler args are required to prevent
-    // them being interpreted as arguments for the script itself. This seems to only
-    // be a problem with just one extra arg specified (no spaces)
-    const std::array<const char*, 17> argv = {
+std::string SingleStringCompilerArgs(const std::initializer_list<std::string>& args)
+{
+    // TODO: fix potential overflow
+    std::string slangcArgs;
+    slangcArgs.reserve(2048);
+    slangcArgs.append("'");
+    for (const std::string& arg : args)
+    {
+        slangcArgs.append(arg);
+        slangcArgs.append(" ~ ");
+    }
+    slangcArgs.append("-I ~ " GRACE_INTERNAL_SHADER_INCLUDE);
+    slangcArgs.append("'");
+    slangcArgs.shrink_to_fit();
+    return slangcArgs;
+}
+
+std::string SingleStringShaders(const std::initializer_list<std::string>& shaders)
+{
+    std::string shadersStr;
+    shadersStr.reserve(2048);
+    shadersStr.append("'");
+    for (uint32_t i = 0; const std::string& sh : shaders)
+    {
+        shadersStr.append(sh);
+        if (i < shaders.size() - 1)
+        {
+            shadersStr.append(" ~ ");
+        }
+        i++;
+    }
+    shadersStr.append("'");
+    shadersStr.shrink_to_fit();
+    return shadersStr;
+}
+
+void CompileSlang(const std::string& shader,
+                  const std::string& spirvDir,
+                  const std::string& compiler,
+                  std::initializer_list<std::string> compilerArgs)
+{
+    std::string slangcArgs = SingleStringCompilerArgs(compilerArgs);
+
+    const std::array<const char*, 9> argv = {
         GRACE_PY_SHADER_COMP_SCRIPT,
-        "--shaders", rp,
-        "--spirv-dir", GRACE_SPIRV_DIR "/",
-        "--slangc", GRACE_SLANG_COMPILER,
-        "--slangc-args", " " GRACE_SLANG_COMPILER_ARGS,
-        "--hlslc", GRACE_HLSL_COMPILER,
-        "--hlslc-args", " " GRACE_HLSL_COMPILER_ARGS,
-        "--glslc", GRACE_GLSL_COMPILER,
-        "--glslc-args", " " GRACE_GLSL_COMPILER_ARGS,
+        "--shaders", shader.c_str(),
+        "--spirv-dir", spirvDir.c_str(),
+        "--slangc", compiler.c_str(),
+        "--slangc-args", slangcArgs.c_str(),
     };
-    // clang-format on
 
     const pybind11::scoped_interpreter guard { true, argv.size(), argv.data() };
 
@@ -43,16 +73,93 @@ void Grace::Ext::CompileShaderSingle(const std::string& relativePath)
     }
 }
 
-void Grace::Ext::CompileShaderMulti(std::initializer_list<std::string> relativePaths)
+void CompileSlang(std::initializer_list<std::string> shaders,
+                  const std::string& spirvDir,
+                  const std::string& compiler,
+                  std::initializer_list<std::string> compilerArgs)
 {
-    ScratchVector<const char*> rp(relativePaths.size());
+    std::string shadersStr = SingleStringShaders(shaders);
+    std::string slangcArgs = SingleStringCompilerArgs(compilerArgs);
 
-    for (const std::string& path : relativePaths)
+    const std::array<const char*, 9> argv = {
+        GRACE_PY_SHADER_COMP_SCRIPT,
+        "--shaders", shadersStr.c_str(),
+        "--spirv-dir", spirvDir.c_str(),
+        "--slangc", compiler.c_str(),
+        "--slangc-args", slangcArgs.c_str(),
+    };
+
+    const pybind11::scoped_interpreter guard { true, argv.size(), argv.data() };
+
+    try
     {
-        rp.push_back(path.c_str());
+        pybind11::eval_file(GRACE_PY_SHADER_COMP_SCRIPT);
     }
-
-    const pybind11::scoped_interpreter guard { true, static_cast<int>(relativePaths.size()), rp.data() };
-
-    pybind11::eval_file(GRACE_PY_SHADER_COMP_SCRIPT);
+    catch (const pybind11::error_already_set& e)
+    {
+        std::cerr << "Python exception:\n";
+        std::cerr << e.what() << std::endl;
+        throw;
+    }
 }
+
+void CompileGlsl(const std::string& shader,
+                 const std::string& spirvDir,
+                 const std::string& compiler,
+                 std::initializer_list<std::string> compilerArgs)
+{
+    std::string glslcArgs = SingleStringCompilerArgs(compilerArgs);
+
+    const std::array<const char*, 9> argv = {
+        GRACE_PY_SHADER_COMP_SCRIPT,
+        "--shaders", shader.c_str(),
+        "--spirv-dir", spirvDir.c_str(),
+        "--glslc", compiler.c_str(),
+        "--glslc-args", glslcArgs.c_str(),
+    };
+
+    const pybind11::scoped_interpreter guard { true, argv.size(), argv.data() };
+
+    try
+    {
+        pybind11::eval_file(GRACE_PY_SHADER_COMP_SCRIPT);
+    }
+    catch (const pybind11::error_already_set& e)
+    {
+        std::cerr << "Python exception:\n";
+        std::cerr << e.what() << std::endl;
+        throw;
+    }
+}
+
+void CompileGlsl(std::initializer_list<std::string> shaders,
+                 const std::string& spirvDir,
+                 const std::string& compiler,
+                 std::initializer_list<std::string> compilerArgs)
+{
+    std::string shadersStr = SingleStringShaders(shaders);
+    std::string glslcArgs = SingleStringCompilerArgs(compilerArgs);
+
+    const std::array<const char*, 9> argv = {
+        GRACE_PY_SHADER_COMP_SCRIPT,
+        "--shaders", shadersStr.c_str(),
+        "--spirv-dir", spirvDir.c_str(),
+        "--glslc", compiler.c_str(),
+        "--glslc-args", glslcArgs.c_str(),
+    };
+
+    const pybind11::scoped_interpreter guard { true, argv.size(), argv.data() };
+
+    try
+    {
+        pybind11::eval_file(GRACE_PY_SHADER_COMP_SCRIPT);
+    }
+    catch (const pybind11::error_already_set& e)
+    {
+        std::cerr << "Python exception:\n";
+        std::cerr << e.what() << std::endl;
+        throw;
+    }
+}
+
+} // namespace Grace::Ext

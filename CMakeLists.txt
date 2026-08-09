@@ -12,25 +12,6 @@ option(GRACE_ENABLE_IMGUI_EXT "Enables custom imgui renderer backend" OFF)
 if(${CMAKE_PROJECT_NAME} STREQUAL Grace)
     set(GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT ON)
     set(GRACE_ENABLE_IMGUI_EXT ON)
-
-    # Define these in the CMakeLists.txt where Grace is included
-    set(GRACE_SPIRV_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Assets/SPIRV)
-    set(GRACE_SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Assets/Shaders)
-
-    # Define these if you don't want to auto recurse and compile shaders (these take precedent)
-    # set(GRACE_SLANG_SHADERS shader1.slang shader2.slang)
-    # set(GRACE_HLSL_SHADERS shader1.hlsl shader2.hlsl)
-    # set(GRACE_GLSL_SHADERS shader1.glsl shader2.glsl)
-
-    # Define these to use custom shader compilers (default compilers used are searched for in Vulkan SDK directory)
-    set(GRACE_CUSTOM_SLANG_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/Examples/Bin/slang-2025.13/bin/slangc.exe)
-    # set(GRACE_CUSTOM_HLSL_COMPILER ${PATH_TO_HLSL_COMPILER})
-    # set(GRACE_CUSTOM_GLSL_COMPILER ${PATH_TO_GLSL_COMPILER})
-
-    # Define these to specify compiler arguments
-    set(GRACE_SLANG_COMPILER_ARGS "-force-glsl-scalar-layout")
-    # set(GRACE_HLSL_COMPILER_ARGS "-fvk-use-scalar-layout -example-compiler-arg")
-    # set(GRACE_GLSL_COMPILER_ARGS "-example-compiler-arg1 -example-compiler-arg2")
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

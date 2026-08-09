@@ -112,8 +112,8 @@ int main()
     const Grace::GraphicsPipelineHandle texturedCubePipeline = pDevice->Create<Grace::GraphicsPipeline>({
         .name = "Example02::texturedCubePipeline",
         .shaders = {
-            Grace::ShaderDesc(Grace::ShaderStage::Vertex, "02_TexturedCube.vert.spv"),
-            Grace::ShaderDesc(Grace::ShaderStage::Fragment, "02_TexturedCube.frag.spv"),
+            Grace::ShaderDesc(Grace::ShaderStage::Vertex, TexturedCube_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "02_TexturedCube.vert.spv"),
+            Grace::ShaderDesc(Grace::ShaderStage::Fragment, TexturedCube_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "02_TexturedCube.frag.spv"),
         },
         .graphicsState = {
             .colourAttachmentFormats = { Grace::Format::RGBA8_SRGB },

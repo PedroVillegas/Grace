@@ -40,7 +40,8 @@ int main()
 
     Grace::ComputePipelineHandle simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example03::simpleComputeShaderPipeline",
-        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
+        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                                    ComputeShader_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "03_ComputeShader.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
@@ -74,11 +75,16 @@ int main()
             compiling = true;
             pDevice->WaitIdle();
 
-            Grace::Ext::CompileShaderSingle("03_ComputeShader.slang");
+            Grace::Ext::CompileSlang(ComputeShader_GRACE_SHADER_PROP_BASE_DIRECTORY "03_ComputeShader.slang",
+                                     ComputeShader_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY,
+                                     ComputeShader_GRACE_SHADER_PROP_SLANG_COMPILER,
+                                     { "-force-glsl-scalar-layout" });
 
             simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
                 .name = "Example03::simpleComputeShaderPipeline",
-                .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
+                .shader =
+                    Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                                      ComputeShader_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "03_ComputeShader.slang.spv"),
                 .layout = pDevice->GetSolePipelineLayout(),
             });
         }

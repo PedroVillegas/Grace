@@ -82,15 +82,7 @@ Pipeline<PipelineType::Graphics>::Pipeline(Device* device, const GpuGraphicsPipe
 
     for (const ShaderDesc& shader : desc.shaders)
     {
-        std::filesystem::path filepath = {};
-        if (shader.flags == ShaderFlags::RelativePath)
-        {
-            filepath = GRACE_SPIRV_DIR "/" + shader.name;
-        }
-        else if (shader.flags == ShaderFlags::AbsolutePath)
-        {
-            filepath = shader.name;
-        }
+        std::filesystem::path filepath = shader.name;
 
         GRACE_ASSERT(std::filesystem::exists(filepath));
         GRACE_ASSERT(shader.name.ends_with(".spv"));
@@ -310,7 +302,7 @@ Pipeline<PipelineType::Compute>::Pipeline(Device* device, const GpuComputePipeli
 
     const ShaderDesc& shader = desc.shader;
 
-    const std::filesystem::path filepath = GRACE_SPIRV_DIR "/" + shader.name;
+    const std::filesystem::path filepath = shader.name;
 
     GRACE_ASSERT(std::filesystem::exists(filepath));
     GRACE_ASSERT(shader.name.ends_with(".spv"));

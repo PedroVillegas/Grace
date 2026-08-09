@@ -72,7 +72,6 @@ struct GRACE_API ShaderDesc
 {
     ShaderStage stage;
     std::string name;
-    ShaderFlags flags = ShaderFlags::RelativePath;
 };
 
 struct GRACE_API GraphicsState

@@ -270,13 +270,6 @@ enum class ShaderStage : uint32_t
 };
 GRACE_ENUM_DECLARE_BITMASK_TYPE(ShaderStage);
 
-enum class ShaderFlags : uint32_t
-{
-    None,
-    RelativePath,
-    AbsolutePath,
-};
-
 // Specifies how triangles are culled once the orientation is determined
 enum class CullMode : uint32_t
 {

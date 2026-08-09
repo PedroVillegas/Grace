@@ -17,15 +17,20 @@ int main()
 
     const Grace::ComputePipelineHandle streamCompactionPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example04::streamCompactionPipeline",
-        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompaction.slang.spv"),
+        .shader =
+            Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                              StreamCompaction_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "04_StreamCompaction.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 
-    const Grace::ComputePipelineHandle streamCompactionNonOrderPreservingPipeline = pDevice->Create<Grace::ComputePipeline>({
-        .name = "Example04::streamCompactionNonOrderPreservingPipeline",
-        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "04_StreamCompactionNonOrderPreserving.slang.spv"),
-        .layout = pDevice->GetSolePipelineLayout(),
-    });
+    const Grace::ComputePipelineHandle streamCompactionNonOrderPreservingPipeline =
+        pDevice->Create<Grace::ComputePipeline>({
+            .name = "Example04::streamCompactionNonOrderPreservingPipeline",
+            .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                                        StreamCompaction_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY
+                                        "04_StreamCompactionNonOrderPreserving.slang.spv"),
+            .layout = pDevice->GetSolePipelineLayout(),
+        });
 
     std::random_device rd;  // a seed source for the random number engine
     std::mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()

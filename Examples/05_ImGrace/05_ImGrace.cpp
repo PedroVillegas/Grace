@@ -43,7 +43,8 @@ int main()
 
     Grace::ComputePipelineHandle simpleComputeShaderPipeline = pDevice->Create<Grace::ComputePipeline>({
         .name = "Example05::simpleComputeShaderPipeline",
-        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute, "03_ComputeShader.slang.spv"),
+        .shader = Grace::ShaderDesc(Grace::ShaderStage::Compute,
+                                    ImGrace_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY "05_ImGrace.slang.spv"),
         .layout = pDevice->GetSolePipelineLayout(),
     });
 

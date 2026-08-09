@@ -15,8 +15,8 @@ ImGrace::ImGrace(Device* gpu) : mGpu(gpu)
     mPlRenderDrawData = mGpu->Create<GraphicsPipeline>({
         .name = "ImGuiGrace.PlRenderDrawData",
         .shaders = {
-            ShaderDesc(ShaderStage::Vertex, GRACE_INTERNAL_SPV "/ImGuiGraceRender.slang.VertEntry.spv", ShaderFlags::AbsolutePath),
-            ShaderDesc(ShaderStage::Fragment, GRACE_INTERNAL_SPV "/ImGuiGraceRender.slang.FragEntry.spv", ShaderFlags::AbsolutePath),
+            ShaderDesc(ShaderStage::Vertex, GRACE_INTERNAL_SPV "/ImGuiGraceRender.slang.VertEntry.spv"),
+            ShaderDesc(ShaderStage::Fragment, GRACE_INTERNAL_SPV "/ImGuiGraceRender.slang.FragEntry.spv"),
         },
         .graphicsState = GraphicsState({
             .colourAttachmentFormats = { Format::RGBA8_SRGB },

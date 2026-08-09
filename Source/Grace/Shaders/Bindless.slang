@@ -7,7 +7,6 @@
 #define SAMPLED_IMAGE_BINDING 1
 #define COMBINED_IMAGE_SAMPLER_BINDING 2
 #define SAMPLER_BINDING 3
-#define UNIFORM_BUFFER_BINDING 4
 
 [[vk::binding(STORAGE_IMAGE_BINDING, 0)]]
 __DynamicResource uStorageTextures[];
