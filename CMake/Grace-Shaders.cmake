@@ -1,5 +1,7 @@
 include(ValidateShaderCompiler)
 
+set(GRACE_INTERNAL_SHADER_COMPILER_SCRIPT "${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py" CACHE INTERNAL "Path to shader compiler script")
+
 function(grace_target_shader_properties TARGET)
 	cmake_parse_arguments(PARSE_ARGV 1 GRACE_PREFIX
 		""
@@ -62,7 +64,7 @@ function(grace_target_compile_slang_shaders TARGET)
 	list(JOIN GRACE_PREFIX_COMPILER_ARGS " ~ " SLANGC_ARGS)
 
 	set(PY_SHADER_COMPILATION_CMD
-		py ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py
+		py ${GRACE_INTERNAL_SHADER_COMPILER_SCRIPT}
 		--shaders ${ALL_SHADERS}
 		--spirv-dir ${${TARGET}_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY}
 		--slangc ${GRACE_PREFIX_COMPILER}
@@ -123,7 +125,7 @@ function(grace_target_compile_glsl_shaders TARGET)
 	list(JOIN GRACE_PREFIX_COMPILER_ARGS " ~ " GLSLC_ARGS)
 
 	set(PY_SHADER_COMPILATION_CMD
-		py ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py
+		py ${GRACE_INTERNAL_SHADER_COMPILER_SCRIPT}
 		--shaders ${ALL_SHADERS}
 		--spirv-dir ${${TARGET}_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY}
 		--glslc ${GRACE_PREFIX_COMPILER}
@@ -184,7 +186,7 @@ function(grace_target_compile_hlsl_shaders TARGET)
 	list(JOIN GRACE_PREFIX_COMPILER_ARGS " ~ " HLSLC_ARGS)
 
 	set(PY_SHADER_COMPILATION_CMD
-		py ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py
+		py ${GRACE_INTERNAL_SHADER_COMPILER_SCRIPT}
 		--shaders ${ALL_SHADERS}
 		--spirv-dir ${${TARGET}_GRACE_SHADER_PROP_SPV_OUT_DIRECTORY}
 		--hlslc ${GRACE_PREFIX_COMPILER}
