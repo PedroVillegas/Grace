@@ -66,8 +66,7 @@ class ShaderCompilationManager:
     def Compile(self):
         entries = []
         outputFiles = []
-        shadersList = self.shaders[0].strip("'").split(' ~ ')
-        for sh in shadersList:
+        for sh in self.shaders:
             begin = timer()
 
             entries.clear()
