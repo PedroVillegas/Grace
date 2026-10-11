@@ -39,34 +39,22 @@ set(Third-Party ${PROJECT_SOURCE_DIR}/Third-Party)
 set(Third-Party-Sources "")
 define_property(TARGET PROPERTY THIRD_PARTY_SOURCES)
 
+list(APPEND Third-Party-Sources
+	${Third-Party}/imgui/backends/imgui_impl_glfw.cpp
+	${Third-Party}/imgui/imgui.cpp
+	${Third-Party}/imgui/imgui_demo.cpp
+	${Third-Party}/imgui/imgui_draw.cpp
+	${Third-Party}/imgui/imgui_tables.cpp
+	${Third-Party}/imgui/imgui_widgets.cpp
+)
+set_property(TARGET Grace PROPERTY THIRD_PARTY_SOURCES "${Third-Party-Sources}")
+
 set(GRACE_PY_SHADER_COMP_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/ShaderCompiler.py)
 set(GRACE_PY_YAML_CONFIG_PARSER_SCRIPT ${PROJECT_SOURCE_DIR}/Scripts/YamlConfigParser.py)
 
-if (GRACE_ENABLE_RUNTIME_SHADER_COMP_EXT)
-	target_sources(Grace PRIVATE
-		Grace/Ext/ShaderCompiler.cpp
-		Grace/Ext/ImGrace.cpp
-	)
-	target_include_directories(Grace PUBLIC ${Third-Party})
-	target_link_libraries(Grace PUBLIC pybind11::embed glfw)
-	target_compile_definitions(Grace PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}")
-endif()
-
-if (GRACE_ENABLE_IMGUI_EXT)
-	list(APPEND Third-Party-Sources
-		${Third-Party}/imgui/backends/imgui_impl_glfw.cpp
-		${Third-Party}/imgui/imgui.cpp
-		${Third-Party}/imgui/imgui_demo.cpp
-		${Third-Party}/imgui/imgui_draw.cpp
-		${Third-Party}/imgui/imgui_tables.cpp
-		${Third-Party}/imgui/imgui_widgets.cpp
-	)
-	target_sources(Grace PUBLIC
-		${Third-Party-Sources}
-	)
-endif ()
-
 target_sources(Grace PRIVATE
+	Grace/Ext/ShaderCompiler.cpp
+	Grace/Ext/ImGrace.cpp
 	Grace/Detail/Config.cpp
 	Grace/Detail/StackAllocator.cpp
 	Grace/Detail/SyncGroup.cpp
@@ -88,6 +76,7 @@ target_sources(Grace PRIVATE
 	Grace/GpuSemaphore.cpp
 	Grace/Swapchain.cpp
 	Grace/VmaUsage.cpp
+	PUBLIC ${Third-Party-Sources}
 )
 
 target_compile_features(Grace PUBLIC cxx_std_20)
@@ -115,12 +104,15 @@ target_include_directories(Grace PUBLIC
 	${vma_SOURCE_DIR}/include/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
+	${Third-Party}
 )
 
 target_link_libraries(Grace PUBLIC
 	${Vulkan_LIBRARIES}
 	yaml-cpp
 	spdlog
+	pybind11::embed
+	glfw
 )
 
 target_compile_definitions(Grace PUBLIC
@@ -128,6 +120,5 @@ target_compile_definitions(Grace PUBLIC
 	GRACE_TARGET_VULKAN_API_VERSION=${GRACE_TARGET_VULKAN_API_VERSION}
 	PRIVATE GRACE_INTERNAL_SPV="${PROJECT_SOURCE_DIR}/Source/Shaders"
 	PRIVATE GRACE_INTERNAL_SHADER_INCLUDE="${PROJECT_SOURCE_DIR}/Source"
+	PUBLIC GRACE_PY_SHADER_COMP_SCRIPT="${GRACE_PY_SHADER_COMP_SCRIPT}"
 )
-
-set_property(TARGET Grace PROPERTY THIRD_PARTY_SOURCES "${Third-Party-Sources}")
