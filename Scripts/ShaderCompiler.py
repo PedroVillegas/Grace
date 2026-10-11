@@ -149,7 +149,6 @@ def DependenciesModified(spv: str, ext: str) -> bool:
 
     return False
 
-
 def CompileSlang(slangc: str,
                  slangc_args: str | None,
                  entry: str,
